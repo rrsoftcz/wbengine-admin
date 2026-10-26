@@ -1,0 +1,152 @@
+import { lookup as dnsLookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+import { request, type RequestOptions } from 'node:https';
+import type { ClientRequest, IncomingMessage } from 'node:http';
+function ipv6Bytes(ip: string): number[] | null {
+    let s = ip.toLowerCase();
+    if (s.includes('.')) {
+        const i = s.lastIndexOf(':');
+        const v = s.slice(i + 1).split('.').map(Number);
+        s = s.slice(0, i) + ':' + ((v[0] << 8) | v[1]).toString(16) + ':' + ((v[2] << 8) | v[3]).toString(16);
+    }
+    const halves = s.split('::');
+    const left = halves[0] ? halves[0].split(':') : [], right = halves[1] ? halves[1].split(':') : [];
+    const parts = halves.length === 2 ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right] : left;
+    return parts.length === 8 ? parts.flatMap(p => [parseInt(p, 16) >> 8, parseInt(p, 16) & 255]) : null;
+}
+export function isPublicAddress(ip: string): boolean {
+    if (isIP(ip) === 4) {
+        const [a, b, c] = ip.split('.').map(Number);
+        return !(a === 0 || a === 10 || a === 127 || a >= 224 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 || a === 192 && (b === 168 || b === 0 || b === 2 || b === 88 && c === 99) || a === 100 && b >= 64 && b <= 127 || a === 198 && (b === 18 || b === 19 || b === 51 && c === 100) || a === 203 && b === 0 && c === 113);
+    }
+    if (isIP(ip) !== 6)
+        return false;
+    const b = ipv6Bytes(ip)!;
+    if (b.slice(0, 10).every(x => x === 0) && b[10] === 255 && b[11] === 255)
+        return isPublicAddress(b.slice(12).join('.'));
+    return b[0] >= 0x20 && b[0] <= 0x3f && !(b[0] === 0x20 && b[1] === 1 && (b[2] === 0x0d && b[3] === 0xb8 || b[2] <= 1)) && !(b[0] === 0x20 && b[1] === 2) && !(b[0] === 0x3f && b[1] === 0xff);
+}
+export function validateBaseUrl(raw: string, allowed: string[] = []) {
+    const u = new URL(raw);
+    const hostname = u.hostname.replace(/^\[|\]$/g, '');
+    if (u.protocol !== 'https:' || u.username || u.password || u.search || u.hash || raw.includes('?') || raw.includes('#') || u.pathname.split('/').some(x => decodeURIComponent(x) === '..') || isIP(hostname) && !isPublicAddress(hostname) && !allowed.includes(hostname))
+        throw Error('Nepovolená adresa webu');
+    if (u.port && u.port !== '443')
+        throw Error('Povolen je pouze HTTPS port 443');
+    u.pathname = u.pathname.replace(/\/?$/, '/');
+    return u;
+}
+type Resolver = (host: string) => Promise<{
+    address: string;
+    family: number;
+}[]>;
+export async function resolveTarget(raw: string, allowed: string[] = [], resolver: Resolver = host => dnsLookup(host, { all: true, verbatim: true })) {
+    const url = validateBaseUrl(raw, allowed), hostname = url.hostname.replace(/^\[|\]$/g, '');
+    const answers = isIP(hostname) ? [{ address: hostname, family: isIP(hostname) }] : await resolver(hostname);
+    if (!answers.length || answers.some(a => !isPublicAddress(a.address) && !allowed.includes(a.address)))
+        throw Error('DNS adresa není povolena');
+    return { url, hostname, ...answers[0] };
+}
+export type RemoteResource = 'capabilities' | 'identity';
+export interface RemoteClientOptions {
+    deadlineMs?: number;
+    resolver?: Resolver;
+    transport?: (options: RequestOptions, callback: (response: IncomingMessage) => void) => ClientRequest;
+}
+export function createRemoteClient({ deadlineMs = 8000, resolver, transport = request }: RemoteClientOptions = {}) {
+    if (!Number.isFinite(deadlineMs) || deadlineMs <= 0 || deadlineMs > 8000)
+        throw Error('Neplatný časový limit API');
+    return function remoteGet(base: string, resource: RemoteResource, key: string, allowlist: string[] = [], signal?: AbortSignal): Promise<unknown> {
+        if (resource !== 'capabilities' && resource !== 'identity')
+            return Promise.reject(Error('Nepovolený API prostředek'));
+        return new Promise((resolve, reject) => {
+            let settled = false, req: ClientRequest | undefined, res: IncomingMessage | undefined;
+            const cleanup = () => {
+                clearTimeout(deadline);
+                signal?.removeEventListener('abort', onAbort);
+            };
+            const fail = (error: Error) => {
+                if (settled)
+                    return;
+                settled = true;
+                cleanup();
+                res?.destroy();
+                req?.destroy();
+                reject(error);
+            };
+            const onAbort = () => fail(Error('Požadavek API byl zrušen'));
+            const deadline = setTimeout(() => fail(Error('Vypršel čas API')), deadlineMs);
+            if (signal?.aborted) {
+                onAbort();
+                return;
+            }
+            signal?.addEventListener('abort', onAbort, { once: true });
+            void resolveTarget(base, allowlist, resolver).then(t => {
+                if (settled)
+                    return;
+                req = transport({ protocol: 'https:', hostname: t.hostname, port: 443, path: t.url.pathname + `api/v2/${resource}`, method: 'GET', servername: isIP(t.hostname) ? undefined : t.hostname, rejectUnauthorized: true, agent: false, lookup: pinnedLookup(t) as never, headers: { Accept: 'application/json', ...(resource === 'identity' ? { Authorization: `Bearer ${key}` } : {}) }, timeout: deadlineMs }, response => {
+                    res = response;
+                    res.on('error', () => fail(Error('Odpověď API byla přerušena')));
+                    res.on('aborted', () => fail(Error('Odpověď API byla přerušena')));
+                    if (settled) {
+                        res.destroy();
+                        return;
+                    }
+                    if (res.statusCode !== 200) {
+                        fail(Error('Vzdálené API odmítlo požadavek'));
+                        return;
+                    }
+                    let size = 0;
+                    const chunks: Buffer[] = [];
+                    res.on('data', (chunk: Buffer) => {
+                        if (settled)
+                            return;
+                        size += chunk.length;
+                        if (size > 1024 * 1024) {
+                            fail(Error('Odpověď API je příliš velká'));
+                            return;
+                        }
+                        chunks.push(chunk);
+                    });
+                    res.on('end', () => {
+                        if (settled)
+                            return;
+                        try {
+                            const raw = Buffer.concat(chunks).toString();
+                            if (key && raw.includes(key))
+                                throw Error();
+                            const data = JSON.parse(raw);
+                            settled = true;
+                            cleanup();
+                            resolve(data);
+                        }
+                        catch {
+                            fail(Error('Neplatná odpověď API'));
+                        }
+                    });
+                });
+                req.on('timeout', () => fail(Error('Vypršel čas API')));
+                req.on('error', () => fail(Error('Spojení s API selhalo')));
+                if (settled) {
+                    req.destroy();
+                    return;
+                }
+                req.end();
+            }).catch(() => fail(Error('Spojení s API selhalo')));
+        });
+    };
+}
+export const remoteGet = createRemoteClient();
+export function pinnedLookup(target: {
+    address: string;
+    family: number;
+}) {
+    return (_host: string, options: {
+        all?: boolean;
+    }, cb: Function) => {
+        if (options?.all)
+            cb(null, [{ address: target.address, family: target.family }]);
+        else
+            cb(null, target.address, target.family);
+    };
+}
