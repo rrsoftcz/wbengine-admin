@@ -7,7 +7,7 @@ Samostatná centrální SvelteKit administrace více WBengine 4.0 webů přes AP
 - [x] ADM-03: registr, šifrované klíče, CLI provisioning, HTTPS klient s pinned DNS a celkovým deadline, discovery.
 - [x] ADM-04: obsahový editor, struktura, překlady, registrované boxy, obrázky.
 - [x] ADM-05: soukromé náhledy, koncepty, publikace, revize, konflikty, obnova struktury.
-- [ ] REL-01: izolovaný pilot se skutečným PHP API, celkové review, CI, migrační a rollback postup.
+- [ ] REL-01: technická brána hotová (dvě API instalace, review, CI, výpadky/obnova), zbývá závěrečné schválení merge a vydání.
 
 ## Postup
 
@@ -42,3 +42,10 @@ Pilot odhalil skutečnou chybu: nový PageServerLoad při deadAPI překryl actio
 Providerprobe3/3GREEN, DBdump/restore17tabulek/861řádků: stejnédefaulty/definice/hashe všechřádků, pomocnáDB/dump odstraněné. Vše jen izolovanétesty. Nový samostatný CIjob stahuje veřejnouframeworkovou větev, sestaví obrazy, spustí start/probe/consumer/backup-check a vždyreset. Runtime není vGitu a žádnýklíč se netiskne.
 
 Implementace i technická brána jsou hotové; zbývá ověření této novéCI a závěrečné rozhodnutí o merge/tag/release4.0.0. Produkčnídata ani deployment nebyly provedeny. Společný aktuální stav vede také plan-framework-improvements.md ve frameworkovém repo.
+
+
+## Finální remote ověření
+
+Administrace287274d: oba GitHub joby GREEN v run40360443062, včetně skutečného Two-sitePHPAPIpilot2m18s s výpadkem/revokací a dump/restore. Jádro0c15eba má všech7jobůGREEN; poslední dokumentačnícheckpointd99d088 a aktuální proof ve společnémplánu. Skeleton95ce7cf má navíc actualsourceHTMLmigrační smoke18plánů naTEMPkopiích,8safeapply/rollback a10manualreview bezpřepsání originálů.
+
+Implementace a technické testy jsou dokončené, zbývá pouze vydávací rozhodnutí. Žádnýmerge,tagv4.0.0,produkčnídeploy ani přepsání skutečných provozníchdat neproběhly. Podkladykvydání a operatorplaybook jsou ve frameworkovémrepo. Tento poslední commit pouze doplňuje finální stav plánu.
