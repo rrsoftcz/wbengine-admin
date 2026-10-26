@@ -1,5 +1,5 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
-import { connectContent, siteId, resourceName, parseFields, RemoteFailure } from './content.ts';
+import { connectContent, siteId, resourceName, parseFields, RemoteFailure, ContentConnectionFailure } from './content.ts';
 import { signedIn, form, field } from './web.ts';
 import { idOf } from '../content-schema.ts';
 import type { Resource } from './api-contract.ts';
@@ -19,9 +19,19 @@ export function createContentActions(connect: typeof connectContent = connectCon
         let f: FormData | undefined;
         const r = resourceName(e.params.resource!), id = e.params.id!;
         let target = id;
+        let context: {
+            site: {
+                id: number;
+                name: string;
+            };
+            role: import('./content.ts').Role;
+        } | undefined, submitting = false;
         try {
             f = await form(e);
-            const { gateway, boxTypes } = await connect(s, siteId(e.params.site!)), etag = field(f, 'etag', 100), locale = String(f.get('locale') ?? '');
+            const connected = await connect(s, siteId(e.params.site!));
+            const { gateway, boxTypes } = connected;
+            context = { site: connected.site, role: gateway.role };
+            const etag = field(f, 'etag', 100), locale = String(f.get('locale') ?? '');
             if (action === 'merge') {
                 if (f.get('mergeConsent') !== 'yes')
                     throw Error('Potvrďte ruční sloučení');
@@ -29,7 +39,9 @@ export function createContentActions(connect: typeof connectContent = connectCon
                 return { action: locale ? 'translationSave' : 'save', values: dirtyValues(f, r), translationValues: dirtyValues(f, r), etag: current.etag, translationEtag: current.etag, merged: true, message: 'Načtena aktuální verze. Ručně zkontrolujte a slučte svoje změny s obsahem níže, potom je uložte.' };
             }
             if (action === 'save') {
-                const result = await gateway.save(r, id === 'new' ? null : id, parseFields(r, f, false, boxTypes), etag);
+                const data = parseFields(r, f, false, boxTypes);
+                submitting = true;
+                const result = await gateway.save(r, id === 'new' ? null : id, data, etag);
                 target = idOf(r, result.data as Record<string, unknown>);
             }
             else if (action === 'delete') {
@@ -48,14 +60,23 @@ export function createContentActions(connect: typeof connectContent = connectCon
                     throw Error('Potvrďte obnovu');
                 await gateway.restore(r, id, field(f, 'change_id', 32), etag);
             }
-            else
-                await gateway.saveTranslation(r, id, locale, action === 'translationDelete' ? null : parseFields(r, f, true), etag);
+            else {
+                const data = action === 'translationDelete' ? null : parseFields(r, f, true);
+                submitting = true;
+                await gateway.saveTranslation(r, id, locale, data, etag);
+            }
         }
         catch (cause) {
             const { isRedirect } = await import('@sveltejs/kit');
             if (isRedirect(cause))
                 throw cause;
-            return fail(cause instanceof RemoteFailure ? cause.status : 400, { error: cause instanceof RemoteFailure ? cause.message : 'Operace se nezdařila. Zkontrolujte pole, oprávnění a dostupnost webu.', conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
+            const unavailable = cause instanceof ContentConnectionFailure || (submitting && (!(cause instanceof RemoteFailure) || cause.status >= 500 || cause.status === 401));
+            if (f && unavailable && (action === 'save' || action === 'translationSave')) {
+                const local = cause instanceof ContentConnectionFailure ? { site: cause.site, role: cause.role } : context;
+                if (local)
+                    e.locals.contentFailure = { ...local, resource: r, id, action, fields: dirty(f) };
+            }
+            return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? cause.message : 'Operace se nezdařila. Zkontrolujte pole, oprávnění a dostupnost webu.', conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
         }
         redirect(303, `/content/${e.params.site}/${r}/${target}` + (f?.get('locale') ? '?locale=' + encodeURIComponent(String(f.get('locale'))) : ''));
     };

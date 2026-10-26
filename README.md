@@ -79,3 +79,16 @@ Struktura se ukládá přímo. Po odstranění stránky, menu, sekce nebo boxu z
 Při konfliktu se neprovádí automatický retry. Uživatel může svoje změny zahodit a načíst vzdálený stav, nebo si zobrazí aktuální obsah a výslovně převezme jeho ETag pro ruční sloučení. Tato operace sama nic nezapisuje. Změny poté zkontroluje a uloží samostatně.
 
 `tests/api-pilot.ts` ověřuje skutečné centrální HTML formuláře proti aktuálnímu PHP API přes ověřené HTTPS. Poskytovatel fixture je ve frameworkovém projektu `tests/pilot/`. Používá vlastní Docker síť, databáze, generovanou CA a klíče mimo Git. Consumer potřebuje `PILOT_API_URL`, `PILOT_API_KEY`, `DATABASE_URL` končící `/wbengine_admin_pilot`, `MASTER_KEY`, `REMOTE_IP_ALLOWLIST` a `NODE_EXTRA_CA_CERTS`. Test se spouští uvnitř produkční image s mountem tohoto adresáře tests a runtime CA, nikoli proti produkčnímu webu. Nevyžaduje vypnutí TLS ověřování a nevypisuje klíče.
+
+
+Společná CI administrace nyní používá dvě skutečně nezávislé API instalace. Stejně lokálně:
+
+```sh
+sh /path/to/wbengine/tests/pilot/pilot.sh start
+sh /path/to/wbengine/tests/pilot/pilot.sh probe
+sh /path/to/wbengine/tests/pilot/pilot.sh consumer /path/to/wbengine-admin
+sh /path/to/wbengine/tests/pilot/pilot.sh backup-check
+sh /path/to/wbengine/tests/pilot/pilot.sh reset
+```
+
+Příprava obrazů a oprávnění je popsána v jádru tests/pilot/ref-pilot.md. Finite testovací ovládání výpadku/revokace nepřidává Docker socket ani veřejný řídicí endpoint do centrály. Při nedostupném nebo odmítnutém spojení zůstává odeslaný formulář a ETag ve stejném requestu zachován; další pokus je ruční a znovu kontroluje veškerá oprávnění.

@@ -31,3 +31,14 @@ Review našlo použití required JSON klíčů jako nonempty HTML required, kter
 Rodič ověřil33unit/transport/action/component testů, Sveltecheck0chyb/0warnings, produkční build a Node24 Dockerimage. Před opravou UI také5realMySQL+1authHTTPgreen, oprava mění pouze HTML constraints. Po opravě skutečný centralHTML->ověřené pinnedHTTPS->PHPAPI pilot1/1GREEN:login/MFA, createpage/article, translation/privatepreview, concurrent412 a preservedtextarea, explicitmerge, save/publish/revisionrestore, strukturálnídelete/undo včetněpřekladu, menu/section/boxCRUD, imageCRUD, editorpublish403 a cizíweb403. ZákladníTLSproviderprobe2/2GREEN včetně odmítnutí bezexplicitníCA.
 
 Pilot používá Nodefetch na skutečné SSR formuláře, nejde o grafickou Chromium automatizaci. Finální releasegate rozšiřuje ověření na dvě skutečně oddělené API databáze/klíče, revokaci a výpadky. Zatím bez merge/tag/deploymentu. Následuje commit/push této fáze a CI.
+
+
+## REL-01, dva skutečně oddělené weby a výpadky
+
+2026-10-26: rodič ověřil34unit/transport/action/SSRcomponent testů, check0/0 a poslední produkčníDockerbuild. Skutečný dualwebHTMLpilot1/1GREEN (~14.05s) přes wrapper v jádru: dva samostatné DB/user/key weby, crosskey401, editorweb1 odmítnutý naweb2, výpadekweb2 při běžícímweb1, zachovanýdirtytext a původníETag, návrat bezautomatickéhozápisu a teprve ručníretry, odvolanýklíč401bezvlivu naweb1. PoSIGKILL procesu centrály oba veřejnéweby dále200.
+
+Pilot odhalil skutečnou chybu: nový PageServerLoad při deadAPI překryl actionfail. Request-local fallback teď uchovává jen lokálněautorizované siteID/name/roli a odeslanéstringfields, nikdyklíče/gateway/exception. Funguje jen pro stejný POST a route. NásledujícíPOST opět provede fresh session/grants/CSRF/scopes/capabilities/ETag. Nezávislé scoped review bez blokací, actualRED/GREEN a nový unit test.
+
+Providerprobe3/3GREEN, DBdump/restore17tabulek/861řádků: stejnédefaulty/definice/hashe všechřádků, pomocnáDB/dump odstraněné. Vše jen izolovanétesty. Nový samostatný CIjob stahuje veřejnouframeworkovou větev, sestaví obrazy, spustí start/probe/consumer/backup-check a vždyreset. Runtime není vGitu a žádnýklíč se netiskne.
+
+Implementace i technická brána jsou hotové; zbývá ověření této novéCI a závěrečné rozhodnutí o merge/tag/release4.0.0. Produkčnídata ani deployment nebyly provedeny. Společný aktuální stav vede také plan-framework-improvements.md ve frameworkovém repo.

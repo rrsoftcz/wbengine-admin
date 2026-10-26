@@ -160,9 +160,43 @@ export function createContentGateway(options: GatewayOptions) {
         }
     };
 }
+export interface ContentFormFailure {
+    site: {
+        id: number;
+        name: string;
+    };
+    role: Role;
+    resource: Resource;
+    id: string;
+    action: 'save' | 'translationSave';
+    fields: Record<string, string>;
+}
+/** Contains only locally authorized display metadata, never credentials or the original error. */
+export class ContentConnectionFailure extends RemoteFailure {
+    site: {
+        id: number;
+        name: string;
+    };
+    role: Role;
+    constructor(site: {
+        id: number;
+        name: string;
+    }, role: Role, cause: unknown) {
+        super(cause instanceof RemoteFailure ? cause.status : 503, 'content_unavailable');
+        this.site = { id: site.id, name: site.name };
+        this.role = role;
+    }
+}
 export async function connectContent(s: Session, id: number) {
     const site = await transaction(async (c) => {
-        try{await requireSite(c,s,id,'read');}catch(cause){if(cause instanceof Error&&cause.message==='Chybí oprávnění k webu')throw new RemoteFailure(403,'forbidden');throw cause;}
+        try {
+            await requireSite(c, s, id, 'read');
+        }
+        catch (cause) {
+            if (cause instanceof Error && cause.message === 'Chybí oprávnění k webu')
+                throw new RemoteFailure(403, 'forbidden');
+            throw cause;
+        }
         const [site] = await rows<{
             name: string;
             base_url: string;
@@ -173,23 +207,28 @@ export async function connectContent(s: Session, id: number) {
             throw new RemoteFailure(404, 'not_found');
         return site;
     });
-    const key = vault().decrypt(site.key_cipher, `site:${id}`), allowed = (process.env.REMOTE_IP_ALLOWLIST ?? '').split(',').filter(Boolean);
-    const call = (request: ApiCall) => apiCall(site.base_url, request, key, allowed, undefined, `admin:${s.user.id}`);
-    const [discovery, identity] = await Promise.all([call({ operation: 'capabilities' }), call({ operation: 'identity' })]);
-    const caps = discovery.data as {
-        api_version?: string;
-        capabilities: Capabilities;
-        box_types?: BoxType[];
-    }, user = identity.data as {
-        scopes?: unknown;
-    };
-    if (caps.api_version !== '2.0' || !caps.capabilities || !Array.isArray(user.scopes) || !user.scopes.every(x => typeof x === 'string'))
-        throw Error('Neplatná discovery odpověď');
-    const scopes = user.scopes as string[];
-    if (!scopes.includes('discovery:read'))
-        throw new RemoteFailure(403, 'forbidden');
     const role: Role = s.user.globalAdmin ? 'global' : site.role;
-    return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), gateway: createContentGateway({ role, scopes, capabilities: caps.capabilities, call }) };
+    try {
+        const key = vault().decrypt(site.key_cipher, `site:${id}`), allowed = (process.env.REMOTE_IP_ALLOWLIST ?? '').split(',').filter(Boolean);
+        const call = (request: ApiCall) => apiCall(site.base_url, request, key, allowed, undefined, `admin:${s.user.id}`);
+        const [discovery, identity] = await Promise.all([call({ operation: 'capabilities' }), call({ operation: 'identity' })]);
+        const caps = discovery.data as {
+            api_version?: string;
+            capabilities: Capabilities;
+            box_types?: BoxType[];
+        }, user = identity.data as {
+            scopes?: unknown;
+        };
+        if (caps.api_version !== '2.0' || !caps.capabilities || !Array.isArray(user.scopes) || !user.scopes.every(x => typeof x === 'string'))
+            throw Error('Neplatná discovery odpověď');
+        const scopes = user.scopes as string[];
+        if (!scopes.includes('discovery:read'))
+            throw new RemoteFailure(403, 'forbidden');
+        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), gateway: createContentGateway({ role, scopes, capabilities: caps.capabilities, call }) };
+    }
+    catch (cause) {
+        throw new ContentConnectionFailure({ id, name: site.name }, role, cause);
+    }
 }
 function projectBoxTypes(raw: unknown): BoxType[] {
     if (!Array.isArray(raw))

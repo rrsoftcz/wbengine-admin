@@ -121,4 +121,39 @@ test('permissions block before transport for editor publish/delete/structure and
         assert.throws(action);
     assert.equal(calls, 0);
 });
-test('translation action forwards own locale and ETag and redirects after success',async()=>{const {createContentActions}=await import('../src/lib/server/content-actions.ts');const {isRedirect}=await import('@sveltejs/kit');const tag='"'+'d'.repeat(64)+'"';const calls:unknown[]=[];const gateway=createContentGateway({role:'global',scopes:['articles:read','articles:write','translations:read','translations:write'],capabilities:{articles:{read:true,write:true},translations:{read:true,write:true}},call:async call=>{calls.push(call);return {data:{id:2},etag:tag};}});const actions=createContentActions(async()=>({site:{id:1,name:'Fixture'},boxTypes:[],gateway}));const event={params:{site:'1',resource:'articles',id:'2'},url:new URL('https://admin.example/content/1/articles/2'),locals:{csrf:'csrf',session:{user:{id:1,email:'a@example.test',globalAdmin:true,mfaEnabled:true},mfaVerified:true,csrf:'csrf',hash:'abc'}},request:new Request('https://admin.example/content/1/articles/2',{method:'POST',headers:{origin:'https://admin.example'},body:new URLSearchParams({csrf:'csrf',etag:tag,locale:'en',title:'English',introtext:'Intro',bodytext:'Body',content_format:'markdown'})})} as never;await assert.rejects(actions.translationSave(event),e=>isRedirect(e)&&e.status===303&&e.location.endsWith('?locale=en'));assert.deepEqual(calls,[{operation:'translationSave',resource:'articles',id:'2',locale:'en',etag:tag,data:{title:'English',introtext:'Intro',bodytext:'Body',content_format:'markdown'}}]);});
+test('translation action forwards own locale and ETag and redirects after success', async () => {
+    const { createContentActions } = await import('../src/lib/server/content-actions.ts');
+    const { isRedirect } = await import('@sveltejs/kit');
+    const tag = '"' + 'd'.repeat(64) + '"';
+    const calls: unknown[] = [];
+    const gateway = createContentGateway({ role: 'global', scopes: ['articles:read', 'articles:write', 'translations:read', 'translations:write'], capabilities: { articles: { read: true, write: true }, translations: { read: true, write: true } }, call: async (call) => {
+            calls.push(call);
+            return { data: { id: 2 }, etag: tag };
+        } });
+    const actions = createContentActions(async () => ({ site: { id: 1, name: 'Fixture' }, boxTypes: [], gateway }));
+    const event = { params: { site: '1', resource: 'articles', id: '2' }, url: new URL('https://admin.example/content/1/articles/2'), locals: { csrf: 'csrf', session: { user: { id: 1, email: 'a@example.test', globalAdmin: true, mfaEnabled: true }, mfaVerified: true, csrf: 'csrf', hash: 'abc' } }, request: new Request('https://admin.example/content/1/articles/2', { method: 'POST', headers: { origin: 'https://admin.example' }, body: new URLSearchParams({ csrf: 'csrf', etag: tag, locale: 'en', title: 'English', introtext: 'Intro', bodytext: 'Body', content_format: 'markdown' }) }) } as never;
+    await assert.rejects(actions.translationSave(event), e => isRedirect(e) && e.status === 303 && e.location.endsWith('?locale=en'));
+    assert.deepEqual(calls, [{ operation: 'translationSave', resource: 'articles', id: '2', locale: 'en', etag: tag, data: { title: 'English', introtext: 'Intro', bodytext: 'Body', content_format: 'markdown' } }]);
+});
+test('connection failure keeps submitted fields in request-local state for offline HTML without another remote read', async () => {
+    const { createContentActions } = await import('../src/lib/server/content-actions.ts');
+    const { ContentConnectionFailure } = await import('../src/lib/server/content.ts');
+    let calls = 0;
+    const actions = createContentActions(async () => {
+        calls++;
+        throw new ContentConnectionFailure({ id: 9, name: 'Offline site' }, 'editor', new RemoteFailure(502, 'unavailable'));
+    });
+    const event = { params: { site: '9', resource: 'articles', id: '2' }, url: new URL('https://admin.example/content/9/articles/2'), locals: { csrf: 'csrf', session: { user: { id: 1, email: 'e@example.test', globalAdmin: false, mfaEnabled: true }, mfaVerified: true, csrf: 'csrf', hash: 'abc' } }, request: new Request('https://admin.example/content/9/articles/2', { method: 'POST', headers: { origin: 'https://admin.example' }, body: new URLSearchParams({ csrf: 'csrf', etag: '"' + 'a'.repeat(64) + '"', title: 'Unsaved', introtext: '', bodytext: 'Keep <dirty> & exact', content_format: 'markdown', site_id: '1' }) }) } as unknown as import('@sveltejs/kit').RequestEvent;
+    const result = await actions.save(event) as {
+        status: number;
+    };
+    assert.equal(result.status, 502);
+    assert.equal(calls, 1);
+    const retained = event.locals.contentFailure;
+    assert.ok(retained);
+    assert.equal(retained.fields.bodytext, 'Keep <dirty> & exact');
+    assert.equal(retained.fields.introtext, '');
+    assert.equal(retained.site.name, 'Offline site');
+    assert.equal('csrf' in retained.fields, false);
+    assert.equal('key' in retained, false);
+});

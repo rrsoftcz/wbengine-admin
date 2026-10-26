@@ -1,6 +1,8 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { apiCall, RemoteFailure } from '../src/lib/server/remote.ts';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { randomBytes } from 'node:crypto';
@@ -73,8 +75,35 @@ function redirectId(r: Response, resource: string) {
     assert.ok(location.includes('/' + resource + '/'));
     return location.split('/').at(-1)!.split('?')[0];
 }
+async function control(action: 'stop-second' | 'start-second' | 'revoke-second') {
+    const root = process.env.PILOT_CONTROL_DIR;
+    if (!root)
+        throw Error('Missing finite pilot controls');
+    const done = join(root, action + '.done');
+    await rm(done, { force: true });
+    await writeFile(join(root, action + '.request'), 'go');
+    for (let n = 0; n < 300; n++) {
+        try {
+            const reply = (await readFile(done, 'utf8')).trim();
+            if (reply === 'ok')
+                return;
+            throw Error('Pilot control failed');
+        }
+        catch (cause) {
+            if ((cause as NodeJS.ErrnoException).code !== 'ENOENT')
+                throw cause;
+        }
+        await new Promise(r => setTimeout(r, 100));
+    }
+    throw Error('Pilot control timeout');
+}
+function assertSafe(html: string) {
+    for (const key of [process.env.PILOT_API_KEY, process.env.PILOT_SECOND_API_KEY, process.env.MASTER_KEY])
+        if (key)
+            assert.ok(!html.includes(key), 'No integration or master key may appear in HTML');
+}
 const suffix = randomBytes(6).toString('hex');
-test('actual central browser forms through pinned HTTPS PHP API: drafts, conflict, merge, translations, sandbox preview, publish, revisions, structure recovery and public images', async () => {
+test('actual central forms across two independent HTTPS PHP APIs: editing, grants, outage recovery, revoked key and central failure', async () => {
     const email = `pilot-${suffix}@example.test`, password = 'pilot isolated password 1234';
     const boot = await acceptInvitation(await invite(email, true), password), secret = await setupMfa((await loadSession(boot))!);
     let response = await get('/login'), html = await response.text();
@@ -129,7 +158,7 @@ test('actual central browser forms through pinned HTTPS PHP API: drafts, conflic
     response = await post(base + '/articles/' + article + '?/save', { ...stale, site_id: page, title: 'Dirty local title', introtext: 'Dirty intro', bodytext: 'Dirty <must stay> & intact', content_format: 'markdown', author: 'Fixture', source: '' });
     assert.equal(response.status, 412);
     html = await response.text();
-    assert.equal(decode(html.match(/<textarea\b[^>]*name="bodytext"[^>]*>([\s\S]*?)<\/textarea>/)?.[1]??''),'Dirty <must stay> & intact');
+    assert.equal(decode(html.match(/<textarea\b[^>]*name="bodytext"[^>]*>([\s\S]*?)<\/textarea>/)?.[1] ?? ''), 'Dirty <must stay> & intact');
     assert.equal(hidden(html, 'save').etag, stale.etag);
     assert.ok(!html.includes(process.env.PILOT_API_KEY!));
     response = await post(base + '/articles/' + article + '?/merge', { ...hidden(html, 'save'), site_id: page, title: 'Dirty local title', introtext: 'Dirty intro', bodytext: 'Dirty <must stay> & intact', content_format: 'markdown', author: 'Fixture', source: '', mergeConsent: 'yes' });
@@ -221,13 +250,86 @@ test('actual central browser forms through pinned HTTPS PHP API: drafts, conflic
     assert.equal(response.status, 303);
     await assert.rejects(gateway.get('images', images.at(-1)!.image_id));
     assert.equal(canOperate('editor', gateway.scopes, gateway.capabilities, 'publish', 'articles'), false);
-    const editorBoot=await acceptInvitation(await invite(`editor-${suffix}@example.test`,false,Number(site.id),'editor'),'editor isolated password 123');
-    const editorSession=(await loadSession(editorBoot))!,editorSecret=await setupMfa(editorSession),editorVerified=await completeMfa(editorSession,totp(editorSecret,Math.floor(Date.now()/30000)));
-    jar.set('__Host-wbadmin',editorVerified.sessionToken);
-    html=await(await get(base+'/articles/'+article)).text();assert.ok(!html.includes('action="?/publish"'));const beforeDenied=await gateway.get('articles',article);
-    response=await post(base+'/articles/'+article+'?/publish',{...hidden(html,'save'),confirm:'yes'});assert.equal(response.status,403);assert.equal((await gateway.get('articles',article)).etag,beforeDenied.etag);
-    await provisionSite('Unassigned pilot '+suffix,process.env.PILOT_API_URL!,process.env.PILOT_API_KEY!);
-    const [unassigned]=await transaction(c=>rows<{id:number}>(c,'SELECT id FROM sites WHERE name=?',['Unassigned pilot '+suffix]));
-    response=await get('/content/'+unassigned.id);assert.equal(response.status,403);assert.ok(!(await response.text()).includes(process.env.PILOT_API_KEY!));
-
+    const editorBoot = await acceptInvitation(await invite(`editor-${suffix}@example.test`, false, Number(site.id), 'editor'), 'editor isolated password 123');
+    const editorSession = (await loadSession(editorBoot))!, editorSecret = await setupMfa(editorSession), editorVerified = await completeMfa(editorSession, totp(editorSecret, Math.floor(Date.now() / 30000)));
+    const globalToken = jar.get('__Host-wbadmin')!;
+    jar.set('__Host-wbadmin', editorVerified.sessionToken);
+    html = await (await get(base + '/articles/' + article)).text();
+    assert.ok(!html.includes('action="?/publish"'));
+    const beforeDenied = await gateway.get('articles', article);
+    response = await post(base + '/articles/' + article + '?/publish', { ...hidden(html, 'save'), confirm: 'yes' });
+    assert.equal(response.status, 403);
+    assert.equal((await gateway.get('articles', article)).etag, beforeDenied.etag);
+    await provisionSite('Unassigned pilot ' + suffix, process.env.PILOT_API_URL!, process.env.PILOT_API_KEY!);
+    const [unassigned] = await transaction(c => rows<{
+        id: number;
+    }>(c, 'SELECT id FROM sites WHERE name=?', ['Unassigned pilot ' + suffix]));
+    response = await get('/content/' + unassigned.id);
+    assert.equal(response.status, 403);
+    assert.ok(!(await response.text()).includes(process.env.PILOT_API_KEY!));
+    assert.ok(process.env.PILOT_SECOND_API_URL && process.env.PILOT_SECOND_API_KEY && process.env.PILOT_CONTROL_DIR, 'Dual-site fixture and finite controls are required');
+    jar.set('__Host-wbadmin', globalToken);
+    await provisionSite('Independent second pilot ' + suffix, process.env.PILOT_SECOND_API_URL!, process.env.PILOT_SECOND_API_KEY!);
+    const [secondSite] = await transaction(c => rows<{
+        id: number;
+    }>(c, 'SELECT id FROM sites WHERE name=?', ['Independent second pilot ' + suffix]));
+    const secondBase = '/content/' + secondSite.id, secondConnection = await connectContent(session, Number(secondSite.id)), secondGateway = secondConnection.gateway;
+    const allowlist = (process.env.REMOTE_IP_ALLOWLIST ?? '').split(',');
+    for (const [url, key] of [[process.env.PILOT_API_URL!, process.env.PILOT_SECOND_API_KEY!], [process.env.PILOT_SECOND_API_URL!, process.env.PILOT_API_KEY!]])
+        await assert.rejects(apiCall(url, { operation: 'identity' }, key, allowlist), e => e instanceof RemoteFailure && e.status === 401);
+    html = await (await get(secondBase + '/pages/new')).text();
+    response = await post(secondBase + '/pages/new?/save', { ...hidden(html, 'save'), parent_id: '0', link: '/second-' + suffix, title: 'Independent second page', strict: '1', visible: '1', html_title: '', html_description: '', html_keywords: '', acl: '0' });
+    const secondPage = redirectId(response, 'pages');
+    html = await (await get(secondBase + '/articles/new')).text();
+    response = await post(secondBase + '/articles/new?/save', { ...hidden(html, 'save'), site_id: secondPage, title: 'Independent second draft', introtext: '', bodytext: 'Second web body', content_format: 'markdown', author: 'Fixture', source: '' });
+    const secondArticle = redirectId(response, 'articles');
+    const secondDetail = secondBase + '/articles/' + secondArticle;
+    html = await (await get(secondDetail)).text();
+    response = await post(secondDetail + '?/publish', { ...hidden(html, 'publish'), confirm: 'yes' });
+    assert.equal(response.status, 303);
+    const firstBeforeSecondEdit = await gateway.get('articles', article), secondBeforeOutage = await secondGateway.get('articles', secondArticle);
+    assert.equal((secondBeforeOutage.data as {
+        title: string;
+    }).title, 'Independent second draft');
+    assert.equal((await gateway.get('articles', article)).etag, firstBeforeSecondEdit.etag);
+    jar.set('__Host-wbadmin', editorVerified.sessionToken);
+    response = await get(secondBase);
+    assert.equal(response.status, 403);
+    jar.set('__Host-wbadmin', globalToken);
+    html = await (await get(secondDetail)).text();
+    const beforeOutageForm = hidden(html, 'save');
+    await control('stop-second');
+    response = await get(base + '/articles/' + article);
+    assert.equal(response.status, 200);
+    const outageText = 'Unsaved during outage <preserve> & retry manually';
+    response = await post(secondDetail + '?/save', { ...beforeOutageForm, site_id: secondPage, title: 'Unsaved outage draft', introtext: '', bodytext: outageText, content_format: 'markdown', author: 'Fixture', source: '' });
+    assert.ok(response.status >= 400 && response.status < 600);
+    html = await response.text();
+    assertSafe(html);
+    assert.equal(decode(html.match(/<textarea\b[^>]*name="bodytext"[^>]*>([\s\S]*?)<\/textarea>/)?.[1] ?? ''), outageText, 'outage must preserve the actual editable textarea in HTML');
+    assert.equal(hidden(html, 'save').etag, beforeOutageForm.etag);
+    await control('start-second');
+    assert.equal((await secondGateway.get('articles', secondArticle)).etag, secondBeforeOutage.etag, 'outage must not automatically retry a write');
+    response = await post(secondDetail + '?/save', { ...hidden(html, 'save'), site_id: secondPage, title: 'Recovered second draft', introtext: '', bodytext: outageText, content_format: 'markdown', author: 'Fixture', source: '' });
+    assert.equal(response.status, 303);
+    assert.equal((await gateway.get('articles', article)).etag, firstBeforeSecondEdit.etag);
+    html = await (await get(secondDetail)).text();
+    const beforeRevocation = hidden(html, 'save');
+    await control('revoke-second');
+    response = await post(secondDetail + '?/save', { ...beforeRevocation, site_id: secondPage, title: 'Revoked key draft', introtext: '', bodytext: 'Dirty text after revocation', content_format: 'markdown', author: 'Fixture', source: '' });
+    assert.ok(response.status >= 400 && response.status < 600);
+    assertSafe(await response.text());
+    await assert.rejects(apiCall(process.env.PILOT_SECOND_API_URL!, { operation: 'identity' }, process.env.PILOT_SECOND_API_KEY!, allowlist), e => e instanceof RemoteFailure && e.status === 401);
+    response = await get(base + '/articles/' + article);
+    assert.equal(response.status, 200);
+    const stopped = new Promise<void>(resolve => child.once('exit', () => resolve()));
+    child.kill('SIGKILL');
+    await stopped;
+    for (const [url, title] of [[process.env.PILOT_API_URL!, 'Published pilot'], [process.env.PILOT_SECOND_API_URL!, 'Published second pilot']]) {
+        const published = await fetch(new URL('pilot/article/', url), { redirect: 'manual' });
+        assert.equal(published.status, 200);
+        const publicHtml = await published.text();
+        assert.ok(publicHtml.includes(title));
+        assertSafe(publicHtml);
+    }
 });

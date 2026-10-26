@@ -23,6 +23,10 @@
 <a data-sveltekit-reload href={here+(data.locale?'?locale='+encodeURIComponent(data.locale):'')}>Zahodit svoje změny a načíst aktuální obsah</a>
 </p>
 </section>{/if}
+{#if data.unavailable}
+<section role="alert"><h2>Web je nedostupný nebo odmítl připojení</h2><p>Vaše odeslané údaje jsou zachované níže. Vzdálený stav nyní nelze ověřit. Zápis neopakujeme automaticky; nejprve obnovte připojení a pak odešlete formulář výslovně. Opakovaný zápis znovu ověří oprávnění i původní ETag.</p></section>
+{#if data.offlineEditable}<form method="POST" action={'?/'+data.offlineAction} class="editor"><input type="hidden" name="csrf" value={data.csrf}/>{#each Object.entries(data.offlineFields) as [name,value]}{#if ['etag','locale'].includes(name)}<input type="hidden" {name} {value}/>{:else if !['confirm','mergeConsent','change_id'].includes(name)}<label>{name}{#if ['introtext','bodytext'].includes(name)}<textarea {name} rows={name==='bodytext'?16:5}>{value}</textarea>{:else}<input type="text" {name} {value}/>{/if}</label>{/if}{/each}<button>Po obnovení připojení zkusit uložit zachované údaje</button></form>{:else}<pre>{JSON.stringify(data.offlineFields,null,2)}</pre>{/if}
+{:else}
 {#if data.deleted}<p>Záznam je odstraněný. Jeho historii lze použít pro obnovu.</p>
 {:else if data.resource==='images'}{#if data.image}<img src={data.image} alt="Náhled nahraného obrázku" style="max-width:100%;max-height:450px"/>{/if}<p>Veřejný obrázek: <code>{String(data.row.url)}</code>
 </p>
@@ -95,4 +99,5 @@
 <input name="confirm" value="yes" type="checkbox" required/> Potvrzuji obnovu tohoto stavu</label>
 <button>{data.resource==='articles'?'Obnovit do konceptu':'Obnovit strukturu'}</button>
 </form>{/if}</article>{:else}<p>Historie je prázdná.</p>{/each}{#if data.pagination}<nav>{#if data.pagination.page>1}<a href={here+'?historyPage='+(data.pagination.page-1)}>Novější záznamy</a>{/if}{#if data.pagination.page<data.pagination.total_pages}<a href={here+'?historyPage='+(data.pagination.page+1)}>Starší záznamy</a>{/if}</nav>{/if}{/if}
+{/if}
 <style>.editor{max-width:900px}iframe{display:block;width:100%;height:650px;border:1px solid #a8b7c3;margin:1rem 0}.conflict{border:2px solid #a66b00;padding:1rem;background:#fff5dc}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
