@@ -48,4 +48,9 @@ Implementace i technická brána jsou hotové; zbývá ověření této novéCI 
 
 Administrace287274d: oba GitHub joby GREEN v run40360443062, včetně skutečného Two-sitePHPAPIpilot2m18s s výpadkem/revokací a dump/restore. Jádro0c15eba má všech7jobůGREEN; poslední dokumentačnícheckpointd99d088 a aktuální proof ve společnémplánu. Skeleton95ce7cf má navíc actualsourceHTMLmigrační smoke18plánů naTEMPkopiích,8safeapply/rollback a10manualreview bezpřepsání originálů.
 
-Implementace a technické testy jsou dokončené, zbývá pouze vydávací rozhodnutí. Žádnýmerge,tagv4.0.0,produkčnídeploy ani přepsání skutečných provozníchdat neproběhly. Podkladykvydání a operatorplaybook jsou ve frameworkovémrepo. Tento poslední commit pouze doplňuje finální stav plánu.
+Implementace a technické testy jsou dokončené, framework v4.0.0 je vydán, zbývá merge administrace a zveřejnění jejího repozitáře. Merge administrace ještě neproběhl;tagv4.0.0 jádra existuje;produkčnídeploy ani přepsání skutečných provozníchdat neproběhly. Podkladykvydání a operatorplaybook jsou ve frameworkovémrepo. Tento poslední commit pouze doplňuje finální stav plánu.
+
+
+## Publikace
+
+2026-10-26: Jádro WBengine bylo sloučeno do master jako cf710e5adbc25809868a864e615f8b9fc62a7489 a tag v4.0.0 je zveřejněn. CI integrační pilot používá stabilní tag, ne vývojovou větev. PR administrace se sloučí po zelené CI této změny. Produkční nasazení nebylo provedeno.
