@@ -1,0 +1,33 @@
+{
+  "name": "wbengine-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "vite dev --host 0.0.0.0",
+    "build": "vite build",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:integration": "node --experimental-strip-types --test tests/mysql.integration.ts",
+    "admin": "node --experimental-strip-types scripts/admin.ts",
+    "test:mysql": "npm run build && node --experimental-strip-types scripts/test-mysql.ts"
+  },
+  "dependencies": {
+    "mysql2": "3.24.6"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "3.1.0",
+    "@sveltejs/adapter-node": "6.0.0",
+    "svelte": "5.57.2",
+    "vite": "8.3.5",
+    "typescript": "6.0.3",
+    "svelte-check": "4.7.7",
+    "@types/node": "26.6.5"
+  },
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  }
+}

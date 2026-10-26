@@ -1,0 +1,57 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
+      - run: npm test
+      - run: npm run check
+      - run: npm run test:mysql
+
+  api-pilot:
+    name: Two-site PHP API pilot
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: admin
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: rrsoftcz/wbengine
+          ref: v4.0.0
+          path: framework
+          persist-credentials: false
+      - name: Build isolated provider and consumer images
+        run: |
+          docker build -t wbengine-modernization-php:latest framework/docker
+          docker run --rm -v "$PWD/framework:/app" -w /app wbengine-modernization-php:latest composer install --no-dev --no-interaction --prefer-dist --no-progress
+          docker build -t wbengine-admin-foundation-check:local admin
+          docker pull mysql:8.4
+          docker pull nginx:stable-alpine
+          docker pull node:22-alpine
+      - name: Start two independent websites
+        run: sh framework/tests/pilot/pilot.sh start
+      - name: Verify TLS and website separation
+        run: sh framework/tests/pilot/pilot.sh probe
+      - name: Exercise central forms, publication, conflicts and failure recovery
+        run: sh framework/tests/pilot/pilot.sh consumer "$PWD/admin"
+      - name: Verify database backup and restore
+        run: sh framework/tests/pilot/pilot.sh backup-check
+      - name: Stop only this pilot and erase generated secrets
+        if: always()
+        run: |
+          if [ -f framework/tests/pilot/pilot.sh ]; then sh framework/tests/pilot/pilot.sh reset; fi
