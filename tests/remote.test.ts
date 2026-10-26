@@ -82,7 +82,7 @@ test('non-200 streaming response is destroyed immediately instead of drained', a
     const address = server.address() as import('node:net').AddressInfo;
     try {
         const get = remote.createRemoteClient({ deadlineMs: 500, transport: (options: import('node:https').RequestOptions, cb: (r: import('node:http').IncomingMessage) => void) => httpRequest({ hostname: '127.0.0.1', port: address.port, path: options.path }, cb), resolver: async () => [{ address: '8.8.8.8', family: 4 }] });
-        await assert.rejects(get('https://example.com', 'identity', '', []), /odmítlo/);
+        await assert.rejects(get('https://example.com', 'identity', '', []), e=>e instanceof remote.RemoteFailure&&e.status===403);
         await new Promise(r => setTimeout(r, 40));
         assert.equal(closed, true);
     }

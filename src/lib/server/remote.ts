@@ -1,3 +1,5 @@
+import { planApiCall, RemoteFailure, strongEtag, type ApiCall, type ApiReply } from './api-contract.ts';
+export { planApiCall, RemoteFailure } from './api-contract.ts';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { request, type RequestOptions } from 'node:https';
@@ -53,12 +55,16 @@ export interface RemoteClientOptions {
     resolver?: Resolver;
     transport?: (options: RequestOptions, callback: (response: IncomingMessage) => void) => ClientRequest;
 }
-export function createRemoteClient({ deadlineMs = 8000, resolver, transport = request }: RemoteClientOptions = {}) {
+export function createApiClient({ deadlineMs = 8000, resolver, transport = request }: RemoteClientOptions = {}) {
     if (!Number.isFinite(deadlineMs) || deadlineMs <= 0 || deadlineMs > 8000)
         throw Error('Neplatný časový limit API');
-    return function remoteGet(base: string, resource: RemoteResource, key: string, allowlist: string[] = [], signal?: AbortSignal): Promise<unknown> {
-        if (resource !== 'capabilities' && resource !== 'identity')
-            return Promise.reject(Error('Nepovolený API prostředek'));
+    return function apiCall(base: string, call: ApiCall, key: string, allowlist: string[] = [], signal?: AbortSignal, actor?: string): Promise<ApiReply> {
+        const plan = planApiCall(call);
+        if (actor && !/^admin:[1-9][0-9]*$/.test(actor))
+            return Promise.reject(Error('Neplatný aktér'));
+        const body = plan.data ? JSON.stringify(plan.data) : undefined;
+        if (body && Buffer.byteLength(body) > 1048576)
+            return Promise.reject(Error('Příliš velký požadavek'));
         return new Promise((resolve, reject) => {
             let settled = false, req: ClientRequest | undefined, res: IncomingMessage | undefined;
             const cleanup = () => {
@@ -84,7 +90,7 @@ export function createRemoteClient({ deadlineMs = 8000, resolver, transport = re
             void resolveTarget(base, allowlist, resolver).then(t => {
                 if (settled)
                     return;
-                req = transport({ protocol: 'https:', hostname: t.hostname, port: 443, path: t.url.pathname + `api/v2/${resource}`, method: 'GET', servername: isIP(t.hostname) ? undefined : t.hostname, rejectUnauthorized: true, agent: false, lookup: pinnedLookup(t) as never, headers: { Accept: 'application/json', ...(resource === 'identity' ? { Authorization: `Bearer ${key}` } : {}) }, timeout: deadlineMs }, response => {
+                req = transport({ protocol: 'https:', hostname: t.hostname, port: 443, path: t.url.pathname + `api/v2/${plan.path}`, method: plan.method, servername: isIP(t.hostname) ? undefined : t.hostname, rejectUnauthorized: true, agent: false, lookup: pinnedLookup(t) as never, headers: { Accept: 'application/json', ...(call.operation !== 'capabilities' ? { Authorization: `Bearer ${key}` } : {}), ...(plan.etag ? { 'If-Match': plan.etag } : {}), ...(actor ? { 'X-WBengine-Actor': actor } : {}), ...(body ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } : {}) }, timeout: deadlineMs }, response => {
                     res = response;
                     res.on('error', () => fail(Error('Odpověď API byla přerušena')));
                     res.on('aborted', () => fail(Error('Odpověď API byla přerušena')));
@@ -92,8 +98,8 @@ export function createRemoteClient({ deadlineMs = 8000, resolver, transport = re
                         res.destroy();
                         return;
                     }
-                    if (res.statusCode !== 200) {
-                        fail(Error('Vzdálené API odmítlo požadavek'));
+                    if (res.statusCode !== 200 && res.statusCode !== 201) {
+                        fail(new RemoteFailure(res.statusCode ?? 503, 'remote_rejected'));
                         return;
                     }
                     let size = 0;
@@ -116,9 +122,13 @@ export function createRemoteClient({ deadlineMs = 8000, resolver, transport = re
                             if (key && raw.includes(key))
                                 throw Error();
                             const data = JSON.parse(raw);
+                            if (key && JSON.stringify(data).includes(key))
+                                throw Error();
+                            if (data?.success !== true || !('data' in data))
+                                throw Error();
                             settled = true;
                             cleanup();
-                            resolve(data);
+                            resolve({ data: data.data, etag: strongEtag(res?.headers.etag) ? res.headers.etag : null, ...(data.pagination ? { pagination: data.pagination } : {}) });
                         }
                         catch {
                             fail(Error('Neplatná odpověď API'));
@@ -131,12 +141,22 @@ export function createRemoteClient({ deadlineMs = 8000, resolver, transport = re
                     req.destroy();
                     return;
                 }
-                req.end();
+                req.end(body);
             }).catch(() => fail(Error('Spojení s API selhalo')));
         });
     };
 }
+export function createRemoteClient(options: RemoteClientOptions = {}) {
+    const call = createApiClient(options);
+    return async (base: string, resource: RemoteResource, key: string, allowlist: string[] = [], signal?: AbortSignal) => {
+        if (resource !== 'capabilities' && resource !== 'identity')
+            throw Error('Nepovolený API prostředek');
+        const result = await call(base, { operation: resource }, key, allowlist, signal);
+        return { success: true, data: result.data };
+    };
+}
 export const remoteGet = createRemoteClient();
+export const apiCall = createApiClient();
 export function pinnedLookup(target: {
     address: string;
     family: number;
