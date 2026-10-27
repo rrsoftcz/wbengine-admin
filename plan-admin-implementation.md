@@ -7,7 +7,7 @@ Samostatná centrální SvelteKit administrace více WBengine 4.0 webů přes AP
 - [x] ADM-03: registr, šifrované klíče, CLI provisioning, HTTPS klient s pinned DNS a celkovým deadline, discovery.
 - [x] ADM-04: obsahový editor, struktura, překlady, registrované boxy, obrázky.
 - [x] ADM-05: soukromé náhledy, koncepty, publikace, revize, konflikty, obnova struktury.
-- [ ] REL-01: technická brána hotová (dvě API instalace, review, CI, výpadky/obnova). Zbývá konečné rozhodnutí o publikaci, schválení merge a samostatném vydání administrace.
+- [x] REL-01: technická brána, merge do `main` a privátní zdrojový release `v0.1.0` dokončeny. Zbývá případné vytvoření GitHub Release stránky a další distribuce, protože GitHub API není momentálně dostupné přes `gh`.
 
 ## Postup
 
@@ -15,11 +15,11 @@ Po každé fázi testy, aktualizace plánu, commit a push do pracovní větve. �
 
 ## Distribuce a kontrolní bod 2026-10-27
 
-Rozhodnutí: administrace je samostatný nástroj v repozitáři `wbengine-admin`, ne součást PHP/Composer balíčku WBengine. Jádro zůstává malým PHP frameworkem; SvelteKit administrace běží jako samostatná Node/Docker služba s vlastní MySQL databází a připojuje se k více webům přes jejich API v2. Repozitář zůstává zatím privátní. Framework, administrace a případné Docker obrazy mají mít nezávislé verze. Veřejné zveřejnění, název prvního release a publikace obrazu zatím nejsou rozhodnuté.
+Rozhodnutí: administrace je samostatný nástroj v repozitáři `wbengine-admin`, ne součást PHP/Composer balíčku WBengine. Jádro zůstává malým PHP frameworkem; SvelteKit administrace běží jako samostatná Node/Docker služba s vlastní MySQL databází a připojuje se k více webům přes jejich API v2. Repozitář zůstává privátní. Framework, administrace a případné Docker obrazy mají nezávislé verze. První privátní zdrojové vydání má tag `v0.1.0`; veřejné zveřejnění a publikace obrazu nebyly schváleny.
 
-Lokální checkout byl přesunut z dočasné složky do `/Users/roza/Sites/svelte/wbengine-admin`; větev zůstává `codex/wbengine-4.0`. Čerstvé ověření na této kopii: `npm test` 34/34, `npm run check` 0 chyb a 0 varování, produkční build úspěšný, `npm run test:mysql` 5 databázových a 1 HTTP/MFA test zelený. Dřívější CI run 40360443062 obsahuje dvouwebový HTTPS API pilot, odvolání klíče, výpadek a obnovu databáze. Produkční API ani data nebyly testovány zápisovými požadavky.
+Lokální checkout je v `/Users/roza/Sites/svelte/wbengine-admin`. Větev `codex/wbengine-4.0` byla rychlým posunem sloučena do `main` na commitu `7eb0870` a finální sada byla ověřena: `npm test` 34/34, `npm run check` 0 chyb a 0 varování, produkční build úspěšný, `npm run test:mysql` 5 databázových a 1 HTTP/MFA test zelený. Dřívější CI run 40360443062 obsahuje dvouwebový HTTPS API pilot, odvolání klíče, výpadek a obnovu databáze. Produkční API ani data nebyly testovány zápisovými požadavky.
 
-Stav GitHub pull requestu se nepodařilo ověřit, protože GitHub API nebylo dostupné. Další krok je obnovit přístup k GitHubu, zkontrolovat aktuální PR/CI a připravit release balíček. Merge do `main`, zveřejnění privátního repozitáře ani publikaci kontejneru provést až po uživatelově konečném schválení viditelnosti a vydání.
+Přístup `gh auth status` ukázal neplatné uložené tokeny a připojení k `api.github.com` selhalo. Proto nešlo ověřit PR ani vytvořit GitHub Release stránku. Git remote je použitelný pro běžné push operace. Připravený privátní tag `v0.1.0` odkazuje na otestovaný commit `7eb0870`; viditelnost repozitáře zůstává privátní a kontejner nebyl publikován.
 
 ## Kontrolní bod 2026-10-26
 
@@ -61,4 +61,4 @@ Implementace a technické testy jsou dokončené, framework v4.0.0 je vydán, zb
 
 ## Publikace
 
-2026-10-26: Jádro WBengine bylo sloučeno do master jako cf710e5adbc25809868a864e615f8b9fc62a7489 a tag v4.0.0 je zveřejněn. CI integrační pilot používá stabilní tag, ne vývojovou větev. PR administrace se sloučí po zelené CI této změny. Produkční nasazení nebylo provedeno.
+2026-10-27: Jádro WBengine bylo sloučeno do master jako cf710e5adbc25809868a864e615f8b9fc62a7489 a tag v4.0.0 je zveřejněn. CI integrační pilot používá stabilní tag, ne vývojovou větev. Administrace je sloučena do `main` jako 7eb0870 a samostatný tag v0.1.0 je připraven jako soukromé zdrojové vydání. GitHub Release stránku nebylo možné vytvořit přes API, protože `gh` autentizace nefunguje. Produkční nasazení nebylo provedeno.
