@@ -7,11 +7,19 @@ Samostatná centrální SvelteKit administrace více WBengine 4.0 webů přes AP
 - [x] ADM-03: registr, šifrované klíče, CLI provisioning, HTTPS klient s pinned DNS a celkovým deadline, discovery.
 - [x] ADM-04: obsahový editor, struktura, překlady, registrované boxy, obrázky.
 - [x] ADM-05: soukromé náhledy, koncepty, publikace, revize, konflikty, obnova struktury.
-- [ ] REL-01: technická brána hotová (dvě API instalace, review, CI, výpadky/obnova), zbývá závěrečné schválení merge a vydání.
+- [ ] REL-01: technická brána hotová (dvě API instalace, review, CI, výpadky/obnova). Zbývá konečné rozhodnutí o publikaci, schválení merge a samostatném vydání administrace.
 
 ## Postup
 
 Po každé fázi testy, aktualizace plánu, commit a push do pracovní větve. Žádné klíče či provozní údaje v Gitu. Každé serverové volání kontroluje aktuální session, oprávnění a konečný allowlist operací. Browser dostává jen veřejné DTO. Bez automatického merge a deploye.
+
+## Distribuce a kontrolní bod 2026-10-27
+
+Rozhodnutí: administrace je samostatný nástroj v repozitáři `wbengine-admin`, ne součást PHP/Composer balíčku WBengine. Jádro zůstává malým PHP frameworkem; SvelteKit administrace běží jako samostatná Node/Docker služba s vlastní MySQL databází a připojuje se k více webům přes jejich API v2. Repozitář zůstává zatím privátní. Framework, administrace a případné Docker obrazy mají mít nezávislé verze. Veřejné zveřejnění, název prvního release a publikace obrazu zatím nejsou rozhodnuté.
+
+Lokální checkout byl přesunut z dočasné složky do `/Users/roza/Sites/svelte/wbengine-admin`; větev zůstává `codex/wbengine-4.0`. Čerstvé ověření na této kopii: `npm test` 34/34, `npm run check` 0 chyb a 0 varování, produkční build úspěšný, `npm run test:mysql` 5 databázových a 1 HTTP/MFA test zelený. Dřívější CI run 40360443062 obsahuje dvouwebový HTTPS API pilot, odvolání klíče, výpadek a obnovu databáze. Produkční API ani data nebyly testovány zápisovými požadavky.
+
+Stav GitHub pull requestu se nepodařilo ověřit, protože GitHub API nebylo dostupné. Další krok je obnovit přístup k GitHubu, zkontrolovat aktuální PR/CI a připravit release balíček. Merge do `main`, zveřejnění privátního repozitáře ani publikaci kontejneru provést až po uživatelově konečném schválení viditelnosti a vydání.
 
 ## Kontrolní bod 2026-10-26
 
