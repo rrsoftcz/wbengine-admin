@@ -1,6 +1,6 @@
 # Plán WBengine Admin
 
-Samostatná centrální SvelteKit administrace více WBengine 4.0 webů přes API v2. Obsah zůstává na webech, integrační klíče výhradně na serveru centrály. PHP jádro zachovává strom Application/Site/Section/Box.
+Samostatná centrální SvelteKit administrace více WBengine 4 webů přes API v2. Obsah zůstává na webech, integrační klíče výhradně na serveru centrály. PHP jádro zachovává strom Application/Site/Section/Box. Aktuální vydání administrace je `v0.2.0`; repo zůstává soukromé.
 
 - [x] ADM-01: projekt, MySQL, Docker, explicitní CLI migrace.
 - [x] ADM-02: pozvánky, scrypt, TOTP, záložní kódy, obnova, sessions, CSRF, role po webech, souběhové regrese.
@@ -62,3 +62,15 @@ Implementace a technické testy jsou dokončené, framework v4.0.0 je vydán, zb
 ## Publikace
 
 2026-10-27: Jádro WBengine bylo sloučeno do master jako cf710e5adbc25809868a864e615f8b9fc62a7489 a tag v4.0.0 je zveřejněn. CI integrační pilot používá stabilní tag, ne vývojovou větev. Administrace byla sloučena do `main` a soukromé vydání v0.1.0 je publikováno. Produkční nasazení nebylo provedeno.
+
+## Analytika a testovací stav 2026-10-28
+
+Tento bod nahrazuje dřívější stavové poznámky o nedokončeném propojení Adminu s webem. WBengine Admin `v0.2.0` obsahuje dashboard `/analytics/{id}`. Přístup kontroluje současně centrální grant, scope `analytics:read` a vzdálenou capability `analytics.read`. CI ověřila analytický transport a soukromý dvouwebový API pilot; poslední lokální sada Adminu měla 43 testů, Svelte check bez chyb a varování a produkční build úspěšný.
+
+Lokální Docker instance Adminu běží pouze na loopbacku vývojového počítače. Lokální HTTPS proxy na `https://localhost:13443` vrací přesměrování na přihlášení a formulář přihlášení HTTP 200. První účet vzniká jednorázovou pozvánkou mimo Git; před použitím se nastaví heslo a povinné MFA. Způsob předání pozvánky ani tajemství nepatří do repozitáře.
+
+WBengine.org je v registru připojen jako read-only web. Pinned HTTPS klient ověřil capability, identitu a čtení kolekce článků. Integrační klíč obsahuje pouze čtecí oprávnění, včetně `analytics:read`, bez write scope. Veřejný web ale nyní hlásí `analytics.read=false`, protože nativní sběr zůstává vypnutý; dashboard proto správně ukazuje nedostupnost analytiky pro tento web. Google Analytics zůstává aktivní. Zapnutí nativního sběru a následné provozní porovnání s GA4 jsou samostatný krok, který se provede až po ověření aktualizovaného oznámení o soukromí a výslovném rozhodnutí provozovatele.
+
+Nový VPS má v aktivním nastavení přesnou trusted proxy `172.18.0.1/32` a hlavičky `x-forwarded-for` a `x-forwarded-proto`; po restartu web kontejneru prošla API identita přes HTTPS. Původní `docker.rrsoft.cz` nebyl upravován. Přístup přes alias `docker-rrsoft` se dříve ověřil jako uživatel `roza`; při posledním opakování selhal DNS překlad ještě před SSH autentizací.
+
+Zbývající uživatelský test: přijmout lokální jednorázovou pozvánku, přihlásit se s MFA, ověřit seznam webů a read-only obsah. Analytický dashboard lze ověřit plně v izolovaném dvouwebovém pilotu; na produkčním webu zůstane nedostupný, dokud nativní sběr nebude samostatně zapnut.

@@ -4,6 +4,11 @@ Samostatná centrála pro WBengine API v2: SvelteKit 3.1.0, Svelte 5, TypeScript
 
 Projekt obsahuje účty na pozvánku, hesla, povinné TOTP, záložní kódy, obnovu hesla, SQL sessions, oprávnění po webech, registr a discovery vzdáleného API. Obsahový editor v `/content/{id}` spravuje články, stránky, menu, sekce, registrované boxy, překlady a veřejné rastrové obrázky. Podporuje koncepty, soukromý náhled, explicitní publikování, revize, strukturální obnovu a ruční řešení konfliktů. Přehled první strany v `/analytics/{id}` zobrazuje agregovaná zobrazení. Každá operace vyžaduje současně centrální roli, scope integračního klíče a capability webu.
 
+## Dokumentace
+
+- [Plán a stav implementace](docs/plan-admin-implementation.md)
+- [Historie změn](docs/ref-changelog.md)
+
 ## Lokální ověření
 
 Node 22.18 nebo novější, pro kontejner Node 24. Závislosti jsou zamčené v package-lock.json.
