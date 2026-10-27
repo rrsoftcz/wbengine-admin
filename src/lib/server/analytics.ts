@@ -40,7 +40,7 @@ export function parseAnalyticsRange(params: URLSearchParams, now: Date = new Dat
     const keys = [...params.keys()];
     if (keys.some((key, index) => !['from', 'to', 'granularity'].includes(key) || keys.indexOf(key) !== index)) throw Error('Neplatné parametry analytiky');
     const today = formatDate(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const to = params.get('to') ?? today;
+    const to = params.get('to') ?? formatDate(dateMs(today) - dayMs);
     const from = params.get('from') ?? formatDate(dateMs(to) - 29 * dayMs);
     const granularity = params.get('granularity') ?? 'day';
     return assertRange({ from, to, granularity: granularity as AnalyticsGranularity });

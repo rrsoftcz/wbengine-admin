@@ -74,6 +74,8 @@ Architektura navazuje na [oficiální adapter-node](https://svelte.dev/docs/kit/
 
 Dashboard `/analytics/{id}` je dostupný uživatelům s grantem k danému webu a jen pokud vzdálený integrační klíč obsahuje `analytics:read` a API oznamuje `capabilities.analytics.read`. Klíč zůstává na serveru. Přehled nabízí denní, týdenní a měsíční agregace, nejnavštěvovanější stránky a články, nejčastější výskyty boxů a celoživotní součty.
 
+Výchozí období obsahuje 30 kalendářních dat končících předchozím dnem UTC. Díky tomu administrace nepožádá web o budoucí místní datum, pokud je jeho časové pásmo za UTC. Denní hranice odpovědi se řídí časovým pásmem cílového webu. Období před prvním zaznamenaným veřejným zobrazením jsou označena jako neúplná.
+
 Na cílovém webu je před zapnutím potřeba ručně aplikovat `migrations/4.0.0/006-analytics.sql` z WBengine a přidat do `Settings.json` například:
 
 ```json

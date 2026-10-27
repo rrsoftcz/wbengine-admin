@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { planApiCall } from '../src/lib/server/api-contract.ts';
 import { canReadAnalytics, createAnalyticsGateway, parseAnalyticsRange, validateAnalyticsOverview } from '../src/lib/server/analytics.ts';
 
-test('range defaults to last 30 UTC dates and accepts at most 62 dates', () => {
+test('range defaults to 30 dates ending yesterday UTC to avoid future site-local dates', () => {
     const now = new Date('2026-10-27T12:00:00Z');
-    assert.deepEqual(parseAnalyticsRange(new URLSearchParams(), now), { from: '2026-09-28', to: '2026-10-27', granularity: 'day' });
+    assert.deepEqual(parseAnalyticsRange(new URLSearchParams(), now), { from: '2026-09-27', to: '2026-10-26', granularity: 'day' });
     assert.deepEqual(parseAnalyticsRange(new URLSearchParams('from=2026-08-27&to=2026-10-27&granularity=month'), now), { from: '2026-08-27', to: '2026-10-27', granularity: 'month' });
 });
 
