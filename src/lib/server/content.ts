@@ -3,6 +3,7 @@ import { resources, type Resource, type ApiCall, type ApiReply, type Operation }
 import { schemas, translationFields } from '../content-schema.ts';
 import { transaction, rows } from './db.ts';
 import { requireSite, vault, type Session } from './auth.ts';
+import { createAnalyticsGateway } from './analytics.ts';
 export { resources, RemoteFailure };
 export type { Resource };
 export type Role = 'editor' | 'siteadmin' | 'global';
@@ -187,7 +188,12 @@ export class ContentConnectionFailure extends RemoteFailure {
         this.role = role;
     }
 }
-export async function connectContent(s: Session, id: number) {
+export async function connectContent(s: Session, id: number): Promise<{
+    site: { id: number; name: string };
+    boxTypes: BoxType[];
+    gateway: ReturnType<typeof createContentGateway>;
+    analytics?: ReturnType<typeof createAnalyticsGateway>;
+}> {
     const site = await transaction(async (c) => {
         try {
             await requireSite(c, s, id, 'read');
@@ -224,7 +230,8 @@ export async function connectContent(s: Session, id: number) {
         const scopes = user.scopes as string[];
         if (!scopes.includes('discovery:read'))
             throw new RemoteFailure(403, 'forbidden');
-        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), gateway: createContentGateway({ role, scopes, capabilities: caps.capabilities, call }) };
+        const gatewayOptions = { role, scopes, capabilities: caps.capabilities, call };
+        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), gateway: createContentGateway(gatewayOptions), analytics: createAnalyticsGateway(gatewayOptions) };
     }
     catch (cause) {
         throw new ContentConnectionFailure({ id, name: site.name }, role, cause);

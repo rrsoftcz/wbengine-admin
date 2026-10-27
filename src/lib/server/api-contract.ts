@@ -1,6 +1,6 @@
 export const resources = ['articles', 'pages', 'menu', 'sections', 'boxes', 'images'] as const;
 export type Resource = typeof resources[number];
-export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent';
+export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
 export interface ApiCall {
     operation: Operation;
     resource?: Resource;
@@ -9,6 +9,9 @@ export interface ApiCall {
     page?: number;
     etag?: string;
     data?: Record<string, unknown>;
+    from?: string;
+    to?: string;
+    granularity?: 'day' | 'week' | 'month';
 }
 export interface ApiReply {
     data: unknown;
@@ -39,6 +42,11 @@ export function planApiCall(call: ApiCall): {
     const { operation: op, resource: r } = call;
     if (op === 'capabilities' || op === 'identity')
         return { path: op, method: 'GET' };
+    if (op === 'analyticsOverview') {
+        if (!isIsoDate(call.from) || !isIsoDate(call.to) || !['day', 'week', 'month'].includes(call.granularity ?? '') || Date.parse(`${call.to}T00:00:00Z`) < Date.parse(`${call.from}T00:00:00Z`) || (Date.parse(`${call.to}T00:00:00Z`) - Date.parse(`${call.from}T00:00:00Z`)) / 86400000 >= 62)
+            throw Error('Neplatné období analytiky');
+        return { path: `analytics/overview?from=${encodeURIComponent(call.from)}&to=${encodeURIComponent(call.to)}&granularity=${encodeURIComponent(call.granularity!)}`, method: 'GET' };
+    }
     if (!resources.includes(r as Resource))
         throw Error('Nepovolený prostředek');
     const id = call.id;
@@ -97,4 +105,9 @@ export function planApiCall(call: ApiCall): {
     if (!strongEtag(call.etag))
         throw new RemoteFailure(428, 'precondition_required');
     return { path, method, etag: call.etag, ...(method === 'DELETE' ? {} : { data: call.data ?? {} }) };
+}
+function isIsoDate(value: unknown): value is string {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }

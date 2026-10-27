@@ -2,7 +2,7 @@
 
 Samostatná centrála pro WBengine API v2: SvelteKit 3.1.0, Svelte 5, TypeScript, adapter-node 6 a MySQL 8.4. Prohlížeč komunikuje pouze s centrálou. Obsah zůstává na jednotlivých webech.
 
-Projekt obsahuje účty na pozvánku, hesla, povinné TOTP, záložní kódy, obnovu hesla, SQL sessions, oprávnění po webech, registr a discovery vzdáleného API. Obsahový editor v `/content/{id}` spravuje články, stránky, menu, sekce, registrované boxy, překlady a veřejné rastrové obrázky. Podporuje koncepty, soukromý náhled, explicitní publikování, revize, strukturální obnovu a ruční řešení konfliktů. Každá operace vyžaduje současně centrální roli, scope integračního klíče a capability webu.
+Projekt obsahuje účty na pozvánku, hesla, povinné TOTP, záložní kódy, obnovu hesla, SQL sessions, oprávnění po webech, registr a discovery vzdáleného API. Obsahový editor v `/content/{id}` spravuje články, stránky, menu, sekce, registrované boxy, překlady a veřejné rastrové obrázky. Podporuje koncepty, soukromý náhled, explicitní publikování, revize, strukturální obnovu a ruční řešení konfliktů. Přehled první strany v `/analytics/{id}` zobrazuje agregovaná zobrazení. Každá operace vyžaduje současně centrální roli, scope integračního klíče a capability webu.
 
 ## Lokální ověření
 
@@ -70,7 +70,23 @@ Audit obsahuje pouze identifikátory, pevný název operace a čas. Neobsahuje t
 Architektura navazuje na [oficiální adapter-node](https://svelte.dev/docs/kit/adapter-node), [server actions](https://svelte.dev/docs/kit/form-actions) a server-only adresář `src/lib/server`. Kit 3 používá konfiguraci ve vite.config.ts, `$app/tsconfig` a package subpath import `#lib/*`. Obsahový serverový gateway používá konečný allowlist resource/operation, silné ETag a kontrolu site grants. Při HTTP 412 zachová přesný rozepsaný obsah i původní ETag. Ruční sloučení je samostatná operace pouze pro čtení aktuální verze, následné uložení je výslovné. Náhled je v iframe bez sandbox výjimek a s restriktivní CSP, externí média a skripty jsou blokované. Obrázky do 512 KiB jsou po nahrání veřejné a UI vyžaduje potvrzení této vlastnosti.
 
 
-## Obsahový workflow a společný pilot
+## Analytika WBengine
+
+Dashboard `/analytics/{id}` je dostupný uživatelům s grantem k danému webu a jen pokud vzdálený integrační klíč obsahuje `analytics:read` a API oznamuje `capabilities.analytics.read`. Klíč zůstává na serveru. Přehled nabízí denní, týdenní a měsíční agregace, nejnavštěvovanější stránky a články, nejčastější výskyty boxů a celoživotní součty.
+
+Na cílovém webu je před zapnutím potřeba ručně aplikovat `migrations/4.0.0/006-analytics.sql` z WBengine a přidat do `Settings.json` například:
+
+```json
+"analytics": {
+  "enabled": true,
+  "timezone": "Europe/Prague",
+  "retentionDays": 62
+}
+```
+
+Denní agregace se po 62 dnech odstraňují, celoživotní součty stránek a boxů zůstávají v `cms_analytics_totals`. Celoživotní počet článků vychází z původního `cms_articles.views`. Nové denní řady začínají až po zapnutí, starší denní historie se nedopočítává. Lokální provozní údržbu lze spustit přes frameworkové CLI, například `php vendor/wbengine/wbengine/bin/wbengine.php analytics:prune --config=/path/to/src/Config/Settings.json`; příkaz odstraní nejvýše 1000 starých denních řádků na jedno spuštění.
+
+Analytika ukládá pouze souhrnné počty podle data a ID obsahu. Nezaznamenává IP adresy, cookies, uživatelská ID, User-Agent, referrer, query parametry ani individuální návštěvy. Návštěvnost se proto označuje jako zobrazení, nikoli unikátní osoby. Neznámé robotické požadavky se počítají stejně jako ostatní veřejné požadavky. Cache HIT a odpovědi 304 se zahrnují; výskyt boxu označuje neprázdný vygenerovaný výstup v odpovědi, nikoli potvrzení jeho zobrazení na obrazovce.
 
 Článkový formulář ukládá koncept. Tlačítko publikování zveřejní pouze poslední uložený koncept; neuložené změny ve formuláři nejsou jeho součástí. Náhled zobrazuje uložený koncept, případně zvolený překlad, v samostatném sandboxu. Obnova revize znovu vytvoří koncept a nepublikuje jej automaticky.
 
