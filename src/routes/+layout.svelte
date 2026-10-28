@@ -1,5 +1,21 @@
-<script lang="ts">let {children}= $props();</script>
+<script lang="ts">
+    import '../app.css';
+    import Shell from '#lib/components/Shell.svelte';
+    let { data, children } = $props();
+</script>
+
 <svelte:head><title>WBengine administrace</title></svelte:head>
-<header><a href="/">WBengine</a><span>Centrální administrace</span></header>
-<main>{@render children()}</main>
-<style>:global(body){margin:0;background:#f3f5f7;color:#192735;font:16px/1.55 system-ui,sans-serif}:global(a){color:#165783}header{background:#172c40;color:white;padding:1rem 5%;display:flex;gap:2rem}header a{color:white;font-weight:700}main{max-width:1050px;margin:2.5rem auto;padding:0 1.2rem}:global(form){display:grid;gap:.8rem;max-width:520px;background:white;padding:1.4rem;margin:1.2rem 0;border:1px solid #d6dee5;border-radius:6px}:global(label){display:grid;gap:.3rem}:global(input),:global(select),:global(button){font:inherit;padding:.65rem;border:1px solid #a8b7c3;border-radius:4px}:global(button){background:#185b85;color:white;cursor:pointer}:global(.error){color:#9c2020}:global(article){background:white;padding:1.2rem;margin:1rem 0;border:1px solid #d6dee5}:global(code){overflow-wrap:anywhere}:global(pre){white-space:pre-wrap;overflow-wrap:anywhere}</style>
+
+{#if data.shell}
+    <Shell user={data.shell} csrf={data.shellCsrf}>{@render children()}</Shell>
+{:else}
+    <div class="grid min-h-dvh place-items-center px-4 py-10">
+        <div class="w-full max-w-md">
+            <a href="/" class="mb-8 flex items-center justify-center gap-3 text-text no-underline">
+                <span class="grid size-11 place-items-center rounded-xl bg-brand text-lg font-bold text-brand-contrast">W</span>
+                <span class="leading-tight"><span class="block text-lg font-bold">WBengine</span><span class="block text-sm text-muted">Centrální administrace</span></span>
+            </a>
+            {@render children()}
+        </div>
+    </div>
+{/if}
