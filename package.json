@@ -16,7 +16,8 @@
     "test:mysql": "npm run build && node --experimental-strip-types scripts/test-mysql.ts"
   },
   "dependencies": {
-    "mysql2": "3.24.6"
+    "mysql2": "3.24.6",
+    "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "6.0.0",

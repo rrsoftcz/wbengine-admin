@@ -5,9 +5,9 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = ({ locals }) => ({ csrf: locals.csrf });
 export const actions: Actions = { default: async (e) => {
         try {
-            const f = await form(e), raw = await login(field(f, 'email', 254), field(f, 'password', 256));
+            const f = await form(e), email = field(f, 'email', 254), raw = await login(email, field(f, 'password', 256));
             if (!raw)
-                return fail(400, { error: 'Přihlášení se nezdařilo nebo je dočasně omezené' });
+                return fail(400, { error: 'Přihlášení se nezdařilo nebo je dočasně omezené', email });
             setSession(e, raw);
         }
         catch {
