@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         redirect(303, '/login');
     if (locals.session.mfaVerified)
         redirect(303, '/');
-    return { csrf: locals.csrf, enrollment: !locals.session.user.mfaEnabled };
+    return { csrf: locals.csrf, enrollment: !locals.session.user.mfaEnabled, email: locals.session.user.email };
 };
 export const actions: Actions = { enroll: async (e) => {
         if (!e.locals.session)
