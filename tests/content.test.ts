@@ -190,3 +190,16 @@ test('reference options are labelled for people, exclude the edited record and f
     assert.equal(await loadReferenceOptions({ list: async () => ({ etag: null, data: {} }) } as never, 'pages'), null);
     assert.equal(referenceFields.articles?.site_id?.source, 'pages');
 });
+test('every error code tied to a field names a real schema field, and the source message names the field', async () => {
+    const { errorFields, errorMessages, fieldOfError } = await import('../src/lib/server/api-contract.ts');
+    const { schemas } = await import('../src/lib/content-schema.ts');
+    const known = new Set(Object.values(schemas).flat().map(f => f.name));
+    for (const [code, field] of Object.entries(errorFields)) {
+        assert.ok(known.has(field), `${code} -> ${field}`);
+        assert.ok(Object.hasOwn(errorMessages, code), `${code} needs a catalog message`);
+    }
+    assert.equal(fieldOfError('invalid_source'), 'source');
+    assert.equal(fieldOfError('unknown_code'), undefined);
+    assert.match(errorMessages.invalid_source, /^Zdroj /);
+    assert.ok(!errorMessages.invalid_source.includes('v textu'));
+});

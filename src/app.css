@@ -124,6 +124,7 @@
     textarea { min-height: 7rem; resize: vertical; }
     input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
     input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 25%, transparent); }
+    [aria-invalid="true"] { border-color: var(--danger) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent) !important; }
     input:disabled, select:disabled, textarea:disabled { opacity: .6; cursor: not-allowed; }
     input[type="checkbox"], input[type="radio"] { accent-color: var(--brand); width: 1.05rem; height: 1.05rem; }
 

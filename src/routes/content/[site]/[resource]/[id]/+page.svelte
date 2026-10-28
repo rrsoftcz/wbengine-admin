@@ -87,7 +87,7 @@
  {#if articles}<p class="alert alert-info">{data.row.draft?'Upravujete nepublikovaný koncept. Veřejný obsah se změní až po publikování.':'Uložením vznikne nepublikovaný koncept.'}</p>{/if}
  {#if data.permissions.save}<form id="save-form" method="POST" action="?/save" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="card grid gap-5">
 <input type="hidden" name="csrf" value={data.csrf}/>
-<input type="hidden" name="etag" value={tag??''}/>{#key JSON.stringify(values)}<ResourceFields resource={data.resource} {values} boxTypes={data.boxTypes} refs={data.refs} siteId={data.site.id}/>{/key}{#if form?.conflict&&!editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
+<input type="hidden" name="etag" value={tag??''}/>{#key JSON.stringify(values)}<ResourceFields resource={data.resource} {values} boxTypes={data.boxTypes} refs={data.refs} siteId={data.site.id} fieldError={form?.field&&!editingTranslation?{field:form.field,message:form.error}:undefined}/>{/key}{#if form?.conflict&&!editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
 <input name="mergeConsent" type="checkbox" value="yes"/> Zkontroloval jsem aktuální obsah a chci jej ručně sloučit</label>
 <div><SubmitButton formaction="?/merge" variant="secondary" busy={pending.is('?/merge')}>Převzít aktuální verzi pro ruční sloučení bez uložení</SubmitButton></div></div>{/if}
 <div class="flex flex-wrap items-center gap-3"><SubmitButton busy={pending.is('?/save')}>{articles?'Uložit koncept':'Uložit změny'}</SubmitButton><span class="hint">{articles?'Ukládá se jako koncept, veřejný obsah zůstává beze změny.':'Změna se projeví na webu okamžitě.'}</span></div></form>
@@ -107,7 +107,7 @@
    {#if data.permissions.translationSave}<form method="POST" action="?/translationSave" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="grid gap-5">
 <input name="csrf" type="hidden" value={data.csrf}/>
 <input name="locale" type="hidden" value={data.locale}/>
-<input name="etag" type="hidden" value={translationTag??''}/>{#key JSON.stringify(translationValues)}<ResourceFields resource={data.resource} values={translationValues} translation/>{/key}{#if form?.conflict&&editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
+<input name="etag" type="hidden" value={translationTag??''}/>{#key JSON.stringify(translationValues)}<ResourceFields resource={data.resource} values={translationValues} translation fieldError={form?.field&&editingTranslation?{field:form.field,message:form.error}:undefined}/>{/key}{#if form?.conflict&&editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
 <input name="mergeConsent" type="checkbox" value="yes"/> Zkontroloval jsem aktuální překlad pro ruční sloučení</label>
 <div><SubmitButton formaction="?/merge" variant="secondary" busy={pending.is('?/merge')}>Převzít aktuální verzi překladu bez uložení</SubmitButton></div></div>{/if}<div><SubmitButton busy={pending.is('?/translationSave')}>Uložit překlad</SubmitButton></div></form>{/if}
    {#if data.permissions.translationDelete}<details class="rounded-xl border border-line p-3"><summary class="text-sm font-semibold text-danger">Odstranit překlad {data.locale}</summary>
