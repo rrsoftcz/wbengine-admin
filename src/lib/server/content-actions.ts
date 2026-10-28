@@ -1,8 +1,8 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { connectContent, siteId, resourceName, parseFields, RemoteFailure, ContentConnectionFailure } from './content.ts';
 import { signedIn, form, field } from './web.ts';
-import { idOf } from '../content-schema.ts';
-import type { Resource } from './api-contract.ts';
+import { idOf, schemas } from '../content-schema.ts';
+import { fieldOfError, type Resource } from './api-contract.ts';
 export function createContentActions(connect: typeof connectContent = connectContent) {
     function dirty(f: FormData) {
         return Object.fromEntries([...f].filter(([name, value]) => typeof value === 'string' && name !== 'csrf').map(([name, value]) => [name, String(value)]));
@@ -76,7 +76,8 @@ export function createContentActions(connect: typeof connectContent = connectCon
                 if (local)
                     e.locals.contentFailure = { ...local, resource: r, id, action, fields: dirty(f) };
             }
-            return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? cause.message : 'Operace se nezdařila. Zkontrolujte pole, oprávnění a dostupnost webu.', conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
+            const badField = cause instanceof RemoteFailure ? fieldOfError(cause.code) : undefined, badLabel = badField ? schemas[r].find(x => x.name === badField)?.label : undefined;
+            return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? (badLabel ? `Pole „${badLabel}“: ${cause.message}` : cause.message) : 'Operace se nezdařila. Zkontrolujte pole, oprávnění a dostupnost webu.', field: badLabel ? badField : undefined, conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
         }
         redirect(303, `/content/${e.params.site}/${r}/${target}` + (f?.get('locale') ? '?locale=' + encodeURIComponent(String(f.get('locale'))) : ''));
     };

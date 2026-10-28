@@ -1,6 +1,6 @@
 <script lang="ts">
  import {schemas,translationFields,type Field} from '#lib/content-schema.ts';import type {Resource} from '#lib/server/api-contract.ts';
- let {resource,values,translation=false,boxTypes=[],refs={},siteId}: {resource:Resource;values:Record<string,unknown>;translation?:boolean;refs?:Record<string,{value:number;label:string}[]|null>;siteId?:number;boxTypes?:{type:string;settings:Record<string,string[]>;sections:string[]}[]}=$props();
+ let {resource,values,translation=false,boxTypes=[],refs={},siteId,fieldError=undefined}: {fieldError?:{field:string;message:string};resource:Resource;values:Record<string,unknown>;translation?:boolean;refs?:Record<string,{value:number;label:string}[]|null>;siteId?:number;boxTypes?:{type:string;settings:Record<string,string[]>;sections:string[]}[]}=$props();
  let selectedType=$derived(String(values.type??''));
  let flags=$state<Record<string,boolean>>({});
  let lengths=$state<Record<string,number>>({});
@@ -9,13 +9,16 @@
  function requiresValue(f:Field){return !translation&&(f.name==='link'||f.name==='key');}
  function value(f:Field){const v=values[f.name];return f.kind==='json'?JSON.stringify(v??{},null,2):f.kind==='ids'?Array.isArray(v)?v.join(', '):String(v??''):String(v??((f.kind==='number'||f.kind==='boolean')?0:''));}
  function isOn(f:Field){return flags[f.name]??Number(values[f.name])===1;}
- const hints:Record<string,string>={'articles.site_id':'Na které stránce webu se článek zobrazí. Bez vybrané stránky nelze článek publikovat.','pages.parent_id':'Pod kterou stránku se tato stránka zařadí. Žádná znamená stránku na nejvyšší úrovni.','menu.site_id':'Na kterou stránku položka menu odkazuje.','menu.parent':'Pod kterou položku menu se tato položka zařadí. Žádná znamená nejvyšší úroveň.','boxes.section_id':'V které sekci stránky se box zobrazí.'};
+ const hints:Record<string,string>={'articles.site_id':'Na které stránce webu se článek zobrazí. Bez vybrané stránky nelze článek publikovat.','pages.parent_id':'Pod kterou stránku se tato stránka zařadí. Žádná znamená stránku na nejvyšší úrovni.','menu.site_id':'Na kterou stránku položka menu odkazuje.','menu.parent':'Pod kterou položku menu se tato položka zařadí. Žádná znamená nejvyšší úroveň.','boxes.section_id':'V které sekci stránky se box zobrazí.','articles.author':'Nepovinné. Jméno autora zobrazené u článku.','articles.source':'Nepovinné. Odkaz na původní zdroj: adresa https://..., místní cesta začínající / nebo kotva #... Prostý text sem nepatří, bez zdroje nechte pole prázdné.','pages.link':'Místní adresa stránky začínající lomítkem, například /o-nas.'};
+ const placeholders:Record<string,string>={'articles.source':'https://','pages.link':'/o-nas'};
  const toggleHints:Record<string,string>={visible:'Zapnuto: stránka nebo položka je na webu vidět.',strict:'Zapnuto: adresa musí odpovídat přesně.',acl:'Zapnuto: zobrazí se jen uživatelům s oprávněním.',active:'Zapnuto: sekce se na webu používá.',static:'Zapnuto: obsah boxu se nemění podle stránky.',shared:'Zapnuto: box lze sdílet na více stránkách.',device_strict:'Zapnuto: box se zobrazí jen na zvoleném zařízení.'};
  function options(f:Field){const list=refs[f.name];if(!Array.isArray(list))return null;const current=Number(values[f.name]);return current>0&&!list.some(o=>o.value===current)?[...list,{value:current,label:'ID '+current+' (záznam nebyl v seznamu nalezen)'}]:list;}
  const zeroLabels:Record<string,string>={'articles.site_id':'Zatím nevybráno (článek nepůjde publikovat)','pages.parent_id':'Žádná (kořen)','menu.site_id':'Zatím nevybráno','menu.parent':'Žádná (kořen)','boxes.section_id':'Zatím nevybráno'};
  const nf=new Intl.NumberFormat('cs-CZ');
  function count(f:Field){return lengths[f.name]??value(f).length;}
  function wide(f:Field){return f.kind==='textarea'||f.kind==='json'||f.kind==='format'||(f.kind===undefined&&(f.max??0)>=100);}
+
+ $effect(()=>{if(!fieldError)return;const el=document.querySelector<HTMLElement>('[name="'+fieldError.field+'"]');if(el){el.setAttribute('aria-invalid','true');el.scrollIntoView({block:'center',behavior:'smooth'});el.focus({preventScroll:true})}});
 </script>
 <div class="grid gap-5 sm:grid-cols-2">
 {#each fields as spec}
@@ -24,7 +27,7 @@
  {:else if resource==='boxes'&&spec.name==='settings'}{#each Object.entries(boxTypes.find(x=>x.type===selectedType)?.settings??{}) as [name,options]}<label class="field"><span>{name}</span><select name={'setting_'+name}>
 <option value="">Výchozí hodnota</option>{#each options as option}<option value={option} selected={(values.settings as Record<string,unknown>|undefined)?.[name]===option}>{option}</option>{/each}</select>
 </label>{/each}
- {:else if spec.kind==='textarea'}<label class="field sm:col-span-2"><span>{spec.label}</span><textarea class="resize-y font-mono text-[.9rem] leading-relaxed {spec.name==='bodytext'?'min-h-96':'min-h-36'}" name={spec.name} rows={spec.name==='bodytext'?16:5} maxlength={spec.max} spellcheck="true" oninput={(e)=>{lengths[spec.name]=e.currentTarget.value.length;}}>{value(spec)}</textarea>
+ {:else if spec.kind==='textarea'}<label class="field sm:col-span-2"><span>{spec.label}</span><textarea autocomplete="off" class="resize-y font-mono text-[.9rem] leading-relaxed {spec.name==='bodytext'?'min-h-96':'min-h-36'}" name={spec.name} rows={spec.name==='bodytext'?16:5} maxlength={spec.max} spellcheck="true" oninput={(e)=>{lengths[spec.name]=e.currentTarget.value.length;}}>{value(spec)}</textarea>
 <span class="hint flex justify-between gap-3"><span>Markdown: **tučně**, *kurzíva*, [odkaz](https://), ![obrázek](/cesta)</span><span aria-live="polite">{nf.format(count(spec))}{#if spec.max} / {nf.format(spec.max)}{/if} znaků</span></span>
 </label>
  {:else if spec.kind==='boolean'}<div class="toggle-row flex items-center justify-between gap-4 rounded-xl border border-line bg-surface-2 px-4 py-3"><label class="flex w-full cursor-pointer items-center justify-between gap-4"><span class="grid gap-0.5"><span class="font-semibold">{spec.label}</span><span class="hint">{toggleHints[spec.name]??''}</span></span><span class="flex shrink-0 items-center gap-3"><span class="w-16 text-right text-sm font-semibold {isOn(spec)?'text-ok':'text-muted'}" aria-hidden="true">{isOn(spec)?'Zapnuto':'Vypnuto'}</span><input type="checkbox" role="switch" class="peer sr-only" name={spec.name} value="1" checked={isOn(spec)} onchange={(e)=>{flags[spec.name]=e.currentTarget.checked;}}/><span class="relative h-6 w-11 rounded-full border border-line-strong bg-line-strong transition-colors peer-checked:border-brand peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-surface after:shadow after:transition-transform after:content-[''] peer-checked:after:translate-x-5" aria-hidden="true"></span></span></label></div>
@@ -36,7 +39,8 @@
 <span class="hint">Pro změnu původního HTML výslovně vyberte Markdown a nahraďte úvod i celý text.</span>
 </label>
  {:else if spec.kind==='json'}<label class="field sm:col-span-2"><span>{spec.label}</span><input class="font-mono text-[.9rem]" type="text" name={spec.name} value={value(spec)} maxlength={spec.max}/></label>
- {:else}<label class="field {wide(spec)?'sm:col-span-2':''}"><span>{spec.label}</span><input type={spec.kind==='number'?'number':'text'} min={spec.kind==='number'?0:undefined} step={spec.kind==='number'?1:undefined} name={spec.name} value={value(spec)} maxlength={spec.max} required={requiresValue(spec)}/>
+ {:else}<label class="field {wide(spec)?'sm:col-span-2':''}"><span>{spec.label}</span><input type={spec.kind==='number'?'number':'text'} min={spec.kind==='number'?0:undefined} step={spec.kind==='number'?1:undefined} name={spec.name} value={value(spec)} maxlength={spec.max} required={requiresValue(spec)} placeholder={placeholders[resource+'.'+spec.name]} autocomplete="off" aria-invalid={fieldError?.field===spec.name?'true':undefined}/>
+{#if hints[resource+'.'+spec.name]}<span class="hint">{hints[resource+'.'+spec.name]}</span>{/if}
 </label>{/if}
 {/each}
 </div>

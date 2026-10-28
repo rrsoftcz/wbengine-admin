@@ -40,7 +40,7 @@ export const errorMessages: Record<string, string> = {
     invalid_name: 'Název má neplatnou délku nebo obsah.',
     invalid_status: 'Chybový stav sekce musí být 0 nebo HTTP chyba od 400.',
     invalid_parent: 'Nadřazená položka je neplatná. Položka nemůže být svým vlastním rodičem.',
-    invalid_source: 'Odkaz v textu musí být HTTP, HTTPS, místní cesta nebo kotva.',
+    invalid_source: 'Zdroj musí být adresa začínající http:// nebo https://, místní cesta začínající lomítkem nebo kotva začínající #. Prostý text sem nepatří, pokud zdroj nemáte, nechte pole prázdné.',
     invalid_box_type: 'Tento typ boxu není na webu registrován.',
     invalid_box_section: 'Tento typ boxu nelze použít v zvolené sekci.',
     invalid_box_settings: 'Nastavení boxu obsahuje nepodporovanou hodnotu.',
@@ -65,6 +65,13 @@ export const errorMessages: Record<string, string> = {
     rate_limited: 'Příliš mnoho požadavků. Zkuste to za chvíli.',
     unavailable: 'API webu je dočasně nedostupné. Zkuste to později.'
 };
+/** Pole formuláře, kterého se kód chyby týká (název pole schématu), aby je editor mohl označit. */
+export const errorFields: Record<string, string> = {
+    missing_site: 'site_id', article_site_conflict: 'site_id', invalid_link: 'link', duplicate_link: 'link', invalid_key: 'key', duplicate_key: 'key',
+    invalid_name: 'name', invalid_status: 'return_error_code', invalid_parent: 'parent_id', invalid_source: 'source', invalid_box_type: 'type',
+    invalid_box_section: 'section_id', invalid_box_settings: 'settings', invalid_format: 'content_format'
+};
+export const fieldOfError = (code: unknown): string | undefined => typeof code === 'string' && Object.hasOwn(errorFields, code) ? errorFields[code] : undefined;
 /** Vrací kód jen pokud je v katalogu, jinak obecný kód odmítnutí. */
 export function safeErrorCode(value: unknown): string {
     return typeof value === 'string' && Object.hasOwn(errorMessages, value) ? value : 'remote_rejected';
