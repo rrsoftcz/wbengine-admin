@@ -1,20 +1,18 @@
-import { readFile } from 'node:fs/promises';
 import { database, transaction, rows } from '../src/lib/server/db.ts';
 import { provisionSite } from '../src/lib/server/sites.ts';
+import { migrate } from '../src/lib/server/migrate.ts';
 import { invite, issueRecovery } from '../src/lib/server/auth.ts';
 const [command, ...args] = process.argv.slice(2);
 try {
     if (command === 'migrate') {
-        const source = await readFile(new URL('../migrations/001-foundation.sql', import.meta.url), 'utf8');
         const c = await database().getConnection();
         try {
-            for (const sql of source.split(';').map(x => x.trim()).filter(Boolean))
-                await c.query(sql);
+            const ran = await migrate(c);
+            console.log(ran.length ? 'Aplikováno: ' + ran.join(', ') : 'Žádná nová migrace');
         }
         finally {
             c.release();
         }
-        console.log('Schéma připraveno');
     }
     else if (command === 'invite') {
         const [email, level, site, role] = args;
@@ -39,7 +37,7 @@ try {
             if (key.length > 256)
                 throw Error('Neplatný klíč');
         }
-        await provisionSite(args[0], args[1], key.trim());
+        await provisionSite(args[0], args[1], key.trim(), null, true);
         console.log('Web zaregistrován');
     }
     else if (command === 'users') {
@@ -57,7 +55,7 @@ try {
         console.log('Oprávnění odebráno');
     }
     else
-        throw Error('Příkazy: migrate, invite, recover, users, revoke');
+        throw Error('Příkazy: migrate, invite, recover, users, revoke, site-add');
 }
 catch (e) {
     console.error(e instanceof Error && e.message.startsWith('Příkazy:') ? e.message : 'Operace selhala. Ověřte parametry a připojení; citlivé údaje se nevypisují.');

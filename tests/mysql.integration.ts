@@ -3,16 +3,25 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { database, transaction, rows } from '../src/lib/server/db.ts';
 import { invite, acceptInvitation, loadSession, login, setupMfa, completeMfa, issueRecovery, resetPassword, requireSite, logout } from '../src/lib/server/auth.ts';
+import { migrate } from '../src/lib/server/migrate.ts';
 import { totp, tokenHash } from '../src/lib/server/security.ts';
-import { registerSite, listSites, grantSite } from '../src/lib/server/sites.ts';
+import { registerSite, listSites, grantSite, replaceSiteKey } from '../src/lib/server/sites.ts';
+import { RegistrationError, type VerifiedSite } from '../src/lib/server/registration-contract.ts';
+import { validateBaseUrl } from '../src/lib/server/remote.ts';
 if (!process.env.DATABASE_URL?.includes('wbengine_admin_test'))
     throw Error('Integrace vyžaduje izolovanou DB wbengine_admin_test');
 await transaction(async (c) => {
-    const sql = await readFile(new URL('../migrations/001-foundation.sql', import.meta.url), 'utf8');
-    for (const statement of sql.split(';').map(x => x.trim()).filter(Boolean))
-        await c.query(statement);
+    await migrate(c);
     for (const table of ['audit', 'backup_codes', 'recovery', 'sessions', 'invitations', 'grants', 'sites', 'login_attempts', 'users'])
         await c.query('DELETE FROM ' + table);
+});
+const verified = (integrationId: number): VerifiedSite => ({ integrationId, scopes: [], version: '2.0', resources: [], extras: [] });
+const stubs = (integrationId = 7, calls: string[] = []) => ({
+    resolve: async (raw: string) => ({ url: validateBaseUrl(raw), hostname: 'example.test', address: '93.184.216.34', family: 4 }),
+    verify: async (_base: string, key: string) => {
+        calls.push(key);
+        return verified(integrationId);
+    }
 });
 after(async () => {
     await database().end();
@@ -40,7 +49,7 @@ test('persistent account lifecycle, MFA replay/backup, recovery, permissions and
     const replaySession = (await loadSession((await login('admin@example.test', 'a very long password 123'))!))!;
     await assert.rejects(completeMfa(replaySession, codes[0]));
     await assert.rejects(completeMfa(replaySession, totp(secret, Math.floor(Date.now() / 30000))));
-    await registerSite(session, 'Public site', 'https://example.com', 'wbv2_' + 'a'.repeat(40));
+    await registerSite(session, 'Public site', 'https://example.com', 'wbv2_' + 'a'.repeat(40), stubs());
     const sites = await listSites(session), site = Number(sites[0].id);
     const invitation2 = await invite('editor@example.test', false, site, 'editor');
     let raw2 = await acceptInvitation(invitation2, 'editor long password 123');
@@ -149,3 +158,45 @@ async function raceLoginAgainstAccountChange(disable: boolean) {
 }
 test('concurrent password reset cannot be followed by an old-password session', () => raceLoginAgainstAccountChange(false));
 test('concurrent disabling cannot be followed by a fresh session', () => raceLoginAgainstAccountChange(true));
+
+test('web registration: verified before write, unique normalized URL, no grant, rate limit, atomic rotation', async () => {
+    await transaction(async (c) => { for (const table of ['audit', 'grants', 'invitations', 'sites', 'login_attempts']) await c.query('DELETE FROM ' + table); });
+    const admin = { user: { id: 1, globalAdmin: true, mfaEnabled: true }, mfaVerified: true, csrf: 'x', hash: 'h' } as never;
+    const member = { user: { id: 2, globalAdmin: false, mfaEnabled: true }, mfaVerified: true, csrf: 'x', hash: 'h' } as never;
+    const key = 'wbv2_' + 'b'.repeat(64), calls: string[] = [];
+    await assert.rejects(registerSite(member, 'Nope', 'https://a.example.test/', key, stubs(7, calls)));
+    assert.equal(calls.length, 0);
+    await assert.rejects(registerSite(admin, 'Bad key', 'https://a.example.test/', 'secret', stubs(7, calls)), (e: RegistrationError) => e.code === 'invalid_input');
+    const failing = { ...stubs(), verify: async () => { throw new RegistrationError('invalid_key'); } };
+    await assert.rejects(registerSite(admin, 'Rejected', 'https://a.example.test/', key, failing), (e: RegistrationError) => e.code === 'invalid_key');
+    assert.equal((await transaction(c => rows(c, 'SELECT id FROM sites'))).length, 0);
+    assert.equal((await transaction(c => rows(c, 'SELECT user_id FROM grants'))).length, 0);
+    const result = await registerSite(admin, 'Site A', 'https://A.Example.test', key, stubs(7, calls));
+    assert.equal(result.integrationId, 7);
+    const [row] = await transaction(c => rows<{ key_cipher: string; integration_id: number; url_hash: string; base_url: string }>(c, 'SELECT * FROM sites WHERE id=?', [result.id]));
+    assert.equal(row.base_url, 'https://a.example.test/');
+    assert.equal(Number(row.integration_id), 7);
+    assert.equal(row.url_hash.length, 64);
+    assert.ok(!row.key_cipher.includes(key));
+    assert.equal((await transaction(c => rows(c, 'SELECT user_id FROM grants'))).length, 0);
+    assert.equal((await transaction(c => rows(c, "SELECT id FROM audit WHERE event='site.registered' AND user_id=1"))).length, 1);
+    for (const again of ['https://a.example.test/', 'https://A.EXAMPLE.TEST', 'https://a.example.test:443/'])
+        await assert.rejects(registerSite(admin, 'Dup', again, key, stubs(8)), (e: RegistrationError) => e.code === 'duplicate_url');
+    const audits = JSON.stringify(await transaction(c => rows(c, 'SELECT event FROM audit')));
+    assert.ok(!audits.includes(key));
+    const concurrent = await Promise.allSettled([1, 2, 3].map(() => registerSite(admin, 'Race', 'https://race.example.test/', key, stubs(9))));
+    assert.equal(concurrent.filter(r => r.status === 'fulfilled').length, 1);
+    await assert.rejects(replaceSiteKey(admin, result.id, key, stubs(7)), (e: RegistrationError) => e.code === 'same_key');
+    const next = 'wbv2_' + 'c'.repeat(64);
+    assert.deepEqual(await replaceSiteKey(admin, result.id, next, stubs(11)), { previousIntegrationId: 7, integrationId: 11 });
+    const [after] = await transaction(c => rows<{ key_cipher: string; integration_id: number }>(c, 'SELECT key_cipher,integration_id FROM sites WHERE id=?', [result.id]));
+    assert.equal(Number(after.integration_id), 11);
+    assert.notEqual(after.key_cipher, row.key_cipher);
+    await assert.rejects(replaceSiteKey(admin, result.id, next, failing));
+    assert.equal(Number((await transaction(c => rows<{ integration_id: number }>(c, 'SELECT integration_id FROM sites WHERE id=?', [result.id])))[0].integration_id), 11);
+    await transaction(c => c.execute('DELETE FROM login_attempts'));
+    let limited = 0;
+    for (let i = 0; i < 12; i++)
+        await registerSite(admin, 'Limit' + i, `https://limit${i}.example.test/`, key, failing).catch((e: RegistrationError) => { if (e.code === 'rate_limited') limited++; });
+    assert.ok(limited >= 3);
+});

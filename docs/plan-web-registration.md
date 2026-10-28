@@ -157,7 +157,7 @@ Aktuální implementace má dvě nedokončené poloviny:
 
 - [x] REG-01: `src/lib/server/registration-contract.ts` (scope profil `management`, katalog 13 bezpečných chyb včetně HTTP 429, sdílená funkce `verifyRegistration` pro web i CLI) a `tests/registration-contract.test.ts`, který hlídá, že `canOperate` nikdy nevyžaduje scope mimo profil.
 - [ ] REG-02: framework (obrazovka, re-auth, výpis, `last_used_at`).
-- [ ] REG-03: Admin (formulář, migrace 002, výměna klíče).
+- [x] REG-03: Admin. Migrace `002` a `003` s evidencí migrací (`schema_migrations`), formulář „Přidat web“ s ověřením před uložením, unikátní URL, `integration_id`, výměna klíče, omezení pokusů, výběr účtu podle e-mailu. Pokrývá `tests/mysql.integration.ts` a `tests/http.smoke.ts`.
 - [ ] Vydání verze frameworku, aktualizace pinu v CI.
 - [ ] REG-04: pilot.
 - [ ] REG-05: dokumentace a nasazení.

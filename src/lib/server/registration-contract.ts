@@ -25,6 +25,7 @@ export const registrationErrors = {
     rate_limited: 'Web dočasně omezil počet neúspěšných pokusů. Zkuste to znovu za několik minut.',
     bad_contract: 'Web vrátil neočekávanou odpověď. Ověřte, že běží WBengine s API v2.',
     duplicate_url: 'Tento web už je zaregistrovaný.',
+    same_key: 'Zadaný klíč je stejný jako dosud uložený. Vydejte na webu nový klíč.',
     remote_error: 'Web požadavek nezpracoval. Zkuste to znovu později.'
 } as const;
 export type RegistrationErrorCode = keyof typeof registrationErrors;

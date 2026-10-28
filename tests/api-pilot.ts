@@ -10,13 +10,12 @@ import { database, transaction, rows } from '../src/lib/server/db.ts';
 import { invite, acceptInvitation, loadSession, setupMfa, completeMfa } from '../src/lib/server/auth.ts';
 import { provisionSite } from '../src/lib/server/sites.ts';
 import { connectContent, canOperate } from '../src/lib/server/content.ts';
+import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
 if (!process.env.DATABASE_URL?.endsWith('/wbengine_admin_pilot') || !process.env.PILOT_API_URL || !process.env.PILOT_API_KEY)
     throw Error('Pilot vyžaduje vlastní DB wbengine_admin_pilot a izolované API');
 await transaction(async (c) => {
-    const source = await readFile(new URL('../migrations/001-foundation.sql', import.meta.url), 'utf8');
-    for (const sql of source.split(';').map(s => s.trim()).filter(Boolean))
-        await c.query(sql);
+    await migrate(c);
 });
 const socket = createServer();
 await new Promise<void>(r => socket.listen(0, '127.0.0.1', r));
