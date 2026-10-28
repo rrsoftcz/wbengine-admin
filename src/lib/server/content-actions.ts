@@ -1,5 +1,5 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
-import { connectContent, siteId, resourceName, parseFields, RemoteFailure, ContentConnectionFailure } from './content.ts';
+import { connectContent, siteId, resourceName, parseFields, createArticleBox, RemoteFailure, ContentConnectionFailure } from './content.ts';
 import { signedIn, form, field } from './web.ts';
 import { idOf, schemas } from '../content-schema.ts';
 import { fieldOfError, type Resource } from './api-contract.ts';
@@ -18,7 +18,7 @@ export function createContentActions(connect: typeof connectContent = connectCon
         const s = signedIn(e);
         let f: FormData | undefined;
         const r = resourceName(e.params.resource!), id = e.params.id!;
-        let target = id;
+        let target = id, query = '';
         let context: {
             site: {
                 id: number;
@@ -43,6 +43,8 @@ export function createContentActions(connect: typeof connectContent = connectCon
                 submitting = true;
                 const result = await gateway.save(r, id === 'new' ? null : id, data, etag);
                 target = idOf(r, result.data as Record<string, unknown>);
+                if (r === 'pages' && id === 'new' && f.get('show_article') === '1' && (await createArticleBox(gateway, boxTypes, Number(target), String(data.title ?? ''))) === 'failed')
+                    query = 'boxWarning=1';
             }
             else if (action === 'delete') {
                 if (f.get('confirm') !== 'yes')
@@ -79,7 +81,7 @@ export function createContentActions(connect: typeof connectContent = connectCon
             const badField = cause instanceof RemoteFailure ? fieldOfError(cause.code) : undefined, badLabel = badField ? schemas[r].find(x => x.name === badField)?.label : undefined;
             return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? (badLabel ? `Pole „${badLabel}“: ${cause.message}` : cause.message) : 'Operace se nezdařila. Zkontrolujte pole, oprávnění a dostupnost webu.', field: badLabel ? badField : undefined, conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
         }
-        redirect(303, `/content/${e.params.site}/${r}/${target}` + (f?.get('locale') ? '?locale=' + encodeURIComponent(String(f.get('locale'))) : ''));
+        redirect(303, `/content/${e.params.site}/${r}/${target}` + (f?.get('locale') ? '?locale=' + encodeURIComponent(String(f.get('locale'))) : query ? '?' + query : ''));
     };
     return { save: execute('save'), delete: execute('delete'), publish: execute('publish'), restore: execute('restore'), translationSave: execute('translationSave'), translationDelete: execute('translationDelete'), merge: execute('merge') };
 }

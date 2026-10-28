@@ -203,3 +203,85 @@ test('every error code tied to a field names a real schema field, and the source
     assert.match(errorMessages.invalid_source, /^Zdroj /);
     assert.ok(!errorMessages.invalid_source.includes('v textu'));
 });
+
+import { normalizePageLink, offersArticleBox, createArticleBox, findCentralSection, loadArticleBoxPages } from '../src/lib/server/content.ts';
+test('page link is normalized to /slug/ form, root and invalid characters are left alone', () => {
+    assert.equal(normalizePageLink('/testovaci-blog'), '/testovaci-blog/');
+    assert.equal(normalizePageLink('o-nas/'), '/o-nas/');
+    assert.equal(normalizePageLink('o-nas'), '/o-nas/');
+    assert.equal(normalizePageLink('  /o-nas  '), '/o-nas/');
+    assert.equal(normalizePageLink('/'), '/');
+    assert.equal(normalizePageLink(' / '), '/');
+    assert.equal(normalizePageLink('/o-nas/'), '/o-nas/');
+    assert.equal(normalizePageLink(''), '');
+    assert.equal(normalizePageLink('   '), '');
+    assert.equal(normalizePageLink('/o nas'), '/o nas');
+    assert.equal(normalizePageLink('/a?b=1'), '/a?b=1');
+    const f = new FormData();
+    f.set('link', 'blog'); f.set('title', 'Blog');
+    assert.equal(parseFields('pages', f).link, '/blog/');
+    assert.equal(parseFields('pages', f, true).link, undefined);
+});
+test('source message only concerns control characters', async () => {
+    const { errorMessages } = await import('../src/lib/server/api-contract.ts');
+    assert.equal(errorMessages.invalid_source, 'Zdroj nesmí obsahovat řídicí znaky ani zalomení řádku.');
+});
+const story = [{ type: 'story', settings: {}, sections: ['central'] }];
+const boxGateway = (calls: unknown[], opts: { role?: 'global' | 'editor'; boxesWrite?: boolean; sections?: unknown[]; failSave?: boolean; boxes?: unknown[] } = {}) => createContentGateway({
+    role: opts.role ?? 'global', scopes: ['pages:read', 'pages:write', 'boxes:read', 'boxes:write', 'sections:read'],
+    capabilities: { pages: { read: true, write: true }, boxes: { read: true, write: opts.boxesWrite ?? true }, sections: { read: true } },
+    call: async (call) => {
+        calls.push(call);
+        if (call.operation === 'create' && call.resource === 'boxes' && opts.failSave) throw new RemoteFailure(500, 'unavailable');
+        if (call.resource === 'sections') return { etag: null, data: opts.sections ?? [{ section_id: 3, key: 'top' }, { section_id: 4, key: 'central' }], pagination: { page: 1, per_page: 100, total: 2, total_pages: 1 } };
+        if (call.resource === 'boxes' && call.operation === 'list') return { etag: null, data: opts.boxes ?? [], pagination: { page: 1, per_page: 100, total: 0, total_pages: 1 } };
+        return { etag: '"' + 'a'.repeat(64) + '"', data: { id: 9, site_id: 9 } };
+    }
+});
+test('article box is offered only when the site registers story and boxes are writable', () => {
+    assert.equal(offersArticleBox(boxGateway([]), story), true);
+    assert.equal(offersArticleBox(boxGateway([]), []), false);
+    assert.equal(offersArticleBox(boxGateway([], { boxesWrite: false }), story), false);
+    assert.equal(offersArticleBox(boxGateway([], { role: 'editor' }), story), false);
+});
+test('article box is created in the central section through the ordinary create operation', async () => {
+    const calls: { operation: string; resource?: string; data?: Record<string, unknown> }[] = [];
+    assert.equal(await createArticleBox(boxGateway(calls), story, 12, 'Blog'), 'created');
+    assert.deepEqual(calls.at(-1), { operation: 'create', resource: 'boxes', id: undefined, data: { name: 'Článek: Blog', type: 'story', settings: {}, section_id: 4, static: 1, shared: 0, device_min: 1, device_strict: 0, order: 0, sites: [12] }, etag: undefined });
+    const none: unknown[] = [];
+    assert.equal(await createArticleBox(boxGateway(none), [], 12, 'Blog'), 'skipped');
+    assert.equal(none.length, 0);
+    assert.equal(await createArticleBox(boxGateway([], { sections: [{ section_id: 3, key: 'top' }] }), story, 12, 'Blog'), 'failed');
+    assert.equal(await createArticleBox(boxGateway([], { failSave: true }), story, 12, 'Blog'), 'failed');
+    assert.equal(await findCentralSection(boxGateway([])), 4);
+});
+test('creating a page keeps the page when the box fails and asks for manual follow-up', async () => {
+    const { createContentActions } = await import('../src/lib/server/content-actions.ts');
+    const { tokenHash } = await import('../src/lib/server/security.ts');
+    const run = async (opts: Parameters<typeof boxGateway>[1], flag: string | null) => {
+        const calls: { operation: string; resource?: string }[] = [];
+        const gateway = boxGateway(calls, opts);
+        const post = Object.assign({}, gateway, { save: gateway.save });
+        const actions = createContentActions(async () => ({ site: { id: 1, name: 'Fixture' }, boxTypes: story, gateway: post }));
+        const body = new URLSearchParams({ csrf: 'csrf', etag: '', parent_id: '0', link: 'blog', title: 'Blog', visible: '1' });
+        if (flag) body.set('show_article', flag);
+        const event = { params: { site: '1', resource: 'pages', id: 'new' }, url: new URL('https://admin.example/content/1/pages/new'), locals: { csrf: 'csrf', session: { user: { id: 1, email: 'a@example.test', globalAdmin: true, mfaEnabled: true }, mfaVerified: true, csrf: 'csrf', hash: tokenHash('session') } }, request: new Request('https://admin.example/content/1/pages/new', { method: 'POST', headers: { origin: 'https://admin.example' }, body }) } as never;
+        try { const result = await actions.save(event); return { calls, location: JSON.stringify(result) }; } catch (e) { return { calls, location: (e as { location?: string }).location }; }
+    };
+    const ok = await run({}, '1');
+    assert.equal(ok.calls.filter(c => c.operation === 'create').length, 2);
+    assert.ok(!ok.location?.includes('boxWarning'));
+    const failed = await run({ failSave: true }, '1');
+    assert.equal(failed.calls.filter(c => c.resource === 'pages' && c.operation === 'create').length, 1);
+    assert.equal(failed.location, '/content/1/pages/9?boxWarning=1');
+    const off = await run({}, null);
+    assert.equal(off.calls.filter(c => c.resource === 'boxes').length, 0);
+});
+test('article box pages are found from story boxes and failures hide the notice', async () => {
+    const calls: unknown[] = [];
+    const g = boxGateway(calls, { boxes: [{ type: 'story', sites: [5, { site_id: 6 }] }, { type: 'other', sites: [7] }] });
+    assert.deepEqual(await loadArticleBoxPages(g, story), [5, 6]);
+    assert.equal(await loadArticleBoxPages(g, []), null);
+    const broken = createContentGateway({ role: 'global', scopes: ['boxes:read'], capabilities: { boxes: { read: true } }, call: async () => { throw new RemoteFailure(500, 'x'); } });
+    assert.equal(await loadArticleBoxPages(broken, story), null);
+});

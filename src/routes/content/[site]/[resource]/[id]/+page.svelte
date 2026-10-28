@@ -39,6 +39,7 @@
 </PageHeader>
 
 <div id="vysledek" tabindex="-1" class="outline-none">
+ {#if data.boxWarning}<section class="mb-6 rounded-2xl border-2 border-warn bg-warn-soft p-5 text-text" role="alert" aria-labelledby="box-varovani"><h2 id="box-varovani" class="text-warn">Stránka je uložená, ale článek se na ní zatím nezobrazí</h2><p class="mt-1">Nepodařilo se automaticky přidat box, který na stránce vykresluje články. Přidejte ho ručně: otevřete část Boxy, vytvořte nový box typu <code>story</code> v sekci <code>central</code> a přiřaďte mu tuto stránku.</p><p class="mt-3"><a class="btn btn-secondary btn-sm" href={'/content/'+data.site.id+'/boxes/new'}>Přidat box ručně</a></p></section>{/if}
  {#if form?.error&&!form?.conflict}<p class="alert alert-error mb-4" role="alert">{form.error}</p>{/if}
  {#if form?.message}<p class="alert alert-ok mb-4" role="status">{form.message}</p>{/if}
  {#if form?.conflict}<section class="mb-6 rounded-2xl border-2 border-warn bg-warn-soft p-5 text-text" role="alert" aria-labelledby="konflikt">
@@ -87,7 +88,7 @@
  {#if articles}<p class="alert alert-info">{data.row.draft?'Upravujete nepublikovaný koncept. Veřejný obsah se změní až po publikování.':'Uložením vznikne nepublikovaný koncept.'}</p>{/if}
  {#if data.permissions.save}<form id="save-form" method="POST" action="?/save" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="card grid gap-5">
 <input type="hidden" name="csrf" value={data.csrf}/>
-<input type="hidden" name="etag" value={tag??''}/>{#key JSON.stringify(values)}<ResourceFields resource={data.resource} {values} boxTypes={data.boxTypes} refs={data.refs} siteId={data.site.id} fieldError={form?.field&&!editingTranslation?{field:form.field,message:form.error}:undefined}/>{/key}{#if form?.conflict&&!editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
+<input type="hidden" name="etag" value={tag??''}/>{#key JSON.stringify(values)}<ResourceFields resource={data.resource} {values} boxTypes={data.boxTypes} refs={data.refs} siteId={data.site.id} offerArticleBox={data.offerArticleBox} articleBoxPages={data.articleBoxPages} noArticleBox={data.resource==='pages'&&data.id==='new'&&!data.offerArticleBox} fieldError={form?.field&&!editingTranslation?{field:form.field,message:form.error}:undefined}/>{/key}{#if form?.conflict&&!editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
 <input name="mergeConsent" type="checkbox" value="yes"/> Zkontroloval jsem aktuální obsah a chci jej ručně sloučit</label>
 <div><SubmitButton formaction="?/merge" variant="secondary" busy={pending.is('?/merge')}>Převzít aktuální verzi pro ruční sloučení bez uložení</SubmitButton></div></div>{/if}
 <div class="flex flex-wrap items-center gap-3"><SubmitButton busy={pending.is('?/save')}>{articles?'Uložit koncept':'Uložit změny'}</SubmitButton><span class="hint">{articles?'Ukládá se jako koncept, veřejný obsah zůstává beze změny.':'Změna se projeví na webu okamžitě.'}</span></div></form>

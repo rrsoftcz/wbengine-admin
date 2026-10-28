@@ -15,6 +15,13 @@ Target: **0.2.0**.
   API-capability checks. Integration keys remain on the server.
 - Analytics dashboard coverage in the two-site HTTPS API pilot.
 
+### Changed
+
+- Page links are normalized on save to the `/o-nas/` form (leading and trailing slash).
+- New pages can automatically get a `story` box in the `central` section so the
+  published article shows; the article editor warns when the chosen page has no such box.
+- Article Source is optional free text; the error message now only concerns control characters.
+
 ### Security
 
 - Analytics pages are private, server-rendered and sent with `no-store`; the
