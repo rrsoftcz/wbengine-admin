@@ -1,6 +1,8 @@
 import { transaction, rows } from './db.ts';
 import { requireGlobal, requireSite, vault, type Session } from './auth.ts';
 import { remoteGet, resolveTarget } from './remote.ts';
+import { projectCapabilities } from './registration-contract.ts';
+export { projectCapabilities };
 const allowed = () => (process.env.REMOTE_IP_ALLOWLIST ?? '').split(',').map(x => x.trim()).filter(Boolean);
 export async function listSites(s: Session) {
     return transaction(c => s.user.globalAdmin ? rows<{
@@ -39,22 +41,6 @@ export async function grantSite(s: Session, userId: number, siteId: number, role
         await c.execute('DELETE FROM sessions WHERE user_id=?', [userId]);
         await c.execute('INSERT INTO audit(user_id,site_id,event) VALUES (?,?,?)', [s.user.id, siteId, 'grant.changed']);
     });
-}
-export function projectCapabilities(raw: unknown) {
-    const body = raw as {
-        success?: boolean;
-        data?: {
-            api_version?: unknown;
-            capabilities?: Record<string, {
-                read?: unknown;
-                write?: unknown;
-            }>;
-        };
-    };
-    if (body?.success !== true || body.data?.api_version !== '2.0' || !body.data.capabilities)
-        throw Error('Neplatný discovery kontrakt');
-    const names = ['discovery', 'articles', 'pages', 'menu', 'sections', 'boxes', 'translations', 'images', 'templates', 'preview', 'publish'];
-    return { version: '2.0', resources: names.map(name => ({ name, read: body.data!.capabilities![name]?.read === true, write: body.data!.capabilities![name]?.write === true })) };
 }
 export async function inspectSite(s: Session, id: number) {
     const site = await transaction(async (c) => {
