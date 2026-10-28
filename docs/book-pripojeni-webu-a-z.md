@@ -156,7 +156,7 @@ Co znamenají hlášky:
 | Klíč nemá všechna oprávnění | vydat klíč s úplným profilem |
 | API v2 na webu není dostupné | zapnout `apiV2`, aplikovat migrace (krok 3) |
 | Web se nepodařilo kontaktovat | zkontrolovat adresu, DNS a platný HTTPS certifikát |
-| Adresa míří do nepovolené sítě | web musí být na veřejné adrese, privátní adresy blokuje ochrana SSRF |
+| Adresa míří do nepovolené sítě | web musí být na veřejné adrese, privátní a smyčkové adresy blokuje ochrana SSRF. Při webu na stejném serveru viz Odstraňování potíží, Admin a web na jednom serveru |
 | Web dočasně omezil počet pokusů | počkat několik minut (web povolí jen omezený počet chyb na adresu) |
 | Tento web už je zaregistrovaný | adresa je v Adminu jednoznačná |
 
@@ -179,5 +179,26 @@ Globální správce vidí všechny registrované weby bez dalšího oprávnění
 | `/integrations/` vrací 403 | účet na webu nemá roli `admin` (`bin/wbe user:list`) |
 | `/integrations/` hlásí, že stránka nebyla rozpoznána jako HTTPS | prázdné `http.trustedProxies` v `Settings.json` (instalátor jej nastavuje, u ručně zřízeného webu nastavte bránu Docker sítě a `forwardedHeaders` `x-forwarded-for`, `x-forwarded-proto`) a `i18n.baseUrl` s `https://` |
 | Uložené klíče po obnově databáze nejdou použít | chybí původní `MASTER_KEY` |
+
+### Admin a web na jednom serveru: "Adresa míří do nepovolené sítě"
+
+Admin před uložením zjistí DNS adresy webu a odmítne vše, co není veřejné (smyčka 127.x, privátní sítě). Na jednom serveru se může stát, že resolver serveru vrátí pro váš web `127.0.1.1`, i když je v DNS správná veřejná adresa. Typická příčina: doména webu je v DNS CNAME na jméno serveru od poskytovatele (například `vmi123.contaboserver.net`) a cloud-init mapuje to jméno v `/etc/hosts` na `127.0.1.1`.
+
+Ověření na serveru i v kontejneru Adminu:
+
+```sh
+getent ahosts www.vase-domena.cz
+docker compose exec -T app node -e 'require("node:dns/promises").lookup("www.vase-domena.cz",{all:true}).then(r=>console.log(r))'
+```
+
+Pokud výpis obsahuje `127.0.1.1` nebo privátní adresu, opravte hostitele. V `/etc/hosts` ponechte u řádku `127.0.1.1` jen krátké jméno stroje (bez FQDN) a stejnou změnu proveďte v šabloně cloud-init, aby přežila restart:
+
+```sh
+sudo sed -i 's/^127\.0\.1\.1 {{fqdn}} {{hostname}}$/127.0.1.1 {{hostname}}/' /etc/cloud/templates/hosts.debian.tmpl
+sudo sed -i 's/^127\.0\.1\.1 vmi123\.contaboserver\.net vmi123$/127.0.1.1 vmi123/' /etc/hosts   # upravte jména podle svého serveru
+sudo resolvectl flush-caches
+```
+
+Ověření zopakujte, musí vrátit veřejnou IP. Spojení z kontejneru na veřejnou adresu téhož serveru pak obvykle funguje. Nepovolujte smyčkovou adresu přes `REMOTE_IP_ALLOWLIST`: uvnitř kontejneru by mířila na samotný kontejner, ne na web, a oslabila by ochranu. Allowlist je určený jen pro konkrétní schválené intranetové adresy. Nemáte-li k hostiteli přístup, lze kontejneru Adminu dát veřejné DNS servery přes `compose.override.yaml` (`services: app: dns: [1.1.1.1, 9.9.9.9]`), ale to nemění resolver hostitele.
 
 Související dokumentace: README Adminu (provoz, CLI, bezpečnostní hranice), README a `docs/deploy-vps-docker.md` skeletonu, `ref-api-v2.md` a README frameworku (API v2, správa uživatelů z příkazové řádky) a stránky Začínáme a Centrální administrace na `https://www.wbengine.org/docs/`.

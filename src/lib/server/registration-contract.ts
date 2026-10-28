@@ -15,7 +15,7 @@ export type ScopeProfile = keyof typeof scopeProfiles;
 export const registrationErrors = {
     invalid_input: 'Vyplňte název webu (nejvýše 160 znaků) a platný integrační klíč začínající wbv2_.',
     invalid_url: 'Adresa webu není povolená. Použijte HTTPS adresu bez přihlašovacích údajů, parametrů a fragmentu, port 443.',
-    unsafe_target: 'Adresa webu míří do nepovolené sítě. Web musí být dostupný na veřejné HTTPS adrese.',
+    unsafe_target: 'Adresa webu míří do nepovolené sítě. Web musí být dostupný na veřejné HTTPS adrese. Pokud běží na stejném serveru jako Admin, zkontrolujte, že DNS v kontejneru Adminu vrací veřejnou IP adresu, ne 127.x nebo privátní (viz průvodce, Odstraňování potíží).',
     unreachable: 'Web se nepodařilo kontaktovat. Ověřte adresu, DNS a platný HTTPS certifikát.',
     timeout: 'Web neodpověděl v časovém limitu. Zkuste to znovu později.',
     api_unavailable: 'API v2 na webu není dostupné. Zapněte API v2 a nainstalujte SQL migrace frameworku.',
