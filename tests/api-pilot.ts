@@ -10,13 +10,12 @@ import { database, transaction, rows } from '../src/lib/server/db.ts';
 import { invite, acceptInvitation, loadSession, setupMfa, completeMfa } from '../src/lib/server/auth.ts';
 import { provisionSite } from '../src/lib/server/sites.ts';
 import { connectContent, canOperate } from '../src/lib/server/content.ts';
+import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
 if (!process.env.DATABASE_URL?.endsWith('/wbengine_admin_pilot') || !process.env.PILOT_API_URL || !process.env.PILOT_API_KEY)
     throw Error('Pilot vyžaduje vlastní DB wbengine_admin_pilot a izolované API');
 await transaction(async (c) => {
-    const source = await readFile(new URL('../migrations/001-foundation.sql', import.meta.url), 'utf8');
-    for (const sql of source.split(';').map(s => s.trim()).filter(Boolean))
-        await c.query(sql);
+    await migrate(c);
 });
 const socket = createServer();
 await new Promise<void>(r => socket.listen(0, '127.0.0.1', r));
@@ -286,19 +285,15 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     response = await post(base + '/articles/' + article + '?/publish', { ...hidden(html, 'save'), confirm: 'yes' });
     assert.equal(response.status, 403);
     assert.equal((await gateway.get('articles', article)).etag, beforeDenied.etag);
-    await provisionSite('Unassigned pilot ' + suffix, process.env.PILOT_API_URL!, process.env.PILOT_API_KEY!);
-    const [unassigned] = await transaction(c => rows<{
-        id: number;
-    }>(c, 'SELECT id FROM sites WHERE name=?', ['Unassigned pilot ' + suffix]));
+    assert.ok(process.env.PILOT_SECOND_API_URL && process.env.PILOT_SECOND_API_KEY && process.env.PILOT_CONTROL_DIR, 'Dual-site fixture and finite controls are required');
+    // The second pilot site (registered once above, the URL is unique per site) is never granted to this member, so it doubles as the unassigned site.
+    const unassigned = analyticsPilotSecondSite;
     response = await get('/content/' + unassigned.id);
     assert.equal(response.status, 403);
-    assert.ok(!(await response.text()).includes(process.env.PILOT_API_KEY!));
-    assert.ok(process.env.PILOT_SECOND_API_URL && process.env.PILOT_SECOND_API_KEY && process.env.PILOT_CONTROL_DIR, 'Dual-site fixture and finite controls are required');
+    const denied = await response.text();
+    assert.ok(!denied.includes(process.env.PILOT_API_KEY!) && !denied.includes(process.env.PILOT_SECOND_API_KEY!));
     jar.set('__Host-wbadmin', globalToken);
-    await provisionSite('Independent second pilot ' + suffix, process.env.PILOT_SECOND_API_URL!, process.env.PILOT_SECOND_API_KEY!);
-    const [secondSite] = await transaction(c => rows<{
-        id: number;
-    }>(c, 'SELECT id FROM sites WHERE name=?', ['Independent second pilot ' + suffix]));
+    const secondSite = analyticsPilotSecondSite;
     const secondBase = '/content/' + secondSite.id, secondConnection = await connectContent(session, Number(secondSite.id)), secondGateway = secondConnection.gateway;
     const allowlist = (process.env.REMOTE_IP_ALLOWLIST ?? '').split(',');
     for (const [url, key] of [[process.env.PILOT_API_URL!, process.env.PILOT_SECOND_API_KEY!], [process.env.PILOT_SECOND_API_URL!, process.env.PILOT_API_KEY!]])

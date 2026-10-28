@@ -38,7 +38,7 @@ docker compose up -d --build app
 
 App poslouchá na 127.0.0.1:13000 a předpokládá HTTPS reverse proxy. ORIGIN musí být přesný HTTPS origin bez koncového lomítka. Adapter-node 6 ve výchozím stavu odvozuje HTTPS origin z Host hlavičky, centrála jej navíc porovnává s ORIGIN. Proxy musí předávat správný Host a odstraňovat nebo přepisovat vlastní forwarded hlavičky. Důvěryhodné proxy hlavičky nejsou zapnuté. Secure cookies se nevypínají ani ve vývoji; pro ruční použití je třeba lokální HTTPS proxy.
 
-Aplikace sama nepouští DDL při každém požadavku. Migraci proveďte před spuštěním první verze. V Docker image je CLI i migrační SQL: lze použít `docker compose run --rm app npm run admin -- migrate`. Image běží jako uživatel node, databáze má samostatného aplikačního uživatele.
+Aplikace sama nepouští DDL při každém požadavku. Migraci proveďte před spuštěním každé verze, která přidává soubor v `migrations/`: příkaz `migrate` aplikuje každý soubor `NNN-*.sql` jednou a eviduje jej v tabulce `schema_migrations`. V Docker image je CLI i migrační SQL: lze použít `docker compose run --rm app npm run admin -- migrate`. Image běží jako uživatel node, databáze má samostatného aplikačního uživatele.
 
 ## Správa důvěryhodným CLI
 
@@ -57,7 +57,7 @@ npm run admin -- site-add 'Ukázkový web' https://example.com/
 
 `recover` vydá jednorázový token s platností 30 minut pro `/recover`; starší nepoužité tokeny zneplatní. Změna hesla zruší všechny sessions a zachová MFA. Ztrátu TOTP řeší jednorázový záložní kód; webové vypnutí MFA ani obnova přes pouhé heslo nejsou dostupné.
 
-`site-add` vyžaduje integrační klíč na stdin, nikoli jako argument. Předejte jej přes zabezpečený pipe ze secret store nebo privátní soubor. Při použití klávesnice CLI operaci odmítne, aby klíč nebyl echo v terminálu. Klíč nesmí být ve shell historii. Registraci a rotaci klíčů nedělá webové UI; klíče se nikdy neposílají do prohlížeče. Připojení je dostupné jen globálním správcům, ti mohou přes UI přidělovat siteadmin/editor podle ID účtu z `users`. `revoke` odebere konkrétní webové oprávnění. Změna role nebo odebrání oprávnění zruší sessions dotčeného uživatele.
+`site-add` vyžaduje integrační klíč na stdin, nikoli jako argument. Předejte jej přes zabezpečený pipe ze secret store nebo privátní soubor. Při použití klávesnice CLI operaci odmítne, aby klíč nebyl echo v terminálu. Klíč nesmí být ve shell historii. CLI před uložením klíč ověří stejnou funkcí jako webový formulář. Běžná cesta je webová: globální správce s MFA přidá web na stránce `/sites` (název, HTTPS adresa, integrační klíč vydaný na cílovém webu), klíč se před uložením ověří přes `capabilities` a `identity` a je uložen jen šifrovaně. Stejná stránka umožňuje výměnu klíče: nový klíč se ověří, teprve poté se přepíše uložený a správce odvolá starý klíč na cílovém webu. Klíč se nikdy nevrací do prohlížeče. Globální správce vidí všechny weby bez grantu, ostatním účtům se přidělují siteadmin/editor výběrem podle e-mailu. `revoke` odebere konkrétní webové oprávnění. Změna role nebo odebrání oprávnění zruší sessions dotčeného uživatele.
 
 ## Bezpečnostní hranice
 
