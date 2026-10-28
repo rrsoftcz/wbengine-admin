@@ -286,19 +286,14 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     assert.equal(response.status, 403);
     assert.equal((await gateway.get('articles', article)).etag, beforeDenied.etag);
     assert.ok(process.env.PILOT_SECOND_API_URL && process.env.PILOT_SECOND_API_KEY && process.env.PILOT_CONTROL_DIR, 'Dual-site fixture and finite controls are required');
-    // The independent second site is never granted to this member, so it doubles as the unassigned site (the URL is unique per site).
-    await provisionSite('Independent second pilot ' + suffix, process.env.PILOT_SECOND_API_URL!, process.env.PILOT_SECOND_API_KEY!);
-    const [unassigned] = await transaction(c => rows<{
-        id: number;
-    }>(c, 'SELECT id FROM sites WHERE name=?', ['Independent second pilot ' + suffix]));
+    // The second pilot site (registered once above, the URL is unique per site) is never granted to this member, so it doubles as the unassigned site.
+    const unassigned = analyticsPilotSecondSite;
     response = await get('/content/' + unassigned.id);
     assert.equal(response.status, 403);
     const denied = await response.text();
     assert.ok(!denied.includes(process.env.PILOT_API_KEY!) && !denied.includes(process.env.PILOT_SECOND_API_KEY!));
     jar.set('__Host-wbadmin', globalToken);
-    const [secondSite] = await transaction(c => rows<{
-        id: number;
-    }>(c, 'SELECT id FROM sites WHERE name=?', ['Independent second pilot ' + suffix]));
+    const secondSite = analyticsPilotSecondSite;
     const secondBase = '/content/' + secondSite.id, secondConnection = await connectContent(session, Number(secondSite.id)), secondGateway = secondConnection.gateway;
     const allowlist = (process.env.REMOTE_IP_ALLOWLIST ?? '').split(',');
     for (const [url, key] of [[process.env.PILOT_API_URL!, process.env.PILOT_SECOND_API_KEY!], [process.env.PILOT_SECOND_API_URL!, process.env.PILOT_API_KEY!]])
