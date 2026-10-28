@@ -153,4 +153,11 @@ Aktuální implementace má dvě nedokončené poloviny:
 - [ ] Přidělování grantů vyžaduje ručně zjištěné ID účtu.
 - [ ] Návody nepopisují dokončitelný onboarding bez odborného provozního přístupu.
 
-Tento plán je návrh k věcné kontrole. Implementace začne až po jeho schválení.
+## Stav fází
+
+- [x] REG-01: `src/lib/server/registration-contract.ts` (scope profil `management`, katalog 13 bezpečných chyb včetně HTTP 429, sdílená funkce `verifyRegistration` pro web i CLI) a `tests/registration-contract.test.ts`, který hlídá, že `canOperate` nikdy nevyžaduje scope mimo profil.
+- [ ] REG-02: framework (obrazovka, re-auth, výpis, `last_used_at`).
+- [ ] REG-03: Admin (formulář, migrace 002, výměna klíče).
+- [ ] Vydání verze frameworku, aktualizace pinu v CI.
+- [ ] REG-04: pilot.
+- [ ] REG-05: dokumentace a nasazení.
