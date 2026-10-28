@@ -285,16 +285,17 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     response = await post(base + '/articles/' + article + '?/publish', { ...hidden(html, 'save'), confirm: 'yes' });
     assert.equal(response.status, 403);
     assert.equal((await gateway.get('articles', article)).etag, beforeDenied.etag);
-    await provisionSite('Unassigned pilot ' + suffix, process.env.PILOT_API_URL!, process.env.PILOT_API_KEY!);
+    assert.ok(process.env.PILOT_SECOND_API_URL && process.env.PILOT_SECOND_API_KEY && process.env.PILOT_CONTROL_DIR, 'Dual-site fixture and finite controls are required');
+    // The independent second site is never granted to this member, so it doubles as the unassigned site (the URL is unique per site).
+    await provisionSite('Independent second pilot ' + suffix, process.env.PILOT_SECOND_API_URL!, process.env.PILOT_SECOND_API_KEY!);
     const [unassigned] = await transaction(c => rows<{
         id: number;
-    }>(c, 'SELECT id FROM sites WHERE name=?', ['Unassigned pilot ' + suffix]));
+    }>(c, 'SELECT id FROM sites WHERE name=?', ['Independent second pilot ' + suffix]));
     response = await get('/content/' + unassigned.id);
     assert.equal(response.status, 403);
-    assert.ok(!(await response.text()).includes(process.env.PILOT_API_KEY!));
-    assert.ok(process.env.PILOT_SECOND_API_URL && process.env.PILOT_SECOND_API_KEY && process.env.PILOT_CONTROL_DIR, 'Dual-site fixture and finite controls are required');
+    const denied = await response.text();
+    assert.ok(!denied.includes(process.env.PILOT_API_KEY!) && !denied.includes(process.env.PILOT_SECOND_API_KEY!));
     jar.set('__Host-wbadmin', globalToken);
-    await provisionSite('Independent second pilot ' + suffix, process.env.PILOT_SECOND_API_URL!, process.env.PILOT_SECOND_API_KEY!);
     const [secondSite] = await transaction(c => rows<{
         id: number;
     }>(c, 'SELECT id FROM sites WHERE name=?', ['Independent second pilot ' + suffix]));
