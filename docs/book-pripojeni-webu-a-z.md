@@ -169,6 +169,15 @@ Globální správce vidí všechny registrované weby bez dalšího oprávnění
 - **Výměna klíče** (podezření na únik, plánovaná obměna): na webu vydat nový klíč, v Adminu u webu otevřít Vyměnit integrační klíč a vložit jej, a teprve po úspěšném ověření odvolat starý klíč na stránce `/integrations/` webu. Admin ukáže, kterou integraci odvolat.
 - **Odvolání přístupu**: odvolejte klíč na webu, Admin přestane mít přístup okamžitě.
 
+## Volitelně: analytika webu v Adminu
+
+Stránka Analytika v Adminu zobrazí návštěvnost webu. Vyžaduje dvě věci na straně webu a každá se řeší zvlášť:
+
+1. **Zapnout sběr analytiky na webu.** V `src/Config/Settings.json` nastavte `"analytics": { "enabled": true }` a aplikujte migraci `4.0.0/006-analytics.sql` frameworku (před tím zálohujte databázi; produkční instalátor ji aplikuje, ale sběr nechává vypnutý). Zapnutím se začnou ukládat agregované údaje o návštěvnosti veřejného webu, zvažte to z pohledu ochrany soukromí a souhlasů návštěvníků. Ověření: `vendor/bin/wbengine.php doctor --config=src/Config/Settings.json --root=src`.
+2. **Vydat klíč s volbou Analytika.** Na stránce `/integrations/` webu zaškrtněte Analytika (volba je nabídnutá, jen když je krok 1 splněný). Klíč pak má 18 oprávnění místo 17. Klíč vydaný dříve analytiku nemá: vydejte nový a v Registru webů u webu zvolte Vyměnit klíč, starý poté odvolejte na webu.
+
+Bez obojího stránka Analytika v Adminu přesně napíše, co chybí: vypnutá analytika na webu, nebo klíč bez oprávnění `analytics:read`.
+
 ## Odstraňování potíží
 
 | Příznak | Příčina a řešení |
