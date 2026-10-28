@@ -6,6 +6,7 @@ Projekt obsahuje účty na pozvánku, hesla, povinné TOTP, záložní kódy, ob
 
 ## Dokumentace
 
+- [Průvodce: od nového webu po správu v centrální administraci (A až Z)](docs/book-pripojeni-webu-a-z.md)
 - [Plán a stav implementace](docs/plan-admin-implementation.md)
 - [Historie změn](docs/ref-changelog.md)
 
