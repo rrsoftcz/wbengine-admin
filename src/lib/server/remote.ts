@@ -1,4 +1,4 @@
-import { planApiCall, RemoteFailure, strongEtag, type ApiCall, type ApiReply } from './api-contract.ts';
+import { planApiCall, RemoteFailure, safeErrorCode, strongEtag, type ApiCall, type ApiReply } from './api-contract.ts';
 export { planApiCall, RemoteFailure } from './api-contract.ts';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
@@ -99,7 +99,34 @@ export function createApiClient({ deadlineMs = 8000, resolver, transport = reque
                         return;
                     }
                     if (res.statusCode !== 200 && res.statusCode !== 201) {
-                        fail(new RemoteFailure(res.statusCode ?? 503, 'remote_rejected'));
+                        // Z chybové odpovědi se zachová jen kód z uzavřeného katalogu. Text zprávy ani detaily se nikdy nečtou dál.
+                        const status = res.statusCode ?? 503, errorChunks: Buffer[] = [];
+                        let errorSize = 0, finished = false;
+                        const finish = () => {
+                            if (finished)
+                                return;
+                            finished = true;
+                            clearTimeout(errorTimer);
+                            let code = 'remote_rejected';
+                            try {
+                                const raw = Buffer.concat(errorChunks).toString();
+                                if (!(key && raw.includes(key)))
+                                    code = safeErrorCode(JSON.parse(raw)?.error?.code);
+                            }
+                            catch { /* neplatné tělo: obecná hláška */ }
+                            fail(new RemoteFailure(status, code));
+                        };
+                        const errorTimer = setTimeout(finish, 200);
+                        res.on('data', (chunk: Buffer) => {
+                            errorSize += chunk.length;
+                            if (errorSize > 4096) {
+                                errorChunks.length = 0;
+                                finish();
+                                return;
+                            }
+                            errorChunks.push(chunk);
+                        });
+                        res.on('end', finish);
                         return;
                     }
                     let size = 0;

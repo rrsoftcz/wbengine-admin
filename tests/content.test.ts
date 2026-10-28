@@ -157,3 +157,36 @@ test('connection failure keeps submitted fields in request-local state for offli
     assert.equal('csrf' in retained.fields, false);
     assert.equal('key' in retained, false);
 });
+
+import { loadReferenceOptions, defaultPageOption, referenceFields } from '../src/lib/server/content.ts';
+test('unchecked switch is read as 0 for a full save but ignored for translations', () => {
+    const f = new FormData();
+    f.set('parent_id', '0'); f.set('link', '/a'); f.set('title', 'A'); f.set('visible', '1');
+    const data = parseFields('pages', f);
+    assert.equal(data.visible, 1);
+    assert.equal(data.strict, 0);
+    assert.equal(data.acl, 0);
+    const t = new FormData();
+    t.set('title', 'A');
+    assert.deepEqual(parseFields('pages', t, true), { title: 'A' });
+    const bad = new FormData();
+    bad.set('visible', 'yes');
+    assert.throws(() => parseFields('pages', bad));
+});
+test('reference options are labelled for people, exclude the edited record and fall back to null on failure', async () => {
+    const calls: [string, number, number | undefined][] = [];
+    const gateway = { list: async (r: string, page = 1, perPage?: number) => {
+        calls.push([r, page, perPage]);
+        return { etag: null, data: page === 1 ? [{ site_id: 1, title: 'Domů', link: '/' }, { site_id: 2, title: 'O nás', link: '/o-nas' }] : [{ site_id: 3, title: 'Kontakt', link: '/kontakt' }], pagination: { page, per_page: 100, total: 3, total_pages: 2 } };
+    } };
+    const all = await loadReferenceOptions(gateway as never, 'pages');
+    assert.deepEqual(all?.map(o => o.label), ['Domů (/)', 'O nás (/o-nas)', 'Kontakt (/kontakt)']);
+    assert.deepEqual(calls, [['pages', 1, 100], ['pages', 2, 100]]);
+    assert.equal(defaultPageOption(all!), 2);
+    assert.equal(defaultPageOption([{ value: 5, label: 'Domů (/)', link: '/' }]), 5);
+    assert.equal(defaultPageOption([]), 0);
+    assert.deepEqual((await loadReferenceOptions(gateway as never, 'pages', '2'))?.map(o => o.value), [1, 3]);
+    assert.equal(await loadReferenceOptions({ list: async () => { throw new Error('down'); } } as never, 'pages'), null);
+    assert.equal(await loadReferenceOptions({ list: async () => ({ etag: null, data: {} }) } as never, 'pages'), null);
+    assert.equal(referenceFields.articles?.site_id?.source, 'pages');
+});
