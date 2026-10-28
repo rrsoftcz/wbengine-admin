@@ -50,6 +50,8 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     assert.equal(denied.headers.get('location'), '/login');
     const loginPage = await get('/login'), html = await loginPage.text();
     assert.equal(loginPage.headers.get('cache-control'), 'no-store');
+    // no-referrer by způsobil, že prohlížeč u POST formuláře pošle Origin: null a SvelteKit CSRF kontrola jej odmítne.
+    assert.equal(loginPage.headers.get('referrer-policy'), 'same-origin');
     assert.ok(!html.includes('key_cipher'));
     assert.ok(loginPage.headers.getSetCookie().every(c => c.includes('Secure') && c.includes('HttpOnly') && c.includes('SameSite=Strict')));
     let csrf = csrfFrom(html)!;
