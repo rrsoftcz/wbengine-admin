@@ -92,6 +92,80 @@ export function defaultPageOption(options: ReferenceOption[]): number {
     const pick = options.find(o => o.link !== '/') ?? options[0];
     return pick?.value ?? 0;
 }
+/**
+ * Sjednotí odkaz stránky do tvaru, který používá web: počáteční i koncové lomítko (/o-nas/), kořen zůstává "/".
+ * Při neplatných znacích nic nepřidává, ať rozhodne validace API.
+ */
+export function normalizePageLink(raw: string): string {
+    const link = raw.trim();
+    if (!link || link === '/' || !/^[\p{L}\p{N}_\-./~%]+$/u.test(link))
+        return link;
+    return (link.startsWith('/') ? '' : '/') + link + (link.endsWith('/') ? '' : '/');
+}
+/** Zda web nabízí typ boxu pro články (story) a smíme zapisovat boxy. */
+export function offersArticleBox(gateway: Pick<ReturnType<typeof createContentGateway>, 'role' | 'scopes' | 'capabilities'>, boxTypes: BoxType[]): boolean {
+    return gateway.capabilities.boxes?.write === true && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'save', 'boxes') && boxTypes.some(x => x.type === 'story' && x.sections.includes('central'));
+}
+/** Najde ID sekce s klíčem central v seznamu sekcí webu (nejvýše 5 stránek po 100 záznamech). */
+export async function findCentralSection(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>): Promise<number | null> {
+    for (let page = 1; page <= 5; page++) {
+        const reply = await gateway.list('sections', page, 100);
+        if (!Array.isArray(reply.data))
+            return null;
+        const found = (reply.data as Record<string, unknown>[]).find(row => row?.key === 'central' && Number.isSafeInteger(Number(row.section_id)) && Number(row.section_id) > 0);
+        if (found)
+            return Number(found.section_id);
+        if (!reply.pagination || page >= reply.pagination.total_pages)
+            break;
+    }
+    return null;
+}
+/**
+ * Po vytvoření stránky přidá box, který na ní vykresluje články. Nikdy nevyhazuje chybu: stránka už existuje.
+ * Vrací 'skipped' (web box nenabízí), 'created' nebo 'failed'.
+ */
+export async function createArticleBox(gateway: ReturnType<typeof createContentGateway>, boxTypes: BoxType[], pageId: number, pageTitle: string): Promise<'skipped' | 'created' | 'failed'> {
+    if (!offersArticleBox(gateway, boxTypes))
+        return 'skipped';
+    try {
+        const section = await findCentralSection(gateway);
+        if (!section || !Number.isSafeInteger(pageId) || pageId < 1)
+            return 'failed';
+        await gateway.save('boxes', null, { name: ('Článek: ' + pageTitle).slice(0, 100), type: 'story', settings: {}, section_id: section, static: 1, shared: 0, device_min: 1, device_strict: 0, order: 0, sites: [pageId] });
+        return 'created';
+    }
+    catch {
+        return 'failed';
+    }
+}
+/** ID stránek, na kterých je box vykreslující články. Null, pokud to nelze zjistit (box se pak nehlásí). */
+export async function loadArticleBoxPages(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, boxTypes: BoxType[]): Promise<number[] | null> {
+    if (!boxTypes.some(x => x.type === 'story'))
+        return null;
+    const pages = new Set<number>();
+    try {
+        for (let page = 1; page <= 5; page++) {
+            const reply = await gateway.list('boxes', page, 100);
+            if (!Array.isArray(reply.data))
+                return null;
+            for (const row of reply.data as Record<string, unknown>[]) {
+                if (row?.type !== 'story' || !Array.isArray(row.sites))
+                    continue;
+                for (const site of row.sites) {
+                    const id = Number(site && typeof site === 'object' ? (site as Record<string, unknown>).site_id ?? (site as Record<string, unknown>).id : site);
+                    if (Number.isSafeInteger(id) && id > 0)
+                        pages.add(id);
+                }
+            }
+            if (!reply.pagination || page >= reply.pagination.total_pages)
+                break;
+        }
+    }
+    catch {
+        return null;
+    }
+    return [...pages];
+}
 export function parseFields(r: Resource, f: FormData, translation = false, boxTypes: BoxType[] = []) {
     const output: Record<string, unknown> = {};
     for (const spec of schemas[r]) {
@@ -132,7 +206,7 @@ export function parseFields(r: Resource, f: FormData, translation = false, boxTy
             output[spec.name] = value;
         }
         else
-            output[spec.name] = raw;
+            output[spec.name] = r === 'pages' && spec.name === 'link' && !translation ? normalizePageLink(raw) : raw;
     }
     if (r === 'boxes') {
         const type = boxTypes.find(x => x.type === output.type);
