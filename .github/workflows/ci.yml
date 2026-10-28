@@ -32,8 +32,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: rrsoftcz/wbengine
-          # Pin the analytics pilot to the framework implementation under review.
-          ref: 351a5e79b0061d69a1e714552ccdd4c07b675db0
+          # Pin the pilot to the released framework (tag v4.2.0).
+          ref: a2f7425c6acf552c84a0ef89ccfc73c689521441
           path: framework
           persist-credentials: false
       - name: Build isolated provider and consumer images

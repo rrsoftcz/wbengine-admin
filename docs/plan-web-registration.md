@@ -156,8 +156,8 @@ Aktuální implementace má dvě nedokončené poloviny:
 ## Stav fází
 
 - [x] REG-01: `src/lib/server/registration-contract.ts` (scope profil `management`, katalog 13 bezpečných chyb včetně HTTP 429, sdílená funkce `verifyRegistration` pro web i CLI) a `tests/registration-contract.test.ts`, který hlídá, že `canOperate` nikdy nevyžaduje scope mimo profil.
-- [ ] REG-02: framework (obrazovka, re-auth, výpis, `last_used_at`).
+- [x] REG-02: framework (PR rrsoftcz/wbengine#5): Box `Integrations`, potvrzení hesla, `Model::list()`, `last_used_at`, preflight. Skeleton (PR rrsoftcz/wbengine-skeleton-app#4) zmergován.
 - [x] REG-03: Admin. Migrace `002` a `003` s evidencí migrací (`schema_migrations`), formulář „Přidat web“ s ověřením před uložením, unikátní URL, `integration_id`, výměna klíče, omezení pokusů, výběr účtu podle e-mailu. Pokrývá `tests/mysql.integration.ts` a `tests/http.smoke.ts`.
-- [ ] Vydání verze frameworku, aktualizace pinu v CI.
-- [ ] REG-04: pilot.
-- [ ] REG-05: dokumentace a nasazení.
+- [x] Vydání WBengine v4.2.0, pin CI Adminu aktualizován. Framework 4.2.0 a skeleton nasazeny na dev prostředí (contabo), migrace `4.0.0/007` a skeleton `013` aplikovány.
+- [ ] REG-04: automatické testy a CI pilot jsou hotové (framework 2050 testů, Admin MySQL scénář registrace a rotace, dvouwebový pilot). Zbývá jeden grafický průchod na dev prostředí (vydání klíče na skeletonu a registrace v Adminu), který vyžaduje testovací účty ADMIN.
+- [ ] REG-05: README Adminu a frameworku aktualizovány; zbývá produkce a návody skeletonu po grafickém průchodu.
