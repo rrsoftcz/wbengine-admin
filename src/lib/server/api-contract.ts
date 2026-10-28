@@ -7,6 +7,7 @@ export interface ApiCall {
     id?: string;
     locale?: string;
     page?: number;
+    perPage?: number;
     etag?: string;
     data?: Record<string, unknown>;
     from?: string;
@@ -23,11 +24,56 @@ export interface ApiReply {
         total_pages: number;
     };
 }
+/** Konečný katalog kódů chyb API verze 2 s českými hláškami. Jiný kód se nikdy nezobrazí. */
+export const errorMessages: Record<string, string> = {
+    missing_site: 'Vyberte stránku, na které se článek zobrazí, a zkuste to znovu.',
+    article_site_conflict: 'Na vybrané stránce už je zobrazen jiný článek. Vyberte jinou stránku.',
+    missing_field: 'Chybí povinné pole. Vyplňte všechna povinná pole a zkuste to znovu.',
+    invalid_field: 'Formulář obsahuje pole, které web nepodporuje.',
+    invalid_body: 'Web odeslaná data nepřijal. Načtěte stránku znovu a zkuste to ještě jednou.',
+    invalid_format: 'Nový obsah musí být ve formátu Markdown.',
+    format_replacement_required: 'Původní text je ve starém formátu HTML. Pro publikování jej nahraďte Markdownem (úvod i celý text).',
+    invalid_link: 'Odkaz stránky musí být místní adresa začínající lomítkem, například /o-nas.',
+    duplicate_link: 'Stránka s tímto odkazem už existuje. Zvolte jiný odkaz.',
+    invalid_key: 'Klíč sekce smí obsahovat malá písmena, číslice a podtržítko a musí začínat písmenem.',
+    duplicate_key: 'Sekce s tímto klíčem už existuje. Zvolte jiný klíč.',
+    invalid_name: 'Název má neplatnou délku nebo obsah.',
+    invalid_status: 'Chybový stav sekce musí být 0 nebo HTTP chyba od 400.',
+    invalid_parent: 'Nadřazená položka je neplatná. Položka nemůže být svým vlastním rodičem.',
+    invalid_source: 'Odkaz v textu musí být HTTP, HTTPS, místní cesta nebo kotva.',
+    invalid_box_type: 'Tento typ boxu není na webu registrován.',
+    invalid_box_section: 'Tento typ boxu nelze použít v zvolené sekci.',
+    invalid_box_settings: 'Nastavení boxu obsahuje nepodporovanou hodnotu.',
+    invalid_locale: 'Jazyk překladu je neplatný.',
+    invalid_id: 'Identifikátor záznamu je neplatný.',
+    invalid_resource: 'Tento druh obsahu nepodporuje požadovanou operaci.',
+    invalid_recovery: 'Tento druh obsahu nepodporuje obnovu překladu.',
+    invalid_pagination: 'Stránkování seznamu je neplatné.',
+    invalid_image: 'Obrázek je poškozený nebo má neplatný formát.',
+    unsupported_image: 'Podporované jsou pouze obrázky PNG, JPEG a WebP.',
+    image_too_large: 'Obrázek je příliš velký. Nejvýše 512 KiB.',
+    image_storage_unconfigured: 'Na webu není nastaveno úložiště obrázků.',
+    image_storage_unavailable: 'Úložiště obrázků na webu je teď nedostupné.',
+    no_draft: 'Článek nemá žádný koncept k publikování.',
+    draft_too_large: 'Koncept je příliš rozsáhlý.',
+    body_too_large: 'Odeslaná data jsou příliš velká.',
+    resource_in_use: 'Záznam nelze odstranit, protože na něj odkazují jiné záznamy. Nejdřív odstraňte závislé položky.',
+    precondition_failed: 'Obsah se mezitím změnil. Vaše úpravy zůstaly zachovány.',
+    precondition_required: 'Chybí verze obsahu. Načtěte jej znovu.',
+    not_found: 'Záznam nebyl nalezen.',
+    forbidden: 'Chybí oprávnění nebo scope.',
+    rate_limited: 'Příliš mnoho požadavků. Zkuste to za chvíli.',
+    unavailable: 'API webu je dočasně nedostupné. Zkuste to později.'
+};
+/** Vrací kód jen pokud je v katalogu, jinak obecný kód odmítnutí. */
+export function safeErrorCode(value: unknown): string {
+    return typeof value === 'string' && Object.hasOwn(errorMessages, value) ? value : 'remote_rejected';
+}
 export class RemoteFailure extends Error {
     status: number;
     code: string;
     constructor(status: number, code: string) {
-        super(status === 412 ? 'Obsah se mezitím změnil. Vaše úpravy zůstaly zachovány.' : status === 428 ? 'Chybí verze obsahu. Načtěte jej znovu.' : status === 403 ? 'Chybí oprávnění nebo scope.' : status === 404 ? 'Záznam nebyl nalezen.' : status === 409 ? 'Operace koliduje s aktuálním stavem nebo vazbami.' : 'Vzdálené API požadavek odmítlo.');
+        super(status === 412 ? 'Obsah se mezitím změnil. Vaše úpravy zůstaly zachovány.' : status === 428 ? 'Chybí verze obsahu. Načtěte jej znovu.' : status === 403 ? 'Chybí oprávnění nebo scope.' : status === 404 ? 'Záznam nebyl nalezen.' : Object.hasOwn(errorMessages, code) ? errorMessages[code] : status === 409 ? 'Operace koliduje s aktuálním stavem nebo vazbami.' : 'Vzdálené API požadavek odmítlo.');
         this.status = status;
         this.code = code;
     }
@@ -54,7 +100,10 @@ export function planApiCall(call: ApiCall): {
         const page = call.page ?? 1;
         if (!Number.isInteger(page) || page < 1 || page > 1000000)
             throw Error('Neplatná stránka');
-        return `?page=${page}&per_page=25`;
+        const perPage = call.perPage ?? 25;
+        if (!Number.isInteger(perPage) || perPage < 1 || perPage > 100)
+            throw Error('Neplatný počet na stránku');
+        return `?page=${page}&per_page=${perPage}`;
     };
     if (op === 'list')
         return { path: r + paged(), method: 'GET' };

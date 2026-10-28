@@ -130,3 +130,41 @@ test('deadline also bounds a real stalled TLS handshake', async () => {
         await new Promise<void>(r => server.close(() => r()));
     }
 });
+async function rejectWith(body: string, status = 422, key = 'wbv2_err_fixture_key') {
+    const server = createServer((_req, res) => {
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(body);
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const port = (server.address() as import('node:net').AddressInfo).port;
+    const call = remote.createApiClient({ resolver: async () => [{ address: '8.8.8.8', family: 4 }], transport: (options, cb) => httpRequest({ hostname: '127.0.0.1', port, path: options.path, method: options.method }, cb) });
+    try {
+        return await call('https://example.com', { operation: 'get', resource: 'articles', id: '1' }, key).then(() => null, e => e as remote.RemoteFailure);
+    }
+    finally {
+        server.closeAllConnections();
+        await new Promise<void>(r => server.close(() => r()));
+    }
+}
+test('known API error code maps to a Czech message and the raw message is dropped', async () => {
+    const e = await rejectWith(JSON.stringify({ success: false, error: { code: 'missing_site', message: 'Choose a page before publishing this article.' } }));
+    assert.ok(e instanceof remote.RemoteFailure);
+    assert.equal(e.status, 422);
+    assert.equal(e.code, 'missing_site');
+    assert.equal(e.message, 'Vyberte stránku, na které se článek zobrazí, a zkuste to znovu.');
+    assert.ok(!e.message.includes('Choose'));
+});
+test('unknown, malformed or key-bearing error bodies keep the generic message', async () => {
+    for (const body of [JSON.stringify({ success: false, error: { code: 'something_new', message: 'Secret internals' } }), 'not json', JSON.stringify({ error: { code: '__proto__' } }), JSON.stringify({ success: false, error: { code: 'missing_site', message: 'wbv2_err_fixture_key' } })]) {
+        const e = await rejectWith(body);
+        assert.ok(e instanceof remote.RemoteFailure);
+        assert.equal(e.code, 'remote_rejected');
+        assert.equal(e.message, 'Vzdálené API požadavek odmítlo.');
+    }
+});
+test('status specific messages are not overridden by API codes', async () => {
+    const e = await rejectWith(JSON.stringify({ error: { code: 'precondition_failed' } }), 412);
+    assert.equal(e?.status, 412);
+    assert.equal(e?.message, 'Obsah se mezitím změnil. Vaše úpravy zůstaly zachovány.');
+});

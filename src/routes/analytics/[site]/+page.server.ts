@@ -13,9 +13,9 @@ export const load: PageServerLoad = async (e) => {
         try { range = parseAnalyticsRange(e.url.searchParams); }
         catch { error(400, 'Vyberte platné období do 62 dnů.'); }
         const connection = await connectContent(session, id);
-        if (!connection.analytics?.supported()) return { site: connection.site, available: false, range };
-        if (!connection.analytics.canRead()) error(403, 'Pro analytiku chybí oprávnění integračního klíče.');
+        const blockers = connection.analytics?.blockers() ?? ['disabled'];
+        if (!connection.analytics || blockers.length) return { site: connection.site, available: false, blockers, range };
         const overview = await connection.analytics.overview(range);
-        return { site: connection.site, available: true, range, overview };
+        return { site: connection.site, available: true, blockers: [] as string[], range, overview };
     });
 };

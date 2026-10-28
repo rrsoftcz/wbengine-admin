@@ -1,12 +1,18 @@
 <script lang="ts">
  import {schemas,translationFields,type Field} from '#lib/content-schema.ts';import type {Resource} from '#lib/server/api-contract.ts';
- let {resource,values,translation=false,boxTypes=[]}: {resource:Resource;values:Record<string,unknown>;translation?:boolean;boxTypes?:{type:string;settings:Record<string,string[]>;sections:string[]}[]}=$props();
+ let {resource,values,translation=false,boxTypes=[],refs={},siteId}: {resource:Resource;values:Record<string,unknown>;translation?:boolean;refs?:Record<string,{value:number;label:string}[]|null>;siteId?:number;boxTypes?:{type:string;settings:Record<string,string[]>;sections:string[]}[]}=$props();
  let selectedType=$derived(String(values.type??''));
+ let flags=$state<Record<string,boolean>>({});
  let lengths=$state<Record<string,number>>({});
  const fields=$derived(schemas[resource].filter(f=>!translation||translationFields[resource]?.includes(f.name)));
  // Prázdný text je v API platný. Neprázdnost vyžaduje jen URL/klíč se samostatnou validací.
  function requiresValue(f:Field){return !translation&&(f.name==='link'||f.name==='key');}
  function value(f:Field){const v=values[f.name];return f.kind==='json'?JSON.stringify(v??{},null,2):f.kind==='ids'?Array.isArray(v)?v.join(', '):String(v??''):String(v??((f.kind==='number'||f.kind==='boolean')?0:''));}
+ function isOn(f:Field){return flags[f.name]??Number(values[f.name])===1;}
+ const hints:Record<string,string>={'articles.site_id':'Na které stránce webu se článek zobrazí. Bez vybrané stránky nelze článek publikovat.','pages.parent_id':'Pod kterou stránku se tato stránka zařadí. Žádná znamená stránku na nejvyšší úrovni.','menu.site_id':'Na kterou stránku položka menu odkazuje.','menu.parent':'Pod kterou položku menu se tato položka zařadí. Žádná znamená nejvyšší úroveň.','boxes.section_id':'V které sekci stránky se box zobrazí.'};
+ const toggleHints:Record<string,string>={visible:'Zapnuto: stránka nebo položka je na webu vidět.',strict:'Zapnuto: adresa musí odpovídat přesně.',acl:'Zapnuto: zobrazí se jen uživatelům s oprávněním.',active:'Zapnuto: sekce se na webu používá.',static:'Zapnuto: obsah boxu se nemění podle stránky.',shared:'Zapnuto: box lze sdílet na více stránkách.',device_strict:'Zapnuto: box se zobrazí jen na zvoleném zařízení.'};
+ function options(f:Field){const list=refs[f.name];if(!Array.isArray(list))return null;const current=Number(values[f.name]);return current>0&&!list.some(o=>o.value===current)?[...list,{value:current,label:'ID '+current+' (záznam nebyl v seznamu nalezen)'}]:list;}
+ const zeroLabels:Record<string,string>={'articles.site_id':'Zatím nevybráno (článek nepůjde publikovat)','pages.parent_id':'Žádná (kořen)','menu.site_id':'Zatím nevybráno','menu.parent':'Žádná (kořen)','boxes.section_id':'Zatím nevybráno'};
  const nf=new Intl.NumberFormat('cs-CZ');
  function count(f:Field){return lengths[f.name]??value(f).length;}
  function wide(f:Field){return f.kind==='textarea'||f.kind==='json'||f.kind==='format'||(f.kind===undefined&&(f.max??0)>=100);}
@@ -21,11 +27,10 @@
  {:else if spec.kind==='textarea'}<label class="field sm:col-span-2"><span>{spec.label}</span><textarea class="resize-y font-mono text-[.9rem] leading-relaxed {spec.name==='bodytext'?'min-h-96':'min-h-36'}" name={spec.name} rows={spec.name==='bodytext'?16:5} maxlength={spec.max} spellcheck="true" oninput={(e)=>{lengths[spec.name]=e.currentTarget.value.length;}}>{value(spec)}</textarea>
 <span class="hint flex justify-between gap-3"><span>Markdown: **tučně**, *kurzíva*, [odkaz](https://), ![obrázek](/cesta)</span><span aria-live="polite">{nf.format(count(spec))}{#if spec.max} / {nf.format(spec.max)}{/if} znaků</span></span>
 </label>
- {:else if spec.kind==='boolean'}<label class="field"><span>{spec.label}</span><select name={spec.name}>
-<option value="0" selected={Number(values[spec.name])!==1}>Ne</option>
-<option value="1" selected={Number(values[spec.name])===1}>Ano</option>
-</select>
-</label>
+ {:else if spec.kind==='boolean'}<div class="toggle-row flex items-center justify-between gap-4 rounded-xl border border-line bg-surface-2 px-4 py-3"><label class="flex w-full cursor-pointer items-center justify-between gap-4"><span class="grid gap-0.5"><span class="font-semibold">{spec.label}</span><span class="hint">{toggleHints[spec.name]??''}</span></span><span class="flex shrink-0 items-center gap-3"><span class="w-16 text-right text-sm font-semibold {isOn(spec)?'text-ok':'text-muted'}" aria-hidden="true">{isOn(spec)?'Zapnuto':'Vypnuto'}</span><input type="checkbox" role="switch" class="peer sr-only" name={spec.name} value="1" checked={isOn(spec)} onchange={(e)=>{flags[spec.name]=e.currentTarget.checked;}}/><span class="relative h-6 w-11 rounded-full border border-line-strong bg-line-strong transition-colors peer-checked:border-brand peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-surface after:shadow after:transition-transform after:content-[''] peer-checked:after:translate-x-5" aria-hidden="true"></span></span></label></div>
+ {:else if refs[spec.name]!==undefined}{@const list=options(spec)}{#if list&&list.length===0}<div class="field sm:col-span-2"><span>{spec.label}</span><input type="hidden" name={spec.name} value={String(values[spec.name]??0)}/><p class="alert alert-warn" role="status">Web zatím nemá žádnou stránku. {#if siteId}<a href={'/content/'+siteId+'/pages/new'}>Vytvořte první stránku</a>{:else}Vytvořte nejdřív stránku{/if} a potom se sem vraťte.</p></div>
+ {:else if list}<label class="field"><span>{spec.label}</span><select name={spec.name}><option value="0" selected={Number(values[spec.name]??0)===0}>{zeroLabels[resource+'.'+spec.name]??'Nevybráno'}</option>{#each list as option}<option value={option.value} selected={Number(values[spec.name])===option.value}>{option.label}</option>{/each}</select><span class="hint">{hints[resource+'.'+spec.name]??''}</span></label>
+ {:else}<label class="field"><span>{spec.label} (číselné ID)</span><input type="number" min="0" step="1" name={spec.name} value={value(spec)}/><span class="hint">{hints[resource+'.'+spec.name]??''} Seznam se nepodařilo načíst, zadejte číselné ID záznamu (0 znamená nevybráno).</span></label>{/if}
  {:else if spec.kind==='format'}<label class="field sm:col-span-2"><span>{spec.label}</span><select name={spec.name}>
 <option value="markdown" selected={values.content_format!=='legacy_html'}>Markdown</option>{#if values.content_format==='legacy_html'}<option value="legacy_html" selected>Stávající HTML, pouze změna metadat</option>{/if}</select>
 <span class="hint">Pro změnu původního HTML výslovně vyberte Markdown a nahraďte úvod i celý text.</span>

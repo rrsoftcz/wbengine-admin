@@ -74,3 +74,11 @@ test('gateway returns zero results and preserves incomplete history', async () =
     const gateway = createAnalyticsGateway({ role: 'siteadmin', scopes: ['analytics:read'], capabilities: { analytics: { read: true } }, call: async () => ({ data: empty, etag: null }) });
     assert.deepEqual(await gateway.overview(validRange), empty);
 });
+
+import { analyticsBlockers } from '../src/lib/server/analytics.ts';
+test('analytics blockers distinguish disabled site capability from missing key scope', () => {
+    assert.deepEqual(analyticsBlockers('editor', ['analytics:read'], { analytics: { read: true } }), []);
+    assert.deepEqual(analyticsBlockers('editor', ['analytics:read'], {}), ['disabled']);
+    assert.deepEqual(analyticsBlockers('editor', ['articles:read'], { analytics: { read: true } }), ['scope']);
+    assert.deepEqual(analyticsBlockers('siteadmin', [], {}), ['disabled', 'scope']);
+});

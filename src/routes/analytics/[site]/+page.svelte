@@ -50,8 +50,15 @@
 
 {#if !data.available}
     <div class="card text-center" role="status">
-        <h2>Analytika není pro tento web povolena</h2>
-        <p class="lead mx-auto mt-1">Ověřte migraci databáze a nastavení API webu a stránku načtěte znovu.</p>
+        <h2>Analytika není pro tento web dostupná</h2>
+        <div class="mx-auto mt-3 grid max-w-2xl gap-3 text-left">
+            {#if data.blockers.includes('disabled')}
+                <p class="alert alert-warn">Na webu je analytika vypnutá: v Settings.json nastavte <code>analytics.enabled</code> na <code>true</code> (a aplikujte migraci <code>4.0.0/006-analytics.sql</code> frameworku), pak stránku načtěte znovu.</p>
+            {/if}
+            {#if data.blockers.includes('scope')}
+                <p class="alert alert-warn">Klíč webu nemá oprávnění číst analytiku: na webu na stránce Integrace vydejte nový klíč se zaškrtnutou volbou Analytika a vyměňte jej v Registru webů (Vyměnit klíč).</p>
+            {/if}
+        </div>
         <a class="btn btn-secondary mt-4" href={'/content/' + data.site.id}>Zpět na web</a>
     </div>
 {:else if data.overview}

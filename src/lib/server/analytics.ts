@@ -114,9 +114,18 @@ export function validateAnalyticsOverview(value: unknown, expected: AnalyticsRan
 export function canReadAnalytics(role: Role, scopes: string[], capabilities: Capabilities): boolean {
     return ['editor', 'siteadmin', 'global'].includes(role) && scopes.includes('analytics:read') && capabilities.analytics?.read === true;
 }
+export type AnalyticsBlocker = 'disabled' | 'scope';
+/** Důvody, proč analytika není čitelná, z již načtených discovery a identity dat (bez dalších volání). */
+export function analyticsBlockers(role: Role, scopes: string[], capabilities: Capabilities): AnalyticsBlocker[] {
+    const blockers: AnalyticsBlocker[] = [];
+    if (capabilities.analytics?.read !== true) blockers.push('disabled');
+    if (!['editor', 'siteadmin', 'global'].includes(role) || !scopes.includes('analytics:read')) blockers.push('scope');
+    return blockers;
+}
 export function createAnalyticsGateway(options: AnalyticsOptions) {
     return {
         supported() { return options.capabilities.analytics?.read === true; },
+        blockers() { return analyticsBlockers(options.role, options.scopes, options.capabilities); },
         canRead() { return canReadAnalytics(options.role, options.scopes, options.capabilities); },
         async overview(input: AnalyticsRange): Promise<AnalyticsOverview> {
             if (!this.canRead()) throw new RemoteFailure(403, 'forbidden');

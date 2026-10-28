@@ -42,12 +42,67 @@ export function canOperate(role: Role, scopes: string[], caps: Capabilities, act
         return scopes.includes(scope) && caps[name]?.[mode as 'read' | 'write'] === true;
     });
 }
+export interface ReferenceOption {
+    value: number;
+    label: string;
+    link?: string;
+}
+/** Pole s číselným ID jiného záznamu: z kterého seznamu se nabízí volba a jak se popisuje. */
+export const referenceFields: Partial<Record<Resource, Record<string, { source: Resource; zero?: string }>>> = {
+    articles: { site_id: { source: 'pages', zero: 'Zatím nevybráno (článek nepůjde publikovat)' } },
+    pages: { parent_id: { source: 'pages', zero: 'Žádná (kořen)' } },
+    menu: { site_id: { source: 'pages', zero: 'Zatím nevybráno' }, parent: { source: 'menu', zero: 'Žádná (kořen)' } },
+    boxes: { section_id: { source: 'sections', zero: 'Zatím nevybráno' } }
+};
+function optionLabel(source: Resource, row: Record<string, unknown>): string {
+    const text = (v: unknown) => typeof v === 'string' ? v.slice(0, 120) : '';
+    if (source === 'pages')
+        return `${text(row.title) || 'Bez názvu'} (${text(row.link) || '?'})`;
+    if (source === 'sections')
+        return text(row.title) ? `${text(row.title)} (${text(row.key)})` : text(row.key) || 'Bez názvu';
+    return text(row.name) || text(row.title) || 'Bez názvu';
+}
+/**
+ * Načte možnosti pro pole odkazující na jiné záznamy. Při chybě nebo nedostupnosti vrací null a pole
+ * zůstane číselné. Dotazuje se jen po stránkách po 100 záznamech, nejvýše 5 stránek.
+ */
+export async function loadReferenceOptions(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, source: Resource, excludeId?: string): Promise<ReferenceOption[] | null> {
+    const found: ReferenceOption[] = [];
+    try {
+        for (let page = 1; page <= 5; page++) {
+            const reply = await gateway.list(source, page, 100);
+            if (!Array.isArray(reply.data))
+                return null;
+            for (const row of reply.data as Record<string, unknown>[]) {
+                const id = Number(row?.[({ pages: 'site_id', menu: 'menu_id', sections: 'section_id' } as Record<string, string>)[source] ?? 'id']);
+                if (Number.isSafeInteger(id) && id > 0 && String(id) !== excludeId)
+                    found.push({ value: id, label: optionLabel(source, row), ...(source === 'pages' && typeof row.link === 'string' ? { link: row.link } : {}) });
+            }
+            if (!reply.pagination || page >= reply.pagination.total_pages)
+                break;
+        }
+    }
+    catch {
+        return null;
+    }
+    return found;
+}
+/** Rozumná výchozí stránka pro nový záznam: první, která není kořen "/", jinak první. */
+export function defaultPageOption(options: ReferenceOption[]): number {
+    const pick = options.find(o => o.link !== '/') ?? options[0];
+    return pick?.value ?? 0;
+}
 export function parseFields(r: Resource, f: FormData, translation = false, boxTypes: BoxType[] = []) {
     const output: Record<string, unknown> = {};
     for (const spec of schemas[r]) {
         if (translation && !translationFields[r]?.includes(spec.name))
             continue;
         const raw = f.get(spec.name);
+        // Nezaškrtnutý přepínač prohlížeč do formuláře neposílá: u ukládání celého záznamu to znamená 0.
+        if (spec.kind === 'boolean' && raw === null && !translation) {
+            output[spec.name] = 0;
+            continue;
+        }
         if (typeof raw !== 'string')
             continue;
         if (spec.max && Buffer.byteLength(raw) > spec.max)
@@ -109,9 +164,9 @@ export function createContentGateway(options: GatewayOptions) {
     };
     return {
         ...options,
-        list(r: Resource, page = 1) {
+        list(r: Resource, page = 1, perPage?: number) {
             check('read', r);
-            return options.call({ operation: 'list', resource: r, page });
+            return options.call({ operation: 'list', resource: r, page, ...(perPage ? { perPage } : {}) });
         },
         get(r: Resource, id: string) {
             check('read', r);
