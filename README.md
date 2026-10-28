@@ -81,6 +81,15 @@ Dashboard `/analytics/{id}` je dostupný uživatelům s grantem k danému webu a
 
 Výchozí období obsahuje 30 kalendářních dat končících předchozím dnem UTC. Díky tomu administrace nepožádá web o budoucí místní datum, pokud je jeho časové pásmo za UTC. Denní hranice odpovědi se řídí časovým pásmem cílového webu. Období před prvním zaznamenaným veřejným zobrazením jsou označena jako neúplná.
 
+## Připojení nového webu
+
+Požadavky na cílovém webu: WBengine 4.2.0 nebo novější, zapnuté `apiV2` v `Settings.json`, HTTPS a aplikované migrace frameworku `4.0.0/002` a `4.0.0/007` (`doctor` je hlásí jako `migration.002` a `migration.007`).
+
+1. Na cílovém webu se přihlaste jako ADMIN, otevřete stránku Integrace, potvrďte heslo a vydejte klíč. Zobrazí se jednou: adresa webu, doporučený název a klíč.
+2. V centrálním Adminu otevřete Weby, zvolte Přidat web a vložte název, HTTPS adresu a klíč. Před uložením se ověří `capabilities` a `identity`, klíč musí mít všech 17 scopes profilu Správa webu (volitelně navíc `analytics:read`).
+3. Chyby se zobrazují jako konkrétní pokyn: chybějící API nebo migrace, neplatný klíč, chybějící scope, nedostupný web, duplicitní adresa, omezení pokusů (HTTP 429, zkuste za několik minut).
+4. Výměna klíče: vydejte na webu nový klíč (volba nahrazované integrace), vložte jej v Adminu u webu do Vyměnit integrační klíč a teprve po ověření odvolejte starý klíč na cílovém webu. Ztracený klíč nelze zobrazit znovu, postup je stejný jako při výměně.
+
 Na cílovém webu je před zapnutím potřeba ručně aplikovat `migrations/4.0.0/006-analytics.sql` z WBengine a přidat do `Settings.json` například:
 
 ```json
