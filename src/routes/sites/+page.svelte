@@ -1,6 +1,37 @@
-<script lang="ts">let {data,form}=$props();</script><p><a href="/">Weby</a></p><h1>Registr webů</h1>{#if form?.error}<p class="error">{form.error}</p>{#if form.missing?.length}<p>Chybějící oprávnění: {form.missing.join(', ')}</p>{/if}{/if}{#if form?.success}<p>{form.success}</p>{/if}
-{#if form?.registered}<h2>Web je zaregistrovaný</h2><p>{form.registered.name}: {form.registered.url}</p><p>Ověřená integrace č. {form.registered.integrationId}, API v{form.registered.version}.</p>{#each form.registered.resources as resource}<p>{resource.name}: čtení {resource.read?'ano':'ne'}, zápis {resource.write?'ano':'ne'}</p>{/each}{#if form.registered.extras.length}<p>Klíč navíc obsahuje: {form.registered.extras.join(', ')}</p>{/if}<p><a href={"/content/"+form.registered.id}>Spravovat obsah</a> | <a href={form.registered.url} rel="noopener noreferrer">Otevřít web</a></p>{/if}
-{#if form?.rotated}<h2>Klíč byl vyměněn</h2><p>Nový klíč je ověřený (integrace č. {form.rotated.integrationId}). {#if form.rotated.previousIntegrationId}Nyní na cílovém webu odvolejte původní klíč, integrace č. {form.rotated.previousIntegrationId}.{:else}Nyní na cílovém webu odvolejte původní klíč.{/if}</p>{/if}
-<h2>Přidat web</h2><p>Na cílovém webu otevřete stránku Integrace, vydejte klíč s profilem „{data.profile}“ a vložte jej níže. Klíč se ověří, uloží se šifrovaně na serveru a nikdy se nevrací do prohlížeče.</p><form method="POST" action="?/register" autocomplete="off"><input type="hidden" name="csrf" value={data.csrf}/><label>Název webu<input name="name" maxlength="160" required value={form?.values?.name ?? ''}/></label><label>Adresa webu (HTTPS)<input name="url" type="url" required placeholder="https://www.example.com/" value={form?.values?.url ?? ''}/></label><label>Integrační klíč<input name="key" type="password" autocomplete="off" required minlength="25" maxlength="205"/></label><button>Ověřit a přidat web</button></form>
-<h2>Oprávnění účtu k webu</h2><p>Globální správce vidí všechny weby bez dalšího oprávnění.</p><form method="POST" action="?/grant"><input type="hidden" name="csrf" value={data.csrf}/><label>Účet<select name="user">{#each data.accounts as account}{#if !account.global_admin}<option value={account.id}>{account.email}</option>{/if}{/each}</select></label><label>Web<select name="site">{#each data.sites as site}<option value={site.id}>{site.name}</option>{/each}</select></label><label>Role<select name="role"><option value="editor">Editor</option><option value="siteadmin">Správce webu</option></select></label><button>Uložit oprávnění</button></form>
-<h2>Weby</h2>{#each data.sites as site}<article><h3>{site.name}</h3><p>{site.base_url}</p><form method="POST" action="?/inspect"><input type="hidden" name="csrf" value={data.csrf}/><input type="hidden" name="site" value={site.id}/><button>Načíst capabilities a ověřit klíč</button></form><details><summary>Vyměnit integrační klíč</summary><p>Postup bez výpadku: vydejte na cílovém webu nový klíč, vložte jej sem a po ověření odvolejte starý klíč na cílovém webu.</p><form method="POST" action="?/rotate" autocomplete="off"><input type="hidden" name="csrf" value={data.csrf}/><input type="hidden" name="site" value={site.id}/><label>Nový integrační klíč<input name="key" type="password" autocomplete="off" required minlength="25" maxlength="205"/></label><button>Ověřit a vyměnit klíč</button></form></details></article>{:else}<p>Zatím není zaregistrován žádný web.</p>{/each}{#if form?.discovery}<h2>Výsledek discovery API {form.discovery.version}</h2><p>Integrační klíč ověřen.</p>{#each form.discovery.resources as resource}<p>{resource.name}: čtení {resource.read?'ano':'ne'}, zápis {resource.write?'ano':'ne'}</p>{/each}{/if}
+<script lang="ts">
+    import AddSiteWizard from '#lib/components/sites/AddSiteWizard.svelte';
+    import SiteList from '#lib/components/sites/SiteList.svelte';
+    import GrantForm from '#lib/components/sites/GrantForm.svelte';
+    let { data, form } = $props();
+</script>
+
+<svelte:head><title>Registr webů | WBengine administrace</title></svelte:head>
+
+<header class="mb-6">
+    <p class="eyebrow">Správa</p>
+    <h1>Registr webů</h1>
+    <p class="lead mt-2">Zde připojujete nové weby, měníte jejich klíče a určujete, kdo ke kterému webu smí.</p>
+    <nav class="mt-4 flex flex-wrap gap-2" aria-label="Sekce stránky">
+        <a class="btn btn-secondary btn-sm" href="#pridat-web">Přidat web</a>
+        <a class="btn btn-secondary btn-sm" href="#weby">Připojené weby ({data.sites.length})</a>
+        <a class="btn btn-secondary btn-sm" href="#opravneni">Oprávnění účtů</a>
+    </nav>
+</header>
+
+<div class="grid gap-6">
+    <section id="pridat-web" class="card scroll-mt-20" aria-labelledby="h-add">
+        <h2 id="h-add" class="mb-1 text-xl">Přidat web</h2>
+        <p class="mb-5 text-sm text-muted">Průvodce ve třech krocích. Klíč se ověří přímo na webu ještě před uložením.</p>
+        <AddSiteWizard csrf={data.csrf} profile={data.profile} scopes={data.scopes} {form} />
+    </section>
+
+    <section id="weby" class="card scroll-mt-20" aria-labelledby="h-sites">
+        <h2 id="h-sites" class="mb-4 text-xl">Připojené weby</h2>
+        <SiteList sites={data.sites} csrf={data.csrf} {form} />
+    </section>
+
+    <section id="opravneni" class="card scroll-mt-20" aria-labelledby="h-grants">
+        <h2 id="h-grants" class="mb-4 text-xl">Oprávnění účtů</h2>
+        <GrantForm csrf={data.csrf} accounts={data.accounts} sites={data.sites} grants={data.grants} {form} />
+    </section>
+</div>
