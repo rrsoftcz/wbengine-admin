@@ -76,7 +76,7 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     const registryHtml = await registry.text();
     assert.ok(registryHtml.includes('Registr webů'));
     assert.ok(registryHtml.includes('Přidat web'));
-    assert.ok(/<input name="key" type="password" autocomplete="off"/.test(registryHtml));
+    assert.ok(/<input\b(?=[^>]*\bname="key")(?=[^>]*\btype="password")(?=[^>]*\bautocomplete="off")/.test(registryHtml));
     assert.ok(!/name="key"[^>]*value=/.test(registryHtml));
     assert.ok(!registryHtml.includes('key_cipher'));
     assert.ok(!registryHtml.includes('wbv2_'));
