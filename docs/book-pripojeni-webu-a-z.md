@@ -32,7 +32,7 @@ cd wbengine-skeleton-app
 docker compose up --build
 ```
 
-Web poběží na `http://localhost:8080`. Čistý produkční server s Dockerem, Nginx a HTTPS popisuje `docs/deploy-vps-docker.md` ve skeletonu (spouští se `./bin/setup-production.sh`).
+Web poběží na `http://localhost:8080`. Čistý produkční server s Dockerem, Nginx a HTTPS popisuje `docs/deploy-vps-docker.md` ve skeletonu. Instalátor se spouští s veřejnou adresou webu: `./bin/setup-production.sh https://www.vase-domena.cz`. Sám nastaví `i18n.baseUrl` a důvěryhodnou proxy (`http.trustedProxies`), aby framework za Nginx poznal HTTPS. Bez toho stránka `/integrations/` odmítne vydat klíč s hláškou, že stránka nebyla rozpoznána jako HTTPS.
 
 Pro propojení s Adminem potřebuje web **HTTPS** a **WBengine 4.2 nebo novější**. Kontrola verze: `docker compose exec web grep -A2 '"name": "wbengine/wbengine"' vendor/composer/installed.json`.
 
@@ -137,7 +137,7 @@ Obnova: `docker compose run --rm app npm run admin -- recover vy@vase-domena.cz`
 ## 6. Vydat integrační klíč na webu
 
 1. Na webu se přihlaste jako správce (krok 2) a otevřete `/integrations/`.
-2. Pokud stránka hlásí chybějící požadavek (API vypnuté, chybějící migrace, HTTP místo HTTPS), opravte jej podle návodu na stránce.
+2. Odkaz na stránku najdete v profilu přihlášeného správce (`/profile/`, část Správa). Pokud stránka hlásí chybějící požadavek (API vypnuté, chybějící migrace, HTTP místo HTTPS), opravte jej podle návodu na stránce.
 3. Potvrďte heslo, ponechte název `WBengine Admin` a vydejte klíč.
 4. Stránka zobrazí **jednou** adresu webu, název a klíč. Nechte stránku otevřenou, dokud klíč nevložíte do Adminu. Web ukládá jen hash, ztracený klíč nelze zobrazit znovu: vydáte nový.
 
@@ -177,6 +177,7 @@ Globální správce vidí všechny registrované weby bez dalšího oprávnění
 | Admin vrací 400 "Neplatný původ požadavku" | `ORIGIN` v `.env` neodpovídá adrese v prohlížeči nebo proxy nepředává `Host` |
 | Přihlášení na web nejde po instalaci produkce | demo heslo je zrušeno, vytvořte správce (krok 2) |
 | `/integrations/` vrací 403 | účet na webu nemá roli `admin` (`bin/wbe user:list`) |
+| `/integrations/` hlásí, že stránka nebyla rozpoznána jako HTTPS | prázdné `http.trustedProxies` v `Settings.json` (instalátor jej nastavuje, u ručně zřízeného webu nastavte bránu Docker sítě a `forwardedHeaders` `x-forwarded-for`, `x-forwarded-proto`) a `i18n.baseUrl` s `https://` |
 | Uložené klíče po obnově databáze nejdou použít | chybí původní `MASTER_KEY` |
 
 Související dokumentace: README Adminu (provoz, CLI, bezpečnostní hranice), README a `docs/deploy-vps-docker.md` skeletonu, `ref-api-v2.md` a README frameworku (API v2, správa uživatelů z příkazové řádky) a stránky Začínáme a Centrální administrace na `https://www.wbengine.org/docs/`.
