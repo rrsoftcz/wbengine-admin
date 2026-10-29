@@ -186,6 +186,7 @@ Jazyky jsou konfigurace webu, ne obsah. Definují se jen v sekci `i18n` souboru 
 
 - **V seznamu** článků, stránek a menu je sloupec **Jazyky** s údajem například „3 z 20 jazyků“. Po rozkliknutí se ukáže, které jazyky chybí, a odkaz u každého otevře přímo přidání překladu.
 - **V záznamu** je nad formulářem roletka **Jazyk obsahu**. Položky jsou seskupené: originál, přeloženo a chybí. Vedle ní je souhrn „Přeloženo 3 z 20 jazyků, chybí: ...“. Po výběru jazyka se jeho obsah načte do téhož formuláře. Překlad článku se ukládá do konceptu a zveřejní se s článkem při publikování.
+- **Mazání** stránky, sekce nebo položky menu: pokud na nich ještě visí obsah (články, boxy, položky menu, podstránky), Admin místo tlačítka Odstranit ukáže seznam závislých záznamů s odkazy. Nejdřív je odstraňte nebo přesuňte, potom záznam smažete. Web smazání s vazbami odmítne i sám.
 - **Historie** změn je v pravém panelu jako posledních pět změn. Úplnou historii a obnovu starší verze otevřete odkazem „Všechny změny a obnova“, nezabírá tedy místo v editačním formuláři.
 
 Údaje o překladech vrací web od WBengine 4.7.0 (pole `translation_locales`). U starší verze se stav jazyků nezobrazí a roletka nabízí všechny jazyky bez stavu.

@@ -1,5 +1,5 @@
 <script lang="ts">
- import {changeTime,changeActor} from '#lib/content-format.ts';
+ import {changeTime,changeActor,changeLabel} from '#lib/content-format.ts';
  import {enhance} from '$app/forms';
  import {beforeNavigate} from '$app/navigation';
  import ResourceFields from '#lib/components/ResourceFields.svelte';
@@ -152,7 +152,7 @@
    <p class="hint mb-4">{articles?'Obnova revize vytvoří koncept. Veřejná verze se nezmění bez publikování.':'Obnova vychází ze snapshotu před zvolenou změnou, u založení ze stavu po vytvoření. Kontrolují se aktuální vazby a překlady.'}</p>
    {#if data.history.length}<ol class="relative ml-2 grid gap-5 border-l border-line-strong pl-6">{#each data.history as change}<li class="relative">
 <span class="absolute -left-[1.95rem] top-1.5 size-3 rounded-full border-2 border-brand bg-surface" aria-hidden="true"></span>
-<h3 class="flex flex-wrap items-center gap-2">{articles?'Revize':'Změna'} {String(change.revision_id??change.change_id)} <span class="badge badge-brand">{String(change.action??'')}</span></h3>
+<h3 class="flex flex-wrap items-center gap-2">{articles?'Revize':'Změna'} {String(change.revision_id??change.change_id)} <span class="badge badge-brand">{changeLabel(change.action)}</span></h3>
 <p class="hint">{changeTime(change.created_at)}, {changeActor(change,data.actors)}</p>
 <details class="mt-2">
 <summary class="text-sm">Zobrazit uložený stav</summary>
@@ -189,7 +189,7 @@
  {#if data.history.length}
   <section class="card-flat grid gap-2 text-sm" aria-labelledby="posledni-zmeny">
    <h2 id="posledni-zmeny" class="text-base">Poslední změny</h2>
-   <ol class="grid gap-1.5">{#each data.history.slice(0,5) as change}<li class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="badge badge-brand">{String(change.action??'')}</span><span class="text-muted">{articles?'revize':'změna'} {String(change.revision_id??change.change_id)}</span></span><span class="grid justify-items-end text-xs text-muted"><span>{changeTime(change.created_at)}</span><span class="max-w-[10rem] truncate" title={changeActor(change,data.actors)}>{changeActor(change,data.actors)}</span></span></li>{/each}</ol>
+   <ol class="divide-y divide-line overflow-hidden rounded-xl border border-line">{#each data.history.slice(0,5) as change}<li class="grid gap-0.5 bg-surface px-3 py-2"><span class="flex items-center justify-between gap-2"><span class="font-semibold">{changeLabel(change.action)}</span><span class="text-xs text-muted">{articles?'revize':'změna'} {String(change.revision_id??change.change_id)}</span></span><span>{changeTime(change.created_at)}</span><span class="break-all text-xs text-muted">{changeActor(change,data.actors)}</span></li>{/each}</ol>
    <a href={here+'?'+(data.locale?'locale='+encodeURIComponent(data.locale)+'&':'')+'history=1#historie'} data-sveltekit-noscroll>Všechny změny a obnova</a>
   </section>
  {/if}
@@ -211,6 +211,10 @@
  {#if data.permissions.delete}
   <details id="smazat" bind:open={deleteOpen} class="card-flat border-danger/40">
    <summary class="font-semibold text-danger">Odstranit záznam</summary>
+   {#if data.dependents&&data.dependents.length}
+   <div class="mt-3 grid gap-3" role="status"><p class="alert alert-warn">Záznam nelze odstranit, dokud na něm visí další obsah. Nejdřív odstraňte nebo přesuňte položky níže, potom se vraťte.</p>
+    {#each data.dependents as group}<section class="grid gap-1"><h3 class="text-sm">{group.label} ({group.count})</h3><ul class="grid gap-1 text-sm">{#each group.items as item}<li><a href={'/content/'+data.site.id+'/'+group.resource+'/'+item.id}>{item.label}</a></li>{/each}{#if group.truncated}<li class="text-muted">a další ({group.count-group.items.length})</li>{/if}</ul></section>{/each}</div>
+   {:else}
    <form method="POST" action="?/delete" use:enhance={pending.submit} class="mt-3 grid gap-3">
 <p class="hint">Odstranění je změna veřejného obsahu. Předem ověřte návaznosti a odkazy.</p>
 <input name="csrf" type="hidden" value={data.csrf}/>
@@ -219,6 +223,7 @@
 <input name="confirm" value="yes" type="checkbox" required/> Potvrzuji odstranění</label>
 <div><SubmitButton variant="danger" busy={pending.is('?/delete')}>Odstranit</SubmitButton></div>
 </form>
+     {/if}
   </details>
  {/if}
 </aside>

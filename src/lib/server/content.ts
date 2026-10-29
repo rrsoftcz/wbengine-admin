@@ -1,6 +1,6 @@
 import { apiCall, RemoteFailure } from './remote.ts';
 import { resources, type Resource, type ApiCall, type ApiReply, type Operation } from './api-contract.ts';
-import { schemas, translationFields } from '../content-schema.ts';
+import { schemas, translationFields, idOf } from '../content-schema.ts';
 import { transaction, rows } from './db.ts';
 import { requireSite, vault, type Session } from './auth.ts';
 import { createAnalyticsGateway } from './analytics.ts';
@@ -407,4 +407,54 @@ export async function loadActors(history: Record<string, unknown>[]): Promise<Re
     const found = await transaction(c => rows<{ id: number | string; email: string }>(c, `SELECT id,email FROM users WHERE id IN (${ids.map(() => '?').join(',')})`, ids));
     const map = Object.fromEntries(found.map(u => [`admin:${u.id}`, u.email]));
     return Object.fromEntries(ids.map(id => [`admin:${id}`, map[`admin:${id}`] ?? `smazaný uživatel #${id}`]));
+}
+
+export type Dependents = { resource: Resource; label: string; count: number; items: { id: string; label: string }[]; truncated: boolean }[];
+/**
+ * Co ještě visí na stránce, sekci nebo položce menu. Web smazání s vazbami odmítne (resource_in_use), Admin to ukáže předem
+ * a nabídne odkazy na závislé záznamy. Null: nelze ověřit (chybí oprávnění ke čtení nebo web neodpověděl), rozhodne web.
+ */
+export async function loadDependents(gateway: Pick<ReturnType<typeof createContentGateway>, 'list' | 'role' | 'scopes' | 'capabilities'>, r: Resource, id: string): Promise<Dependents | null> {
+    const targets: { resource: Resource; label: string; match: (row: Record<string, unknown>) => boolean }[] = [];
+    const num = (v: unknown) => Number(v && typeof v === 'object' ? (v as Record<string, unknown>).site_id ?? (v as Record<string, unknown>).id : v);
+    if (r === 'pages')
+        targets.push({ resource: 'articles', label: 'Články', match: row => String(row.site_id) === id }, { resource: 'boxes', label: 'Boxy', match: row => Array.isArray(row.sites) && row.sites.some(x => String(num(x)) === id) }, { resource: 'menu', label: 'Položky menu', match: row => String(row.site_id) === id }, { resource: 'pages', label: 'Podstránky', match: row => String(row.parent_id) === id });
+    else if (r === 'sections')
+        targets.push({ resource: 'boxes', label: 'Boxy v sekci', match: row => String(row.section_id) === id });
+    else if (r === 'menu')
+        targets.push({ resource: 'menu', label: 'Podřízené položky menu', match: row => String(row.parent) === id });
+    if (!targets.length)
+        return [];
+    const out: Dependents = [];
+    try {
+        for (const t of targets) {
+            if (!canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'list', t.resource))
+                return null;
+            const group = { resource: t.resource, label: t.label, count: 0, items: [] as { id: string; label: string }[], truncated: false };
+            for (let page = 1; page <= 5; page++) {
+                const reply = await gateway.list(t.resource, page, 100);
+                if (!Array.isArray(reply.data))
+                    return null;
+                for (const row of reply.data as Record<string, unknown>[]) {
+                    if (!t.match(row))
+                        continue;
+                    group.count++;
+                    if (group.items.length < 10)
+                        group.items.push({ id: idOf(t.resource, row), label: (t.resource === 'articles' && typeof row.draft_title === 'string' && row.draft_title) || optionLabel(t.resource, row) });
+                    else
+                        group.truncated = true;
+                }
+                if (!reply.pagination || page >= reply.pagination.total_pages)
+                    break;
+                if (page === 5)
+                    return null;
+            }
+            if (group.count)
+                out.push(group);
+        }
+    }
+    catch {
+        return null;
+    }
+    return out;
 }
