@@ -144,7 +144,7 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     response = await get('/analytics/' + site.id + '?from=' + today + '&to=' + today + '&granularity=day');
     assert.equal(response.status, 200);
     html = await response.text();
-    assert.ok(html.includes('Analytika: PHP pilot ' + suffix));
+    assert.ok(html.includes('Analytics: PHP pilot ' + suffix));
     assert.ok(html.includes('Since measuring began'));
     assertSafe(html);
     html = await (await get(base + '/pages/new')).text();
