@@ -51,8 +51,8 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     }
     const versions = locales && id !== 'new' && !deleted && translationFields[r] && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'translationGet', r) ? languageVersions(locales, row.translation_locales) : null;
     let history: Record<string, unknown>[] = [], historyEtag: string | null = null, pagination;
-    const historyPage = Number(e.url.searchParams.get('historyPage') ?? 1), historyOpen = e.url.searchParams.get('history') === '1' || e.url.searchParams.has('historyPage');
-    if (id !== 'new' && r !== 'images' && historyOpen) {
+    const historyPage = Number(e.url.searchParams.get('historyPage') ?? 1), historyOpen = e.url.searchParams.get('history') === '1' || e.url.searchParams.has('historyPage') || deleted;
+    if (id !== 'new' && r !== 'images') {
         const result = await gateway.history(r, id, historyPage);
         history = result.data as Record<string, unknown>[];
         historyEtag = result.etag;

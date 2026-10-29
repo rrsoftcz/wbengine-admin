@@ -166,9 +166,7 @@
 </form></details>{/if}</li>{/each}</ol>{:else}<p class="text-muted">Historie je prázdná.</p>{/if}
    {#if data.pagination}<Pager page={data.pagination.page} totalPages={data.pagination.total_pages} href={(p)=>here+'?historyPage='+p} previous="Novější záznamy" next="Starší záznamy"/>{/if}
   </section>
-  <p class="mt-3"><a class="btn btn-ghost btn-sm" href={here+(data.locale?'?locale='+encodeURIComponent(data.locale):'')} data-sveltekit-noscroll>Skrýt historii</a></p>
-{:else}
-  <section class="card-flat flex flex-wrap items-center justify-between gap-3" aria-labelledby="historie"><div><h2 id="historie" class="text-base">{articles?'Revize článku':'Historie a obnova struktury'}</h2><p class="hint">Skrytá, dokud ji nepotřebujete.</p></div><a class="btn btn-secondary btn-sm" href={here+'?'+(data.locale?'locale='+encodeURIComponent(data.locale)+'&':'')+'history=1#historie'} data-sveltekit-noscroll>Zobrazit historii</a></section>
+  {#if !data.deleted}<p class="mt-3"><a class="btn btn-ghost btn-sm" href={here+(data.locale?'?locale='+encodeURIComponent(data.locale):'')} data-sveltekit-noscroll>Skrýt historii</a></p>{/if}
 {/if}
 {/if}
 </div>
@@ -186,6 +184,14 @@
 <pre class="mt-2 whitespace-pre-wrap break-words">{JSON.stringify({title:data.row.title,introtext:data.row.introtext,bodytext:data.row.bodytext},null,2)}</pre>
 </details>{/if}
  </section>
+
+ {#if data.history.length}
+  <section class="card-flat grid gap-2 text-sm" aria-labelledby="posledni-zmeny">
+   <h2 id="posledni-zmeny" class="text-base">Poslední změny</h2>
+   <ol class="grid gap-1.5">{#each data.history.slice(0,5) as change}<li class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="badge badge-brand">{String(change.action??'')}</span><span class="text-muted">{articles?'revize':'změna'} {String(change.revision_id??change.change_id)}</span></span><time class="text-xs text-muted" datetime={String(change.created_at??'')}>{String(change.created_at??'').slice(0,16).replace('T',' ')}</time></li>{/each}</ol>
+   <a href={here+'?'+(data.locale?'locale='+encodeURIComponent(data.locale)+'&':'')+'history=1#historie'} data-sveltekit-noscroll>Všechny změny a obnova</a>
+  </section>
+ {/if}
 
  {#if articles&&data.row.draft&&data.permissions.publish}
   <details id="publikace" bind:open={publishOpen} class="card-flat">
