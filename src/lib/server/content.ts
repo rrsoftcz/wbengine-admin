@@ -368,6 +368,20 @@ export async function connectContent(s: Session, id: number): Promise<{
         throw new ContentConnectionFailure({ id, name: site.name }, role, cause);
     }
 }
+/** Které jazykové verze záznam má: výchozí je originál, ostatní existují, jen když mají aspoň jedno vyplněné pole. */
+export async function loadLanguageVersions(gateway: Pick<ReturnType<typeof createContentGateway>, 'translation'>, r: Resource, id: string, locales: { default: string; list: string[] }): Promise<{ locale: string; original: boolean; exists: boolean }[]> {
+    return Promise.all(locales.list.map(async (locale) => {
+        if (locale === locales.default)
+            return { locale, original: true, exists: true };
+        try {
+            const data = (await gateway.translation(r, id, locale)).data as Record<string, unknown> | null;
+            return { locale, original: false, exists: !!data && Object.values(data).some(v => typeof v === 'string' && v.trim() !== '') };
+        }
+        catch {
+            return { locale, original: false, exists: false };
+        }
+    }));
+}
 /** Jazyky, které web opravdu obsluhuje. Null u starších webů bez pole i18n (formulář pak nechá ruční zadání). */
 export function projectLocales(raw: unknown): { default: string; list: string[] } | null {
     const value = raw as { default?: unknown; locales?: unknown } | null;

@@ -169,6 +169,29 @@ Globální správce vidí všechny registrované weby bez dalšího oprávnění
 - **Výměna klíče** (podezření na únik, plánovaná obměna): na webu vydat nový klíč, v Adminu u webu otevřít Vyměnit integrační klíč a vložit jej, a teprve po úspěšném ověření odvolat starý klíč na stránce `/integrations/` webu. Admin ukáže, kterou integraci odvolat.
 - **Odvolání přístupu**: odvolejte klíč na webu, Admin přestane mít přístup okamžitě.
 
+## Jazyky a překlady
+
+Jazyky jsou konfigurace webu, ne obsah. Definují se jen v sekci `i18n` souboru `src/Config/Settings.json` na webu (ne v databázi a ne přes API). Centrální Admin je pouze čte z `/api/v2/capabilities` (`i18n.default` a `i18n.locales`, od WBengine 4.6.0).
+
+```json
+"i18n": { "enabled": true, "default": "en", "locales": ["en", "cs"], "detect": ["url"] }
+```
+
+- `default` je jazyk původního obsahu. Články, stránky a menu jsou v něm uložené v běžných tabulkách.
+- `locales` jsou všechny jazyky webu včetně výchozího.
+- Překlad není nový článek ani nová adresa. Je to další řádek ke stejnému záznamu, určený ID záznamu a kódem jazyka. Prázdné pole překladu se zobrazí ve výchozím jazyce.
+- Výchozí jazyk běží bez předpony (`/blog/`), ostatní s předponou (`/cs/blog/`).
+
+### Kde v Adminu vidím a vybírám jazykové verze
+
+Při úpravě článku, stránky nebo položky menu je v pravém sloupci seznam **Jazykové verze**. Každý jazyk webu má stav Originál, Překlad existuje nebo Překlad zatím chybí a tlačítko Upravit originál, Upravit překlad nebo Přidat překlad. Originál se upravuje ve velkém formuláři, překlad ve zvláštní kartě pod ním. Překlad článku se ukládá do konceptu a zveřejní se s článkem při publikování. U webu staršího než 4.6.0 se místo seznamu zobrazí textové pole s kódem jazyka.
+
+### Přidání jazyka a změna výchozího
+
+1. Přidejte kód do `locales` v `Settings.json` a znovu načtěte aplikaci. Admin jazyk nabídne při dalším připojení k webu.
+2. Pokud web používá přeložené texty rozhraní, přidejte jazykový soubor do adresáře `Locale`.
+3. Výchozí jazyk měňte až po přeložení obsahu: stávající obsah je uložený ve starém výchozím jazyce a po změně `default` by se považoval za nový jazyk.
+
 ## Volitelně: analytika webu v Adminu
 
 Stránka Analytika v Adminu zobrazí návštěvnost webu. Vyžaduje dvě věci na straně webu a každá se řeší zvlášť:
