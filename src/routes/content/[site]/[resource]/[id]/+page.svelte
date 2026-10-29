@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {changeTime,changeActor} from '#lib/content-format.ts';
  import {enhance} from '$app/forms';
  import {beforeNavigate} from '$app/navigation';
  import ResourceFields from '#lib/components/ResourceFields.svelte';
@@ -152,7 +153,7 @@
    {#if data.history.length}<ol class="relative ml-2 grid gap-5 border-l border-line-strong pl-6">{#each data.history as change}<li class="relative">
 <span class="absolute -left-[1.95rem] top-1.5 size-3 rounded-full border-2 border-brand bg-surface" aria-hidden="true"></span>
 <h3 class="flex flex-wrap items-center gap-2">{articles?'Revize':'Změna'} {String(change.revision_id??change.change_id)} <span class="badge badge-brand">{String(change.action??'')}</span></h3>
-<p class="hint">{String(change.created_at??'')}</p>
+<p class="hint">{changeTime(change.created_at)}, {changeActor(change,data.actors)}</p>
 <details class="mt-2">
 <summary class="text-sm">Zobrazit uložený stav</summary>
 <pre class="mt-2 whitespace-pre-wrap break-words">{JSON.stringify(change.payload??change,null,2)}</pre>
@@ -188,7 +189,7 @@
  {#if data.history.length}
   <section class="card-flat grid gap-2 text-sm" aria-labelledby="posledni-zmeny">
    <h2 id="posledni-zmeny" class="text-base">Poslední změny</h2>
-   <ol class="grid gap-1.5">{#each data.history.slice(0,5) as change}<li class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="badge badge-brand">{String(change.action??'')}</span><span class="text-muted">{articles?'revize':'změna'} {String(change.revision_id??change.change_id)}</span></span><time class="text-xs text-muted" datetime={String(change.created_at??'')}>{String(change.created_at??'').slice(0,16).replace('T',' ')}</time></li>{/each}</ol>
+   <ol class="grid gap-1.5">{#each data.history.slice(0,5) as change}<li class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="badge badge-brand">{String(change.action??'')}</span><span class="text-muted">{articles?'revize':'změna'} {String(change.revision_id??change.change_id)}</span></span><span class="grid justify-items-end text-xs text-muted"><span>{changeTime(change.created_at)}</span><span class="max-w-[10rem] truncate" title={changeActor(change,data.actors)}>{changeActor(change,data.actors)}</span></span></li>{/each}</ol>
    <a href={here+'?'+(data.locale?'locale='+encodeURIComponent(data.locale)+'&':'')+'history=1#historie'} data-sveltekit-noscroll>Všechny změny a obnova</a>
   </section>
  {/if}
