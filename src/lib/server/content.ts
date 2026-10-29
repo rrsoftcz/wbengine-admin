@@ -140,17 +140,17 @@ export async function createArticleBox(gateway: ReturnType<typeof createContentG
     }
 }
 /** IDs of pages that have a box rendering articles. Null if it cannot be determined (the box is then not reported). */
-export type BoxCoverage = { story: number[]; other: number[]; shared: boolean };
+export type BoxCoverage = { story: number[]; other: number[]; shared: boolean; sharedArticles: boolean };
 /**
- * Pages covered by boxes. Only registered story boxes are known to display articles. Boxes of other or unregistered types
- * (for example a custom module that renders the article of its page itself) are collected separately, because the site does
- * not tell whether they show articles. A shared box appears on every page of its section, so it is reported as a flag.
+ * Pages covered by boxes. A box is known to display articles when it is a registered story box or when the site (WBengine 4.8
+ * and later) flags it with renders_articles. Other boxes (for example a custom module that renders the article of its page
+ * itself) are collected separately, because the site does not tell whether they show articles. A shared box appears on every
+ * page of its section, so it is reported as a flag, and sharedArticles means such a box renders articles everywhere.
  */
 export async function loadBoxCoverage(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, boxTypes: BoxType[]): Promise<BoxCoverage | null> {
-    if (!boxTypes.some(x => x.type === 'story'))
-        return null;
+    const hasStory = boxTypes.some(x => x.type === 'story');
     const story = new Set<number>(), other = new Set<number>();
-    let shared = false;
+    let shared = false, sharedArticles = false, flagged = false;
     try {
         for (let page = 1; page <= 5; page++) {
             const reply = await gateway.list('boxes', page, 100);
@@ -159,13 +159,19 @@ export async function loadBoxCoverage(gateway: Pick<ReturnType<typeof createCont
             for (const row of reply.data as Record<string, unknown>[]) {
                 if (!row || typeof row !== 'object')
                     continue;
-                const target = row.type === 'story' ? story : other;
-                if (Number(row.shared) === 1 && row.type !== 'story')
-                    shared = true;
+                if ('renders_articles' in row)
+                    flagged = true;
+                const renders = row.type === 'story' || row.renders_articles === true;
+                if (Number(row.shared) === 1) {
+                    if (renders)
+                        sharedArticles = true;
+                    else
+                        shared = true;
+                }
                 for (const site of Array.isArray(row.sites) ? row.sites : []) {
                     const id = Number(site && typeof site === 'object' ? (site as Record<string, unknown>).site_id ?? (site as Record<string, unknown>).id : site);
                     if (Number.isSafeInteger(id) && id > 0)
-                        target.add(id);
+                        (renders ? story : other).add(id);
                 }
             }
             if (!reply.pagination || page >= reply.pagination.total_pages)
@@ -175,7 +181,7 @@ export async function loadBoxCoverage(gateway: Pick<ReturnType<typeof createCont
     catch {
         return null;
     }
-    return { story: [...story], other: [...other], shared };
+    return hasStory || flagged ? { story: [...story], other: [...other], shared, sharedArticles } : null;
 }
 export async function loadArticleBoxPages(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, boxTypes: BoxType[]): Promise<number[] | null> {
     return (await loadBoxCoverage(gateway, boxTypes))?.story ?? null;

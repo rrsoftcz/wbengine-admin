@@ -289,6 +289,15 @@ test('article box pages are found from story boxes and failures hide the notice'
 test('box coverage separates story boxes from custom and shared boxes', async () => {
     const calls: unknown[] = [];
     const g = boxGateway(calls, { boxes: [{ type: 'story', sites: [5] }, { type: null, sites: ['18', 19] }, { type: null, shared: 1, sites: [] }] });
-    assert.deepEqual(await loadBoxCoverage(g, story), { story: [5], other: [18, 19], shared: true });
+    assert.deepEqual(await loadBoxCoverage(g, story), { story: [5], other: [18, 19], shared: true, sharedArticles: false });
     assert.equal(await loadBoxCoverage(g, []), null);
+});
+
+test('site flag renders_articles counts a box as an article box and works without a registered story type', async () => {
+    const calls: unknown[] = [];
+    const g = boxGateway(calls, { boxes: [{ type: null, renders_articles: true, sites: [18] }, { type: null, renders_articles: false, sites: [19] }] });
+    assert.deepEqual(await loadBoxCoverage(g, []), { story: [18], other: [19], shared: false, sharedArticles: false });
+    const everywhere = boxGateway([], { boxes: [{ type: null, renders_articles: true, shared: 1, sites: [] }] });
+    assert.equal((await loadBoxCoverage(everywhere, []))?.sharedArticles, true);
+    assert.equal(await loadBoxCoverage(boxGateway([], { boxes: [{ type: null, sites: [1] }] }), []), null);
 });
