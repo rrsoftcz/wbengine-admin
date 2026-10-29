@@ -1,3 +1,4 @@
+import { liveUrl } from '#lib/content-format.ts';
 import { apiCall, RemoteFailure } from './remote.ts';
 import { resources, type Resource, type ApiCall, type ApiReply, type Operation } from './api-contract.ts';
 import { schemas, translationFields, idOf } from '../content-schema.ts';
@@ -321,6 +322,7 @@ export async function connectContent(s: Session, id: number): Promise<{
     site: { id: number; name: string };
     boxTypes: BoxType[];
     locales?: { default: string; list: string[] } | null;
+    baseUrl?: string;
     gateway: ReturnType<typeof createContentGateway>;
     analytics?: ReturnType<typeof createAnalyticsGateway>;
 }> {
@@ -362,7 +364,7 @@ export async function connectContent(s: Session, id: number): Promise<{
         if (!scopes.includes('discovery:read'))
             throw new RemoteFailure(403, 'forbidden');
         const gatewayOptions = { role, scopes, capabilities: caps.capabilities, call };
-        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), locales: projectLocales(caps.i18n), gateway: createContentGateway(gatewayOptions), analytics: createAnalyticsGateway(gatewayOptions) };
+        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), locales: projectLocales(caps.i18n), baseUrl: site.base_url, gateway: createContentGateway(gatewayOptions), analytics: createAnalyticsGateway(gatewayOptions) };
     }
     catch (cause) {
         throw new ContentConnectionFailure({ id, name: site.name }, role, cause);
@@ -457,4 +459,40 @@ export async function loadDependents(gateway: Pick<ReturnType<typeof createConte
         return null;
     }
     return out;
+}
+
+export type LiveLink = { label: string; url: string; note: string | null };
+/**
+ * Adresy, na kterých je záznam vidět na živém webu. Stránka a položka menu mají jednu, článek stránku, na které je zařazen,
+ * box všechny stránky ze svého seznamu. Poznámka říká, proč se obsah na adrese zatím neukáže (skrytá stránka, chybí box s články).
+ * Prázdný seznam: záznam nemá vlastní adresu (sekce, obrázek, box bez stránek).
+ */
+export async function loadLiveLinks(gateway: Pick<ReturnType<typeof createContentGateway>, 'get'>, baseUrl: string | undefined, r: Resource, row: Record<string, unknown>, options: { locale?: string; defaultLocale?: string; articleBoxPages?: number[] | null } = {}): Promise<LiveLink[]> {
+    if (!baseUrl)
+        return [];
+    const ids = (r === 'pages' ? [] : r === 'boxes'
+        ? (Array.isArray(row.sites) ? row.sites : []).map(x => Number(x && typeof x === 'object' ? (x as Record<string, unknown>).site_id ?? (x as Record<string, unknown>).id : x))
+        : r === 'articles' || r === 'menu' ? [Number(row.site_id)] : []).filter(x => Number.isSafeInteger(x) && x > 0).slice(0, 10);
+    const pages: Record<string, unknown>[] = r === 'pages' ? [row] : (await Promise.all(ids.map(async id => {
+        try {
+            return (await gateway.get('pages', String(id))).data as Record<string, unknown>;
+        }
+        catch {
+            return null;
+        }
+    }))).filter((x): x is Record<string, unknown> => !!x && typeof x === 'object');
+    const links: LiveLink[] = [];
+    for (const page of pages) {
+        const url = liveUrl(baseUrl, page.link, options.locale, options.defaultLocale);
+        if (!url)
+            continue;
+        const id = Number(page.site_id ?? page.id);
+        const notes = [
+            Number(page.visible) === 0 ? 'stránka je skrytá, web ji nezobrazí' : '',
+            r === 'articles' && options.articleBoxPages && !options.articleBoxPages.includes(id) ? 'na stránce chybí box s články, článek se nezobrazí' : '',
+            r === 'articles' && row.draft ? 'veřejně je vidět jen publikovaná verze' : ''
+        ].filter(Boolean);
+        links.push({ label: String(page.title ?? page.link), url, note: notes.length ? notes.join('; ') : null });
+    }
+    return links;
 }
