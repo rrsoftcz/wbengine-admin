@@ -6,7 +6,7 @@ The project includes invitation-only accounts, passwords, mandatory TOTP, backup
 
 ## Documentation
 
-- [Guide: from a new site to managing it in the central admin (A to Z)](docs/book-pripojeni-webu-a-z.md)
+- [Guide: from a new site to managing it in the central admin (A to Z)](docs/book-connect-a-site-end-to-end.md)
 - [Plan and implementation status](docs/plan-admin-implementation.md)
 - [Changelog](docs/ref-changelog.md)
 
