@@ -30,6 +30,8 @@
   if(n.type==='leave'){n.cancel();return;}
   if(!confirm('Máte neuložené změny. Opravdu chcete stránku opustit?'))n.cancel();
  });
+ const localeNames:Record<string,string>={cs:'Čeština',en:'Angličtina',sk:'Slovenština',de:'Němčina',pl:'Polština',fr:'Francouzština',es:'Španělština',it:'Italština',pt:'Portugalština',ru:'Ruština',uk:'Ukrajinština',nl:'Nizozemština',hu:'Maďarština'};
+ function localeName(l:string){const n=localeNames[l.split('_')[0]];return n?n+' ('+l+')':l;}
  function open(kind:'publish'|'delete'){if(kind==='publish')publishOpen=true;else deleteOpen=true;}
 </script>
 
@@ -73,7 +75,7 @@
  </div>
 {/if}
 
-<div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_17rem] 2xl:-mx-12">
+<div class={['grid items-start gap-6',data.id!=='new'&&!data.deleted&&'xl:grid-cols-[minmax(0,1fr)_17rem]']}>
 <div class="grid min-w-0 gap-6">
 {#if data.deleted}<p class="alert alert-error" role="status">Záznam je odstraněný. Jeho historii lze použít pro obnovu.</p>
 {:else if data.resource==='images'}
@@ -88,7 +90,7 @@
  {#if articles}<p class="alert alert-info">{data.row.draft?'Upravujete nepublikovaný koncept. Veřejný obsah se změní až po publikování.':'Uložením vznikne nepublikovaný koncept.'}</p>{/if}
  {#if data.permissions.save}<form id="save-form" method="POST" action="?/save" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="card grid gap-5">
 <input type="hidden" name="csrf" value={data.csrf}/>
-<input type="hidden" name="etag" value={tag??''}/>{#key JSON.stringify(values)}<ResourceFields resource={data.resource} {values} boxTypes={data.boxTypes} refs={data.refs} siteId={data.site.id} offerArticleBox={data.offerArticleBox} articleBoxPages={data.articleBoxPages} noArticleBox={data.resource==='pages'&&data.id==='new'&&!data.offerArticleBox} fieldError={form?.field&&!editingTranslation?{field:form.field,message:form.error}:undefined}/>{/key}{#if form?.conflict&&!editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
+<input type="hidden" name="etag" value={tag??''}/>{#key JSON.stringify(values)}<ResourceFields resource={data.resource} {values} boxTypes={data.boxTypes} refs={data.refs} siteId={data.site.id} offerArticleBox={data.offerArticleBox} canAddArticleBox={data.canAddArticleBox} articleBoxPages={data.articleBoxPages} noArticleBox={data.resource==='pages'&&data.id==='new'&&!data.offerArticleBox} fieldError={form?.field&&!editingTranslation?{field:form.field,message:form.error}:undefined}/>{/key}{#if form?.conflict&&!editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
 <input name="mergeConsent" type="checkbox" value="yes"/> Zkontroloval jsem aktuální obsah a chci jej ručně sloučit</label>
 <div><SubmitButton formaction="?/merge" variant="secondary" busy={pending.is('?/merge')}>Převzít aktuální verzi pro ruční sloučení bez uložení</SubmitButton></div></div>{/if}
 <div class="flex flex-wrap items-center gap-3"><SubmitButton busy={pending.is('?/save')}>{articles?'Uložit koncept':'Uložit změny'}</SubmitButton><span class="hint">{articles?'Ukládá se jako koncept, veřejný obsah zůstává beze změny.':'Změna se projeví na webu okamžitě.'}</span></div></form>
@@ -180,9 +182,9 @@
   <section class="card-flat grid gap-2" aria-labelledby="jazyk">
    <h2 id="jazyk" class="text-base">Překlady</h2>
    <form method="GET" class="grid gap-2">
-<label class="field"><span>Jazyk, například cs nebo en_GB</span><input name="locale" value={data.locale} pattern={'[a-z]{2,3}(_[A-Z]{2})?'} required/>
-</label>
-<div><button class="btn btn-secondary btn-sm">Načíst překlad</button></div>
+{#if data.locales}{@const other=data.locales.list.filter((l)=>l!==data.locales?.default)}{#if other.length}<label class="field"><span>Jazyk překladu</span><select name="locale" required><option value="" disabled selected={!data.locale}>Vyberte jazyk</option>{#each other as l}<option value={l} selected={l===data.locale}>{localeName(l)}</option>{/each}</select><span class="hint">Výchozí jazyk webu ({localeName(data.locales.default)}) se upravuje přímo ve formuláři.</span></label>{:else}<p class="hint">Web nemá nastavený žádný další jazyk, překlady proto zatím nelze přidat.</p>{/if}{:else}<label class="field"><span>Jazyk, například cs nebo en_GB</span><input name="locale" value={data.locale} pattern={'[a-z]{2,3}(_[A-Z]{2})?'} required/>
+</label>{/if}
+{#if !data.locales||data.locales.list.length>1}<div><button class="btn btn-secondary btn-sm">Načíst překlad</button></div>{/if}
 </form>
   </section>
  {/if}

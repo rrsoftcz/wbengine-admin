@@ -320,6 +320,7 @@ export class ContentConnectionFailure extends RemoteFailure {
 export async function connectContent(s: Session, id: number): Promise<{
     site: { id: number; name: string };
     boxTypes: BoxType[];
+    locales?: { default: string; list: string[] } | null;
     gateway: ReturnType<typeof createContentGateway>;
     analytics?: ReturnType<typeof createAnalyticsGateway>;
 }> {
@@ -351,6 +352,7 @@ export async function connectContent(s: Session, id: number): Promise<{
             api_version?: string;
             capabilities: Capabilities;
             box_types?: BoxType[];
+            i18n?: unknown;
         }, user = identity.data as {
             scopes?: unknown;
         };
@@ -360,11 +362,19 @@ export async function connectContent(s: Session, id: number): Promise<{
         if (!scopes.includes('discovery:read'))
             throw new RemoteFailure(403, 'forbidden');
         const gatewayOptions = { role, scopes, capabilities: caps.capabilities, call };
-        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), gateway: createContentGateway(gatewayOptions), analytics: createAnalyticsGateway(gatewayOptions) };
+        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), locales: projectLocales(caps.i18n), gateway: createContentGateway(gatewayOptions), analytics: createAnalyticsGateway(gatewayOptions) };
     }
     catch (cause) {
         throw new ContentConnectionFailure({ id, name: site.name }, role, cause);
     }
+}
+/** Jazyky, které web opravdu obsluhuje. Null u starších webů bez pole i18n (formulář pak nechá ruční zadání). */
+export function projectLocales(raw: unknown): { default: string; list: string[] } | null {
+    const value = raw as { default?: unknown; locales?: unknown } | null;
+    const valid = (x: unknown): x is string => typeof x === 'string' && /^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(x);
+    if (!value || !valid(value.default) || !Array.isArray(value.locales))
+        return null;
+    return { default: value.default, list: value.locales.filter(valid) };
 }
 function projectBoxTypes(raw: unknown): BoxType[] {
     if (!Array.isArray(raw))

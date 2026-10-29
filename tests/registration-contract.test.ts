@@ -65,3 +65,9 @@ test('remote failures map to a finite catalog and never leak details', async () 
         });
     }
 });
+test('projectLocales keeps only well formed locales and tolerates old sites', async () => {
+    const { projectLocales } = await import('../src/lib/server/content.ts');
+    assert.deepEqual(projectLocales({ default: 'en', locales: ['en', 'cs', 'pt_BR', 'x', '<b>'] }), { default: 'en', list: ['en', 'cs', 'pt_BR'] });
+    assert.equal(projectLocales(undefined), null);
+    assert.equal(projectLocales({ default: 'EN', locales: [] }), null);
+});

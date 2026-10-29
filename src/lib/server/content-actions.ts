@@ -1,5 +1,5 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
-import { connectContent, siteId, resourceName, parseFields, createArticleBox, RemoteFailure, ContentConnectionFailure } from './content.ts';
+import { connectContent, siteId, resourceName, parseFields, createArticleBox, loadArticleBoxPages, RemoteFailure, ContentConnectionFailure } from './content.ts';
 import { signedIn, form, field } from './web.ts';
 import { idOf, schemas } from '../content-schema.ts';
 import { fieldOfError, type Resource } from './api-contract.ts';
@@ -45,6 +45,13 @@ export function createContentActions(connect: typeof connectContent = connectCon
                 target = idOf(r, result.data as Record<string, unknown>);
                 if (r === 'pages' && id === 'new' && f.get('show_article') === '1' && (await createArticleBox(gateway, boxTypes, Number(target), String(data.title ?? ''))) === 'failed')
                     query = 'boxWarning=1';
+                if (r === 'articles' && f.get('add_article_box') === '1' && Number(data.site_id) > 0) {
+                    const pageId = Number(data.site_id), covered = await loadArticleBoxPages(gateway, boxTypes);
+                    if (covered && !covered.includes(pageId)) {
+                        const page = await gateway.get('pages', String(pageId)).catch(() => null), row = page?.data as Record<string, unknown> | undefined;
+                        await createArticleBox(gateway, boxTypes, pageId, String(row?.title ?? row?.name ?? pageId));
+                    }
+                }
             }
             else if (action === 'delete') {
                 if (f.get('confirm') !== 'yes')
