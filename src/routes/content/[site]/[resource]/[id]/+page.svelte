@@ -24,7 +24,9 @@
  const badge=$derived(data.deleted?'deleted':data.id==='new'?'new':data.resource==='articles'?(data.row.draft?'draft':'published'):null);
  const localeQuery=$derived(data.locale?'?locale='+encodeURIComponent(data.locale):'');
  const articles=$derived(data.resource==='articles');
- const canEdit=$derived(!data.deleted&&!data.unavailable&&data.resource!=='images'&&data.permissions.save);
+ const translating=$derived(data.id!=='new'&&!data.deleted&&!data.unavailable&&!!translationFields[data.resource]&&!!data.permissions.translationGet&&!!data.locale);
+ const missing=$derived((data.versions??[]).filter((v)=>v.exists===false).map((v)=>v.locale));
+ const canEdit=$derived(!data.deleted&&!data.unavailable&&data.resource!=='images'&&(translating?data.permissions.translationSave:data.permissions.save));
  beforeNavigate((n)=>{
   if(!dirty)return;
   if(n.type==='leave'){n.cancel();return;}
@@ -70,7 +72,7 @@
    {#if articles&&data.id!=='new'&&data.permissions.preview}<a class="btn btn-secondary btn-sm" href={here+'/preview'+localeQuery} target="_blank" rel="noopener noreferrer" onclick={(e)=>{e.preventDefault();previewVisible=!previewVisible;}}>{previewVisible?'Skrýt náhled':'Náhled'}</a>{/if}
    {#if articles&&data.row.draft&&data.permissions.publish}<a class="btn btn-secondary btn-sm" href="#publikace" onclick={()=>open('publish')}>Publikovat</a>{/if}
    {#if data.id!=='new'&&data.permissions.delete}<a class="btn btn-ghost btn-sm text-danger" href="#smazat" onclick={()=>open('delete')}>Smazat</a>{/if}
-   {#if canEdit}<SubmitButton form="save-form" busy={pending.is('?/save')} small>{articles?'Uložit koncept':'Uložit změny'}</SubmitButton>{/if}
+   {#if canEdit}<SubmitButton form="save-form" busy={pending.is(translating?'?/translationSave':'?/save')} small>{translating?'Uložit překlad':articles?'Uložit koncept':'Uložit změny'}</SubmitButton>{/if}
   </div>
  </div>
 {/if}
@@ -87,6 +89,22 @@
   <p>Markdown vložení: <code>![Popis obrázku]({String(data.row.url)})</code></p>
  </section>
 {:else}
+{#if data.id!=='new'&&!data.deleted&&translationFields[data.resource]&&data.permissions.translationGet}
+ {#if data.versions}
+ {@const orig=data.versions.filter((v)=>v.original)}{@const done=data.versions.filter((v)=>!v.original&&v.exists===true)}{@const todo=data.versions.filter((v)=>!v.original&&v.exists!==true)}
+ <section class="flex flex-wrap items-end gap-x-6 gap-y-2" aria-label="Jazyková verze">
+  <form method="GET" class="flex flex-wrap items-end gap-3"><label class="field w-64"><span>Jazyk obsahu</span><select name="locale" onchange={(e)=>e.currentTarget.form?.requestSubmit()}>
+   {#each orig as v}<option value="" selected={!data.locale}>{localeName(v.locale)} (originál)</option>{/each}
+   {#if done.length}<optgroup label="Přeloženo ({done.length})">{#each done as v}<option value={v.locale} selected={v.locale===data.locale}>{localeName(v.locale)}</option>{/each}</optgroup>{/if}
+   {#if todo.length}<optgroup label={data.versions.some((v)=>v.exists===null)?'Překlady':'Chybí ('+todo.length+')'}>{#each todo as v}<option value={v.locale} selected={v.locale===data.locale}>{localeName(v.locale)}{v.exists===false?' (zatím chybí)':''}</option>{/each}</optgroup>{/if}
+  </select></label><noscript><button class="btn btn-secondary btn-sm">Načíst jazyk</button></noscript></form>
+  {#if data.versions.every((v)=>v.exists!==null)}<p class="pb-2 text-sm"><strong>Přeloženo {data.versions.filter((v)=>v.exists).length} z {data.versions.length} jazyků</strong>{#if missing.length}<span class="text-muted">, chybí: {missing.slice(0,6).join(', ')}{missing.length>6?' a '+(missing.length-6)+' dalších':''}</span>{/if}</p>{/if}
+ </section>
+ {:else}
+ <form method="GET" class="flex flex-wrap items-end gap-3"><label class="field w-56"><span>Jazyk překladu, například cs nebo en_GB</span><input name="locale" value={data.locale} pattern={'[a-z]{2,3}(_[A-Z]{2})?'}/></label><button class="btn btn-secondary btn-sm">Načíst jazyk</button>{#if data.locale}<a class="btn btn-ghost btn-sm" href={here}>Zpět na originál</a>{/if}</form>
+ {/if}
+{/if}
+{#if !translating}
  {#if articles}<p class="alert alert-info">{data.row.draft?'Upravujete nepublikovaný koncept. Veřejný obsah se změní až po publikování.':'Uložením vznikne nepublikovaný koncept.'}</p>{/if}
  {#if data.permissions.save}<form id="save-form" method="POST" action="?/save" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="card grid gap-5">
 <input type="hidden" name="csrf" value={data.csrf}/>
@@ -96,18 +114,11 @@
 <div class="flex flex-wrap items-center gap-3"><SubmitButton busy={pending.is('?/save')}>{articles?'Uložit koncept':'Uložit změny'}</SubmitButton><span class="hint">{articles?'Ukládá se jako koncept, veřejný obsah zůstává beze změny.':'Změna se projeví na webu okamžitě.'}</span></div></form>
  {:else}<section class="card"><p class="alert alert-info mb-3">Úpravy nejsou povoleny vaší rolí, scopes klíče nebo capabilities webu.</p>
 <pre class="whitespace-pre-wrap break-words">{JSON.stringify(data.values,null,2)}</pre></section>{/if}
-{/if}
-
-{#if data.id!=='new'&&!data.deleted}
- {#if articles&&data.permissions.preview&&previewVisible}<section class="card grid gap-3" aria-labelledby="nahled"><h2 id="nahled">Soukromý náhled uloženého konceptu</h2><p class="hint">Náhled vychází z posledního uloženého konceptu. Externí média a skripty jsou v náhledu blokované.</p>
-<iframe title="Soukromý náhled článku" sandbox="" referrerpolicy="no-referrer" src={here+'/preview'+localeQuery} class="block h-[40rem] w-full rounded-xl border border-line bg-white">
-</iframe></section>{/if}
-
- {#if translationFields[data.resource]&&data.permissions.translationGet&&data.locale}
+{:else}
   <section class="card grid gap-4" aria-labelledby="preklad">
    <h2 id="preklad">Překlad: {data.locale}</h2>
    <p class="hint">Jazyk {data.locale}. Prázdná pole ukládají prázdný překlad. Odstranění překladu obnoví dědění původního obsahu. Překlady článků se nejprve ukládají do konceptu.</p>
-   {#if data.permissions.translationSave}<form method="POST" action="?/translationSave" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="grid gap-5">
+   {#if data.permissions.translationSave}<form id="save-form" method="POST" action="?/translationSave" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="grid gap-5">
 <input name="csrf" type="hidden" value={data.csrf}/>
 <input name="locale" type="hidden" value={data.locale}/>
 <input name="etag" type="hidden" value={translationTag??''}/>{#key JSON.stringify(translationValues)}<ResourceFields resource={data.resource} values={translationValues} translation fieldError={form?.field&&editingTranslation?{field:form.field,message:form.error}:undefined}/>{/key}{#if form?.conflict&&editingTranslation}<div class="grid gap-3 rounded-xl border border-warn bg-warn-soft p-4"><label class="flex items-start gap-2 text-sm">
@@ -122,11 +133,19 @@
 <div><SubmitButton variant="danger" small busy={pending.is('?/translationDelete')}>Odstranit překlad {data.locale}</SubmitButton></div>
 </form></details>{/if}
   </section>
- {/if}
+{/if}
+{/if}
+
+{#if data.id!=='new'&&!data.deleted}
+ {#if articles&&data.permissions.preview&&previewVisible}<section class="card grid gap-3" aria-labelledby="nahled"><h2 id="nahled">Soukromý náhled uloženého konceptu</h2><p class="hint">Náhled vychází z posledního uloženého konceptu. Externí média a skripty jsou v náhledu blokované.</p>
+<iframe title="Soukromý náhled článku" sandbox="" referrerpolicy="no-referrer" src={here+'/preview'+localeQuery} class="block h-[40rem] w-full rounded-xl border border-line bg-white">
+</iframe></section>{/if}
+
 
 {/if}
 
 {#if data.id!=='new'&&data.resource!=='images'}
+{#if data.historyOpen}
   <section class="card" aria-labelledby="historie">
    <h2 id="historie">{articles?'Revize článku':'Historie a obnova struktury'}</h2>
    <p class="hint mb-4">{articles?'Obnova revize vytvoří koncept. Veřejná verze se nezmění bez publikování.':'Obnova vychází ze snapshotu před zvolenou změnou, u založení ze stavu po vytvoření. Kontrolují se aktuální vazby a překlady.'}</p>
@@ -147,6 +166,10 @@
 </form></details>{/if}</li>{/each}</ol>{:else}<p class="text-muted">Historie je prázdná.</p>{/if}
    {#if data.pagination}<Pager page={data.pagination.page} totalPages={data.pagination.total_pages} href={(p)=>here+'?historyPage='+p} previous="Novější záznamy" next="Starší záznamy"/>{/if}
   </section>
+  <p class="mt-3"><a class="btn btn-ghost btn-sm" href={here+(data.locale?'?locale='+encodeURIComponent(data.locale):'')} data-sveltekit-noscroll>Skrýt historii</a></p>
+{:else}
+  <section class="card-flat flex flex-wrap items-center justify-between gap-3" aria-labelledby="historie"><div><h2 id="historie" class="text-base">{articles?'Revize článku':'Historie a obnova struktury'}</h2><p class="hint">Skrytá, dokud ji nepotřebujete.</p></div><a class="btn btn-secondary btn-sm" href={here+'?'+(data.locale?'locale='+encodeURIComponent(data.locale)+'&':'')+'history=1#historie'} data-sveltekit-noscroll>Zobrazit historii</a></section>
+{/if}
 {/if}
 </div>
 
@@ -176,17 +199,6 @@
 <div><SubmitButton busy={pending.is('?/publish')}>Publikovat</SubmitButton></div>
 </form>
   </details>
- {/if}
-
- {#if translationFields[data.resource]&&data.permissions.translationGet}
-  <section class="card-flat grid gap-2" aria-labelledby="jazyk">
-   <h2 id="jazyk" class="text-base">Překlady</h2>
-   <form method="GET" class="grid gap-2">
-{#if data.versions}<ul class="grid gap-1.5" aria-label="Jazykové verze">{#each data.versions as v}{@const active=v.original?!data.locale:v.locale===data.locale}<li class="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 {active?'border-brand bg-brand-soft':'border-line'}"><span class="grid"><span class="font-semibold">{localeName(v.locale)}</span><span class="text-xs text-muted">{v.original?'Originál (výchozí jazyk)':v.exists?'Překlad existuje':'Překlad zatím chybí'}</span></span>{#if active}<span class="badge badge-brand">Upravujete</span>{:else}<a class="btn btn-secondary btn-sm" href={here+(v.original?'':'?locale='+encodeURIComponent(v.locale))} data-sveltekit-noscroll>{v.original?'Upravit originál':v.exists?'Upravit překlad':'Přidat překlad'}</a>{/if}</li>{/each}</ul><p class="hint">Originál se upravuje ve velkém formuláři. Překlad se ukládá ke stejnému záznamu a stejné adrese, web ho zobrazí s předponou jazyka, například /cs/.</p>
-{:else}<label class="field"><span>Jazyk, například cs nebo en_GB</span><input name="locale" value={data.locale} pattern={'[a-z]{2,3}(_[A-Z]{2})?'} required/></label>{/if}
-{#if !data.locales}<div><button class="btn btn-secondary btn-sm">Načíst překlad</button></div>{/if}
-</form>
-  </section>
  {/if}
 
  {#if data.permissions.delete}

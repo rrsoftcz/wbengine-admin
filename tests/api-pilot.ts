@@ -207,7 +207,7 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
         revision_id: number;
     }[];
     assert.ok(revisions.length >= 4);
-    html = await (await get(base + '/articles/' + article)).text();
+    html = await (await get(base + '/articles/' + article + '?history=1')).text();
     response = await post(base + '/articles/' + article + '?/restore', { ...hidden(html, 'restore'), change_id: String(revisions.at(-1)!.revision_id), confirm: 'yes' });
     assert.equal(response.status, 303);
     row = (await gateway.get('articles', article)).data as typeof row;
@@ -224,6 +224,7 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     assert.equal(response.status, 303);
     html = await (await get(base + '/pages/' + recoverable)).text();
     assert.ok(html.includes('Záznam je odstraněný'));
+    html = await (await get(base + '/pages/' + recoverable + '?history=1')).text();
     response = await post(base + '/pages/' + recoverable + '?/restore', { ...hidden(html, 'restore'), confirm: 'yes' });
     assert.equal(response.status, 303);
     assert.equal(((await gateway.get('pages', recoverable)).data as {
