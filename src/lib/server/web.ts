@@ -23,6 +23,6 @@ export function globalAdmin(e: RequestEvent) {
 export const field = (f: FormData, name: string, max = 2048) => {
     const value = f.get(name);
     if (typeof value !== 'string' || value.length > max)
-        throw Error('Neplatné pole');
+        throw Error('Invalid field');
     return value;
 };

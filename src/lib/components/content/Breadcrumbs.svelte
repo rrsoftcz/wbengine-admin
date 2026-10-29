@@ -2,7 +2,7 @@
     let { items }: { items: { label: string; href?: string }[] } = $props();
 </script>
 
-<nav aria-label="Drobečková navigace" class="mb-4 text-sm text-muted">
+<nav aria-label="Breadcrumb" class="mb-4 text-sm text-muted">
     <ol class="flex flex-wrap items-center gap-x-2 gap-y-1">
         {#each items as item, index}
             <li class="flex min-w-0 items-center gap-2">

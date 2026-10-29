@@ -52,7 +52,7 @@ test('total deadline includes delayed DNS and prevents a late connection', async
         await assert.rejects(make({ deadlineMs: 30, resolver: async () => {
                 await new Promise(r => setTimeout(r, 180));
                 return [{ address: '8.8.8.8', family: 4 }];
-            } }), /čas API/);
+            } }), /API timed out/);
         assert.ok(performance.now() - started < 150);
         await new Promise(r => setTimeout(r, 200));
         assert.equal(counts.connections, 0);
@@ -61,7 +61,7 @@ test('total deadline includes delayed DNS and prevents a late connection', async
 test('streaming body cannot extend the total deadline and socket is destroyed', async () => {
     await fixture(async (make, counts) => {
         const started = performance.now();
-        await assert.rejects(make({}), /čas API/);
+        await assert.rejects(make({}), /API timed out/);
         assert.ok(performance.now() - started < 250);
         await new Promise(r => setTimeout(r, 30));
         assert.equal(counts.connections, 1);
@@ -98,7 +98,7 @@ test('caller abort destroys an active response and request', async () => {
         await new Promise(r => setTimeout(r, 30));
         assert.equal(counts.connections, 1);
         controller.abort();
-        await assert.rejects(pending, /zrušen/);
+        await assert.rejects(pending, /aborted/);
         await new Promise(r => setTimeout(r, 30));
         assert.equal(counts.closed, 1);
     });
@@ -120,7 +120,7 @@ test('deadline also bounds a real stalled TLS handshake', async () => {
     const port = (server.address() as import('node:net').AddressInfo).port;
     try {
         const get = remote.createRemoteClient({ deadlineMs: 70, resolver: async () => [{ address: '8.8.8.8', family: 4 }], transport: (options, callback) => request({ ...options, hostname: '127.0.0.1', port, lookup: undefined, servername: 'example.com' }, callback) });
-        await assert.rejects(get('https://example.com', 'capabilities', ''), /čas API/);
+        await assert.rejects(get('https://example.com', 'capabilities', ''), /API timed out/);
         await new Promise(r => setTimeout(r, 30));
         assert.equal(closed, true);
     }
@@ -147,12 +147,12 @@ async function rejectWith(body: string, status = 422, key = 'wbv2_err_fixture_ke
         await new Promise<void>(r => server.close(() => r()));
     }
 }
-test('known API error code maps to a Czech message and the raw message is dropped', async () => {
+test('known API error code maps to an English message and the raw message is dropped', async () => {
     const e = await rejectWith(JSON.stringify({ success: false, error: { code: 'missing_site', message: 'Choose a page before publishing this article.' } }));
     assert.ok(e instanceof remote.RemoteFailure);
     assert.equal(e.status, 422);
     assert.equal(e.code, 'missing_site');
-    assert.equal(e.message, 'Vyberte stránku, na které se článek zobrazí, a zkuste to znovu.');
+    assert.equal(e.message, 'Select the page the article is shown on and try again.');
     assert.ok(!e.message.includes('Choose'));
 });
 test('unknown, malformed or key-bearing error bodies keep the generic message', async () => {
@@ -160,11 +160,11 @@ test('unknown, malformed or key-bearing error bodies keep the generic message', 
         const e = await rejectWith(body);
         assert.ok(e instanceof remote.RemoteFailure);
         assert.equal(e.code, 'remote_rejected');
-        assert.equal(e.message, 'Vzdálené API požadavek odmítlo.');
+        assert.equal(e.message, 'The remote API rejected the request.');
     }
 });
 test('status specific messages are not overridden by API codes', async () => {
     const e = await rejectWith(JSON.stringify({ error: { code: 'precondition_failed' } }), 412);
     assert.equal(e?.status, 412);
-    assert.equal(e?.message, 'Obsah se mezitím změnil. Vaše úpravy zůstaly zachovány.');
+    assert.equal(e?.message, 'The content has changed in the meantime. Your edits have been kept.');
 });

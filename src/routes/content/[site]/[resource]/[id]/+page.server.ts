@@ -15,14 +15,14 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     if (id === 'recover') {
         const recovered = e.url.searchParams.get('recoverId');
         if (!/^[1-9][0-9]*$/.test(recovered ?? ''))
-            error(400, 'Neplatné ID');
+            error(400, 'Invalid ID');
         redirect(303, root + '/' + recovered + '?history=1');
     }
     const { site, gateway, boxTypes, locales, baseUrl } = await connectContent(s, siteId(e.params.site)), locale = e.url.searchParams.get('locale') ?? '';
     if (locale && locales && !locales.list.includes(locale))
-        throw error(400, 'Tento web jazyk nepodporuje');
+        throw error(400, 'This site does not support that language');
     if (locale && !/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(locale))
-        error(400, 'Neplatný jazyk');
+        error(400, 'Invalid language');
     let row: Record<string, unknown> = {}, etag: string | null = null, deleted = false;
     if (id !== 'new') {
         try {

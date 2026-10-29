@@ -14,5 +14,5 @@
 </script>
 
 {#if svg}
-    <div class="mx-auto size-44 shrink-0 rounded-xl bg-white p-3 [&>svg]:size-full" role="img" aria-label="QR kód pro přidání účtu do aplikace">{@html svg}</div>
+    <div class="mx-auto size-44 shrink-0 rounded-xl bg-white p-3 [&>svg]:size-full" role="img" aria-label="QR code for adding the account to the app">{@html svg}</div>
 {/if}

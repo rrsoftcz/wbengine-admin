@@ -32,13 +32,13 @@ function dateMs(value: string): number { return Date.parse(`${value}T00:00:00.00
 function formatDate(value: number): string { return new Date(value).toISOString().slice(0, 10); }
 function assertRange(value: AnalyticsRange): AnalyticsRange {
     if (!value || !isoDate(value.from) || !isoDate(value.to) || !['day', 'week', 'month'].includes(value.granularity) || dateMs(value.to) < dateMs(value.from) || (dateMs(value.to) - dateMs(value.from)) / dayMs >= 62)
-        throw Error('Neplatné období analytiky');
+        throw Error('Invalid analytics period');
     return value;
 }
 export function parseAnalyticsRange(params: URLSearchParams, now: Date = new Date()): AnalyticsRange {
-    if (!(params instanceof URLSearchParams) || !Number.isFinite(now.getTime())) throw Error('Neplatné období analytiky');
+    if (!(params instanceof URLSearchParams) || !Number.isFinite(now.getTime())) throw Error('Invalid analytics period');
     const keys = [...params.keys()];
-    if (keys.some((key, index) => !['from', 'to', 'granularity'].includes(key) || keys.indexOf(key) !== index)) throw Error('Neplatné parametry analytiky');
+    if (keys.some((key, index) => !['from', 'to', 'granularity'].includes(key) || keys.indexOf(key) !== index)) throw Error('Invalid analytics parameters');
     const today = formatDate(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const to = params.get('to') ?? formatDate(dateMs(today) - dayMs);
     const from = params.get('from') ?? formatDate(dateMs(to) - 29 * dayMs);
@@ -84,19 +84,19 @@ function validTop(value: unknown, nameKey: 'title' | 'name', countKey: 'views' |
 export function validateAnalyticsOverview(value: unknown, expected: AnalyticsRange): AnalyticsOverview {
     const range = assertRange(expected);
     if (!isObject(value) || !validTimezone(value.timezone) || !isObject(value.period) || value.period.from !== range.from || value.period.to !== range.to || value.period.granularity !== range.granularity || typeof value.period.complete !== 'boolean' || !counts(value.totals) || !counts(value.lifetime_totals) || !Array.isArray(value.series) || !validTop(value.top_pages, 'title', 'views') || !validTop(value.top_articles, 'title', 'views') || !validTop(value.top_boxes, 'name', 'appearances'))
-        throw Error('Neplatná analytická odpověď');
+        throw Error('Invalid analytics response');
     const periods = expectedPeriods(range);
-    if (value.series.length !== periods.length) throw Error('Neúplná časová řada analytiky');
+    if (value.series.length !== periods.length) throw Error('Incomplete analytics time series');
     const safe = value as unknown as AnalyticsOverview;
     const totals: AnalyticsCounts = { page_views: 0, article_views: 0, box_appearances: 0 };
     for (let i = 0; i < periods.length; i++) {
         const point = safe.series[i];
-        if (!isObject(point) || point.period_start !== periods[i] || !counts(point)) throw Error('Neplatná časová řada analytiky');
+        if (!isObject(point) || point.period_start !== periods[i] || !counts(point)) throw Error('Invalid analytics time series');
         totals.page_views += point.page_views;
         totals.article_views += point.article_views;
         totals.box_appearances += point.box_appearances;
     }
-    if (totals.page_views !== safe.totals.page_views || totals.article_views !== safe.totals.article_views || totals.box_appearances !== safe.totals.box_appearances) throw Error('Součty analytiky nesouhlasí s časovou řadou');
+    if (totals.page_views !== safe.totals.page_views || totals.article_views !== safe.totals.article_views || totals.box_appearances !== safe.totals.box_appearances) throw Error('Analytics totals do not match the time series');
     return {
         timezone: safe.timezone,
         period: { from: range.from, to: range.to, granularity: range.granularity, complete: safe.period.complete },
@@ -115,7 +115,7 @@ export function canReadAnalytics(role: Role, scopes: string[], capabilities: Cap
     return ['editor', 'siteadmin', 'global'].includes(role) && scopes.includes('analytics:read') && capabilities.analytics?.read === true;
 }
 export type AnalyticsBlocker = 'disabled' | 'scope';
-/** Důvody, proč analytika není čitelná, z již načtených discovery a identity dat (bez dalších volání). */
+/** Reasons why analytics is not readable, from already loaded discovery and identity data (no further calls). */
 export function analyticsBlockers(role: Role, scopes: string[], capabilities: Capabilities): AnalyticsBlocker[] {
     const blockers: AnalyticsBlocker[] = [];
     if (capabilities.analytics?.read !== true) blockers.push('disabled');

@@ -3,7 +3,7 @@ import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 let pool: ReturnType<typeof mysql.createPool> | undefined;
 export function database() {
     if (!process.env.DATABASE_URL)
-        throw Error('Chybí DATABASE_URL');
+        throw Error('Missing DATABASE_URL');
     return pool ??= mysql.createPool({ uri: process.env.DATABASE_URL, connectionLimit: 8, dateStrings: true, timezone: "Z", multipleStatements: false });
 }
 export type Connection = PoolConnection;

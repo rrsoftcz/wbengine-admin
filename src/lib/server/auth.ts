@@ -23,19 +23,19 @@ export function safeUser(u: User) {
 export function normalizeEmail(s: string) {
     const email = s.trim().toLowerCase();
     if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(email) || email.length > 254)
-        throw Error('Neplatný e-mail');
+        throw Error('Invalid e-mail');
     return email;
 }
 export function vault() {
     const raw = process.env.MASTER_KEY;
     if (!raw || !/^[0-9a-f]{64}$/i.test(raw))
-        throw Error('Chybí platný MASTER_KEY');
+        throw Error('Missing valid MASTER_KEY');
     return new SecretVault(Buffer.from(raw, 'hex'));
 }
 export function checkCsrf(request: Request, origin: string, expected: string, submitted: string) {
     const a = Buffer.from(expected), b = Buffer.from(submitted);
     if (request.headers.get('origin') !== origin || !expected || a.length !== b.length || !timingSafeEqual(a, b))
-        throw Error('Neplatný CSRF token');
+        throw Error('Invalid CSRF token');
 }
 async function audit(c: Connection, userId: number | null, event: string, siteId: number | null = null) {
     await c.execute('INSERT INTO audit (user_id,event,site_id) VALUES (?,?,?)', [userId, event, siteId]);
@@ -48,7 +48,7 @@ async function newSession(c: Connection, userId: number) {
 async function lockedUser(c: Connection, id: number) {
     const [u] = await rows<User>(c, 'SELECT * FROM users WHERE id=? AND disabled=FALSE FOR UPDATE', [id]);
     if (!u)
-        throw Error('Účet není dostupný');
+        throw Error('Account is not available');
     return u;
 }
 export async function loadSession(raw: string | undefined): Promise<Session | null> {
@@ -99,7 +99,7 @@ export async function setupMfa(s: Session) {
     return transaction(async (c) => {
         const u = await lockedUser(c, s.user.id);
         if (u.mfa_enabled)
-            throw Error('MFA je aktivní');
+            throw Error('MFA is active');
         if (u.mfa_secret)
             return vault().decrypt(u.mfa_secret, `mfa:${u.id}`);
         const secret = newTotpSecret();
@@ -109,14 +109,14 @@ export async function setupMfa(s: Session) {
 }
 export async function completeMfa(s: Session, code: string) {
     if (!await consumeMfaAttempt(s.user.id))
-        throw Error('MFA je dočasně omezené');
+        throw Error('MFA is temporarily restricted');
     return transaction(async (c) => {
         const [active] = await rows(c, 'SELECT token_hash FROM sessions WHERE token_hash=? AND user_id=? AND expires_at>NOW(3) FOR UPDATE', [s.hash, s.user.id]);
         if (!active)
-            throw Error('Session vypršela');
+            throw Error('Session expired');
         const u = await lockedUser(c, s.user.id);
         if (!u.mfa_secret)
-            throw Error('MFA není připravené');
+            throw Error('MFA is not ready');
         const counter = verifyTotp(vault().decrypt(u.mfa_secret, `mfa:${u.id}`), code, Date.now(), Number(u.mfa_counter));
         let valid = counter !== null;
         if (!valid && u.mfa_enabled) {
@@ -126,7 +126,7 @@ export async function completeMfa(s: Session, code: string) {
             }).affectedRows === 1;
         }
         if (!valid)
-            throw Error('Neplatný nebo použitý MFA kód');
+            throw Error('Invalid or already used MFA code');
         const codes: string[] = [];
         if (!u.mfa_enabled) {
             for (let i = 0; i < 10; i++) {
@@ -145,13 +145,13 @@ export async function completeMfa(s: Session, code: string) {
 }
 export function requireAuthenticated(s: Session | null): Session {
     if (!s || !s.mfaVerified || !s.user.mfaEnabled)
-        throw Error('Přihlášení s MFA je povinné');
+        throw Error('Sign-in with MFA is required');
     return s;
 }
 export function requireGlobal(s: Session | null) {
     const valid = requireAuthenticated(s);
     if (!valid.user.globalAdmin)
-        throw Error('Chybí globální oprávnění');
+        throw Error('Missing global permission');
     return valid;
 }
 export async function requireSite(c: Connection, s: Session, site: number, level: 'read' | 'manage') {
@@ -160,12 +160,12 @@ export async function requireSite(c: Connection, s: Session, site: number, level
         role: string;
     }>(c, 'SELECT role FROM grants WHERE user_id=? AND site_id=?', [s.user.id, site]);
     if (!permitted(s.user.globalAdmin, g?.role ?? null, level))
-        throw Error('Chybí oprávnění k webu');
+        throw Error('Missing site permission');
 }
 export async function invite(email: string, globalAdmin: boolean, siteId: number | null = null, role: 'editor' | 'siteadmin' | null = null) {
     email = normalizeEmail(email);
     if (siteId === null && role !== null || siteId !== null && role === null)
-        throw Error('Neplatné oprávnění pozvánky');
+        throw Error('Invalid invitation permission');
     const raw = token();
     await transaction(async (c) => {
         await c.execute('INSERT INTO invitations (token_hash,email,global_admin,site_id,role,expires_at) VALUES (?,?,?,?,?,?)', [tokenHash(raw), email, globalAdmin, siteId, role, new Date(Date.now() + 48 * 3600000)]);
@@ -183,7 +183,7 @@ export async function acceptInvitation(raw: string, password: string) {
             role: string | null;
         }>(c, 'SELECT * FROM invitations WHERE token_hash=? AND used_at IS NULL AND expires_at>NOW(3) FOR UPDATE', [tokenHash(raw)]);
         if (!i)
-            throw Error('Pozvánka není platná');
+            throw Error('Invitation is not valid');
         const [r] = await c.execute('INSERT INTO users(email,password_hash,global_admin) VALUES (?,?,?)', [i.email, hash, i.global_admin]);
         const id = (r as {
             insertId: number;
@@ -201,7 +201,7 @@ export async function issueRecovery(email: string) {
         // Recovery/deactivation must serialize with this operation.
         const [u] = await rows<User>(c, 'SELECT * FROM users WHERE email=? AND disabled=FALSE FOR UPDATE', [normalizeEmail(email)]);
         if (!u)
-            throw Error('Účet neexistuje');
+            throw Error('Account does not exist');
         const raw = token();
         await c.execute('UPDATE recovery SET used_at=NOW(3) WHERE user_id=? AND used_at IS NULL', [u.id]);
         await c.execute('INSERT INTO recovery(token_hash,user_id,expires_at) VALUES (?,?,?)', [tokenHash(raw), u.id, new Date(Date.now() + 1800000)]);
@@ -216,7 +216,7 @@ export async function resetPassword(raw: string, password: string) {
             user_id: number;
         }>(c, 'SELECT * FROM recovery WHERE token_hash=? AND used_at IS NULL AND expires_at>NOW(3) FOR UPDATE', [tokenHash(raw)]);
         if (!r)
-            throw Error('Odkaz obnovy není platný');
+            throw Error('Recovery link is not valid');
         await lockedUser(c, r.user_id);
         await c.execute('UPDATE users SET password_hash=? WHERE id=?', [hash, r.user_id]);
         await c.execute('UPDATE recovery SET used_at=NOW(3) WHERE user_id=? AND used_at IS NULL', [r.user_id]);

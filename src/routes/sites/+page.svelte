@@ -5,33 +5,33 @@
     let { data, form } = $props();
 </script>
 
-<svelte:head><title>Registr webů | WBengine administrace</title></svelte:head>
+<svelte:head><title>Site registry | WBengine Admin</title></svelte:head>
 
 <header class="mb-6">
-    <p class="eyebrow">Správa</p>
-    <h1>Registr webů</h1>
-    <p class="lead mt-2">Zde připojujete nové weby, měníte jejich klíče a určujete, kdo ke kterému webu smí.</p>
-    <nav class="mt-4 flex flex-wrap gap-2" aria-label="Sekce stránky">
-        <a class="btn btn-secondary btn-sm" href="#pridat-web">Přidat web</a>
-        <a class="btn btn-secondary btn-sm" href="#weby">Připojené weby ({data.sites.length})</a>
-        <a class="btn btn-secondary btn-sm" href="#opravneni">Oprávnění účtů</a>
+    <p class="eyebrow">Administration</p>
+    <h1>Site registry</h1>
+    <p class="lead mt-2">Here you connect new sites, change their keys and decide who may access which site.</p>
+    <nav class="mt-4 flex flex-wrap gap-2" aria-label="Page sections">
+        <a class="btn btn-secondary btn-sm" href="#pridat-web">Add site</a>
+        <a class="btn btn-secondary btn-sm" href="#weby">Connected sites ({data.sites.length})</a>
+        <a class="btn btn-secondary btn-sm" href="#opravneni">Account permissions</a>
     </nav>
 </header>
 
 <div class="grid gap-6">
     <section id="pridat-web" class="card scroll-mt-20" aria-labelledby="h-add">
-        <h2 id="h-add" class="mb-1 text-xl">Přidat web</h2>
-        <p class="mb-5 text-sm text-muted">Průvodce ve třech krocích. Klíč se ověří přímo na webu ještě před uložením.</p>
+        <h2 id="h-add" class="mb-1 text-xl">Add site</h2>
+        <p class="mb-5 text-sm text-muted">A three-step wizard. The key is verified on the site itself before it is saved.</p>
         <AddSiteWizard csrf={data.csrf} profile={data.profile} scopes={data.scopes} {form} />
     </section>
 
     <section id="weby" class="card scroll-mt-20" aria-labelledby="h-sites">
-        <h2 id="h-sites" class="mb-4 text-xl">Připojené weby</h2>
+        <h2 id="h-sites" class="mb-4 text-xl">Connected sites</h2>
         <SiteList sites={data.sites} csrf={data.csrf} {form} />
     </section>
 
     <section id="opravneni" class="card scroll-mt-20" aria-labelledby="h-grants">
-        <h2 id="h-grants" class="mb-4 text-xl">Oprávnění účtů</h2>
+        <h2 id="h-grants" class="mb-4 text-xl">Account permissions</h2>
         <GrantForm csrf={data.csrf} accounts={data.accounts} sites={data.sites} grants={data.grants} {form} />
     </section>
 </div>

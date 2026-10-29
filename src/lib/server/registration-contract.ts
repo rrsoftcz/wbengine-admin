@@ -6,27 +6,27 @@ export const analyticsScope = 'analytics:read';
 /** Single source of truth for the key purpose. canOperate() in content.ts must never require a scope outside it. */
 export const scopeProfiles = {
     management: {
-        label: 'Správa webu v WBengine Adminu',
+        label: 'Site management in WBengine Admin',
         scopes: [...frameworkScopes] as string[],
         optional: [analyticsScope] as string[]
     }
 } as const;
 export type ScopeProfile = keyof typeof scopeProfiles;
 export const registrationErrors = {
-    invalid_input: 'Vyplňte název webu (nejvýše 160 znaků) a platný integrační klíč začínající wbv2_.',
-    invalid_url: 'Adresa webu není povolená. Použijte HTTPS adresu bez přihlašovacích údajů, parametrů a fragmentu, port 443.',
-    unsafe_target: 'Adresa webu míří do nepovolené sítě. Web musí být dostupný na veřejné HTTPS adrese. Pokud běží na stejném serveru jako Admin, zkontrolujte, že DNS v kontejneru Adminu vrací veřejnou IP adresu, ne 127.x nebo privátní (viz průvodce, Odstraňování potíží).',
-    unreachable: 'Web se nepodařilo kontaktovat. Ověřte adresu, DNS a platný HTTPS certifikát.',
-    timeout: 'Web neodpověděl v časovém limitu. Zkuste to znovu později.',
-    api_unavailable: 'API v2 na webu není dostupné. Zapněte API v2 a nainstalujte SQL migrace frameworku.',
-    invalid_key: 'Integrační klíč není platný nebo byl odvolán. Vydejte nový klíč na webu.',
-    forbidden: 'Web požadavek odmítl. Ověřte, že klíč má potřebné oprávnění a web přijímá HTTPS.',
-    missing_scope: 'Klíč nemá všechna oprávnění profilu Správa webu. Vydejte nový klíč s úplným profilem.',
-    rate_limited: 'Web dočasně omezil počet neúspěšných pokusů. Zkuste to znovu za několik minut.',
-    bad_contract: 'Web vrátil neočekávanou odpověď. Ověřte, že běží WBengine s API v2.',
-    duplicate_url: 'Tento web už je zaregistrovaný.',
-    same_key: 'Zadaný klíč je stejný jako dosud uložený. Vydejte na webu nový klíč.',
-    remote_error: 'Web požadavek nezpracoval. Zkuste to znovu později.'
+    invalid_input: 'Enter the site name (at most 160 characters) and a valid integration key starting with wbv2_.',
+    invalid_url: 'The site address is not allowed. Use an HTTPS address without credentials, parameters and fragment, port 443.',
+    unsafe_target: 'The site address points to a disallowed network. The site must be reachable at a public HTTPS address. If it runs on the same server as Admin, check that DNS in the Admin container returns a public IP address, not 127.x or a private one (see the guide, Troubleshooting).',
+    unreachable: 'The site could not be contacted. Check the address, DNS and a valid HTTPS certificate.',
+    timeout: 'The site did not respond within the time limit. Try again later.',
+    api_unavailable: 'API v2 is not available on the site. Enable API v2 and install the framework SQL migrations.',
+    invalid_key: 'The integration key is not valid or has been revoked. Issue a new key on the site.',
+    forbidden: 'The site rejected the request. Check that the key has the required permission and the site accepts HTTPS.',
+    missing_scope: 'The key does not have all permissions of the Site management profile. Issue a new key with the full profile.',
+    rate_limited: 'The site has temporarily limited failed attempts. Try again in a few minutes.',
+    bad_contract: 'The site returned an unexpected response. Check that WBengine with API v2 is running.',
+    duplicate_url: 'This site is already registered.',
+    same_key: 'The entered key is the same as the one already stored. Issue a new key on the site.',
+    remote_error: 'The site did not process the request. Try again later.'
 } as const;
 export type RegistrationErrorCode = keyof typeof registrationErrors;
 /** Carries only a catalog code, never the key, the raw exception or network details. */
@@ -54,15 +54,15 @@ export function classifyRegistrationError(e: unknown): RegistrationErrorCode {
         return 'remote_error';
     }
     const message = e instanceof Error ? e.message : '';
-    if (e instanceof TypeError || message === 'Nepovolená adresa webu' || message === 'Povolen je pouze HTTPS port 443')
+    if (e instanceof TypeError || message === 'Disallowed site address' || message === 'Only HTTPS port 443 is allowed')
         return 'invalid_url';
-    if (message === 'DNS adresa není povolena')
+    if (message === 'DNS address is not allowed')
         return 'unsafe_target';
-    if (message === 'Vypršel čas API')
+    if (message === 'API timed out')
         return 'timeout';
-    if (message === 'Spojení s API selhalo')
+    if (message === 'API connection failed')
         return 'unreachable';
-    if (message === 'Neplatná odpověď API' || message === 'Neplatný discovery kontrakt')
+    if (message === 'Invalid API response' || message === 'Invalid discovery contract')
         return 'bad_contract';
     return 'remote_error';
 }
@@ -82,7 +82,7 @@ export function projectCapabilities(raw: unknown) {
         };
     };
     if (body?.success !== true || body.data?.api_version !== '2.0' || !body.data.capabilities)
-        throw Error('Neplatný discovery kontrakt');
+        throw Error('Invalid discovery contract');
     const names = ['discovery', 'articles', 'pages', 'menu', 'sections', 'boxes', 'translations', 'images', 'templates', 'preview', 'publish'];
     return { version: '2.0', resources: names.map(name => ({ name, read: body.data!.capabilities![name]?.read === true, write: body.data!.capabilities![name]?.write === true })) };
 }

@@ -54,7 +54,7 @@ test('verification rejects malformed identity', async () => {
         await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', getter([...scopeProfiles.management.scopes], id)), (e: RegistrationError) => e.code === 'bad_contract');
 });
 test('remote failures map to a finite catalog and never leak details', async () => {
-    const cases: [unknown, string][] = [[new RemoteFailure(401, 'remote_rejected'), 'invalid_key'], [new RemoteFailure(403, 'remote_rejected'), 'forbidden'], [new RemoteFailure(404, 'remote_rejected'), 'api_unavailable'], [new RemoteFailure(503, 'remote_rejected'), 'api_unavailable'], [new RemoteFailure(429, 'remote_rejected'), 'rate_limited'], [new RemoteFailure(500, 'remote_rejected'), 'remote_error'], [Error('Vypršel čas API'), 'timeout'], [Error('Spojení s API selhalo'), 'unreachable'], [Error('DNS adresa není povolena'), 'unsafe_target'], [Error('Nepovolená adresa webu'), 'invalid_url'], [new TypeError('Invalid URL'), 'invalid_url'], [Error('ECONNREFUSED 10.0.0.5:443 ' + key), 'remote_error']];
+    const cases: [unknown, string][] = [[new RemoteFailure(401, 'remote_rejected'), 'invalid_key'], [new RemoteFailure(403, 'remote_rejected'), 'forbidden'], [new RemoteFailure(404, 'remote_rejected'), 'api_unavailable'], [new RemoteFailure(503, 'remote_rejected'), 'api_unavailable'], [new RemoteFailure(429, 'remote_rejected'), 'rate_limited'], [new RemoteFailure(500, 'remote_rejected'), 'remote_error'], [Error('API timed out'), 'timeout'], [Error('API connection failed'), 'unreachable'], [Error('DNS address is not allowed'), 'unsafe_target'], [Error('Disallowed site address'), 'invalid_url'], [new TypeError('Invalid URL'), 'invalid_url'], [Error('ECONNREFUSED 10.0.0.5:443 ' + key), 'remote_error']];
     for (const [error, code] of cases) {
         assert.equal(classifyRegistrationError(error), code);
         await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', async () => { throw error; }), (e: RegistrationError) => {
@@ -73,17 +73,17 @@ test('projectLocales keeps only well formed locales and tolerates old sites', as
 });
 test('change time and actor are readable', async () => {
     const { changeTime, changeActor } = await import('../src/lib/content-format.ts');
-    assert.match(changeTime(1793292721), /^\d{1,2}\. \d{1,2}\. \d{4}/);
+    assert.match(changeTime(1793292721), /^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}$/);
     assert.equal(changeTime('2026-10-29 10:00'), '2026-10-29 10:00');
     assert.equal(changeActor({ central_actor: 'admin:7' }, { 'admin:7': 'a@b.cz' }), 'a@b.cz');
     assert.equal(changeActor({ central_actor: 'admin:9' }, {}), 'admin:9');
-    assert.equal(changeActor({ central_actor: null }, {}), 'přímo na webu');
+    assert.equal(changeActor({ central_actor: null }, {}), 'directly on the site');
 });
 test('dependents of a page list articles, boxes, menu items and child pages', async () => {
     const { loadDependents } = await import('../src/lib/server/content.ts');
     const data: Record<string, Record<string, unknown>[]> = {
         articles: [{ id: 1, site_id: 5, title: 'A', draft_title: 'Koncept A' }, { id: 2, site_id: 6, title: 'B' }],
-        boxes: [{ id: 3, name: 'Box', sites: [5, 9] }, { id: 4, name: 'Jiný', sites: [{ site_id: 7 }] }],
+        boxes: [{ id: 3, name: 'Box', sites: [5, 9] }, { id: 4, name: 'Other', sites: [{ site_id: 7 }] }],
         menu: [{ menu_id: 8, site_id: 5, name: 'Menu' }],
         pages: [{ site_id: 5, parent_id: 0, title: 'Sama', link: '/a/' }, { site_id: 10, parent_id: 5, title: 'Pod', link: '/a/b/' }],
     };
@@ -108,10 +108,10 @@ test('liveUrl and loadLiveLinks build the public address of a record', async () 
     const base = 'https://www.wbengine.org/';
     assert.deepEqual((await loadLiveLinks(gateway, base, 'pages', pages[5])).map(x => x.url), ['https://www.wbengine.org/test-2/']);
     const article = await loadLiveLinks(gateway, base, 'articles', { site_id: 5, draft: { content: {} } }, { articleBoxPages: [] });
-    assert.match(article[0].note ?? '', /chybí box/);
-    assert.match(article[0].note ?? '', /publikovaná/);
+    assert.match(article[0].note ?? '', /no article box/);
+    assert.match(article[0].note ?? '', /published version/);
     const box = await loadLiveLinks(gateway, base, 'boxes', { sites: [{ site_id: 5 }, 6, 99] });
     assert.equal(box.length, 2);
-    assert.match(box[1].note ?? '', /skrytá/);
+    assert.match(box[1].note ?? '', /hidden/);
     assert.deepEqual(await loadLiveLinks(gateway, base, 'sections', { section_id: 1 }), []);
 });

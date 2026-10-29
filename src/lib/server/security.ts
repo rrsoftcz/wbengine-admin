@@ -7,7 +7,7 @@ export class SecretVault {
     private key: Buffer;
     constructor(key: Buffer) {
         if (key.length !== 32)
-            throw Error('Neplatný hlavní klíč');
+            throw Error('Invalid master key');
         this.key = key;
     }
     encrypt(value: string, context: string) {
@@ -19,7 +19,7 @@ export class SecretVault {
     decrypt(value: string, context: string) {
         const parts = value.split('.');
         if (parts.length !== 3)
-            throw Error('Neplatná šifra');
+            throw Error('Invalid cipher');
         const [iv, tag, data] = parts.map(x => Buffer.from(x, 'base64url'));
         const d = createDecipheriv('aes-256-gcm', this.key, iv);
         d.setAAD(Buffer.from(context));
@@ -29,7 +29,7 @@ export class SecretVault {
 }
 export async function hashPassword(password: string) {
     if (password.length < 14 || password.length > 256)
-        throw Error('Heslo musí mít 14 až 256 znaků');
+        throw Error('Password must be 14 to 256 characters');
     const salt = randomBytes(16).toString('hex');
     const hash = await derive(password, salt, 64) as Buffer;
     return `scrypt:${salt}:${hash.toString('hex')}`;
@@ -55,7 +55,7 @@ function decodeBase32(secret: string) {
     for (const c of secret) {
         const n = alphabet.indexOf(c);
         if (n < 0)
-            throw Error('Neplatný MFA klíč');
+            throw Error('Invalid MFA key');
         bits += n.toString(2).padStart(5, '0');
     }
     return Buffer.from(bits.match(/.{8}/g)!.map(b => parseInt(b, 2)));

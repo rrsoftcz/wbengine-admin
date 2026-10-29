@@ -177,13 +177,13 @@ test('reference options are labelled for people, exclude the edited record and f
     const calls: [string, number, number | undefined][] = [];
     const gateway = { list: async (r: string, page = 1, perPage?: number) => {
         calls.push([r, page, perPage]);
-        return { etag: null, data: page === 1 ? [{ site_id: 1, title: 'Domů', link: '/' }, { site_id: 2, title: 'O nás', link: '/o-nas' }] : [{ site_id: 3, title: 'Kontakt', link: '/kontakt' }], pagination: { page, per_page: 100, total: 3, total_pages: 2 } };
+        return { etag: null, data: page === 1 ? [{ site_id: 1, title: 'Home', link: '/' }, { site_id: 2, title: 'About', link: '/about' }] : [{ site_id: 3, title: 'Contact', link: '/contact' }], pagination: { page, per_page: 100, total: 3, total_pages: 2 } };
     } };
     const all = await loadReferenceOptions(gateway as never, 'pages');
-    assert.deepEqual(all?.map(o => o.label), ['Domů (/)', 'O nás (/o-nas)', 'Kontakt (/kontakt)']);
+    assert.deepEqual(all?.map(o => o.label), ['Home (/)', 'About (/about)', 'Contact (/contact)']);
     assert.deepEqual(calls, [['pages', 1, 100], ['pages', 2, 100]]);
     assert.equal(defaultPageOption(all!), 2);
-    assert.equal(defaultPageOption([{ value: 5, label: 'Domů (/)', link: '/' }]), 5);
+    assert.equal(defaultPageOption([{ value: 5, label: 'Home (/)', link: '/' }]), 5);
     assert.equal(defaultPageOption([]), 0);
     assert.deepEqual((await loadReferenceOptions(gateway as never, 'pages', '2'))?.map(o => o.value), [1, 3]);
     assert.equal(await loadReferenceOptions({ list: async () => { throw new Error('down'); } } as never, 'pages'), null);
@@ -200,19 +200,19 @@ test('every error code tied to a field names a real schema field, and the source
     }
     assert.equal(fieldOfError('invalid_source'), 'source');
     assert.equal(fieldOfError('unknown_code'), undefined);
-    assert.match(errorMessages.invalid_source, /^Zdroj /);
-    assert.ok(!errorMessages.invalid_source.includes('v textu'));
+    assert.match(errorMessages.invalid_source, /^The source /);
+    assert.ok(!errorMessages.invalid_source.includes('in the text'));
 });
 
 import { normalizePageLink, offersArticleBox, createArticleBox, findCentralSection, loadArticleBoxPages } from '../src/lib/server/content.ts';
 test('page link is normalized to /slug/ form, root and invalid characters are left alone', () => {
     assert.equal(normalizePageLink('/testovaci-blog'), '/testovaci-blog/');
-    assert.equal(normalizePageLink('o-nas/'), '/o-nas/');
-    assert.equal(normalizePageLink('o-nas'), '/o-nas/');
-    assert.equal(normalizePageLink('  /o-nas  '), '/o-nas/');
+    assert.equal(normalizePageLink('about/'), '/about/');
+    assert.equal(normalizePageLink('about'), '/about/');
+    assert.equal(normalizePageLink('  /about  '), '/about/');
     assert.equal(normalizePageLink('/'), '/');
     assert.equal(normalizePageLink(' / '), '/');
-    assert.equal(normalizePageLink('/o-nas/'), '/o-nas/');
+    assert.equal(normalizePageLink('/about/'), '/about/');
     assert.equal(normalizePageLink(''), '');
     assert.equal(normalizePageLink('   '), '');
     assert.equal(normalizePageLink('/o nas'), '/o nas');
@@ -224,7 +224,7 @@ test('page link is normalized to /slug/ form, root and invalid characters are le
 });
 test('source message only concerns control characters', async () => {
     const { errorMessages } = await import('../src/lib/server/api-contract.ts');
-    assert.equal(errorMessages.invalid_source, 'Zdroj nesmí obsahovat řídicí znaky ani zalomení řádku.');
+    assert.equal(errorMessages.invalid_source, 'The source must not contain control characters or line breaks.');
 });
 const story = [{ type: 'story', settings: {}, sections: ['central'] }];
 const boxGateway = (calls: unknown[], opts: { role?: 'global' | 'editor'; boxesWrite?: boolean; sections?: unknown[]; failSave?: boolean; boxes?: unknown[] } = {}) => createContentGateway({
@@ -247,7 +247,7 @@ test('article box is offered only when the site registers story and boxes are wr
 test('article box is created in the central section through the ordinary create operation', async () => {
     const calls: { operation: string; resource?: string; data?: Record<string, unknown> }[] = [];
     assert.equal(await createArticleBox(boxGateway(calls), story, 12, 'Blog'), 'created');
-    assert.deepEqual(calls.at(-1), { operation: 'create', resource: 'boxes', id: undefined, data: { name: 'Článek: Blog', type: 'story', settings: {}, section_id: 4, static: 1, shared: 0, device_min: 1, device_strict: 0, order: 0, sites: [12] }, etag: undefined });
+    assert.deepEqual(calls.at(-1), { operation: 'create', resource: 'boxes', id: undefined, data: { name: 'Article: Blog', type: 'story', settings: {}, section_id: 4, static: 1, shared: 0, device_min: 1, device_strict: 0, order: 0, sites: [12] }, etag: undefined });
     const none: unknown[] = [];
     assert.equal(await createArticleBox(boxGateway(none), [], 12, 'Blog'), 'skipped');
     assert.equal(none.length, 0);

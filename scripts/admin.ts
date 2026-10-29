@@ -8,7 +8,7 @@ try {
         const c = await database().getConnection();
         try {
             const ran = await migrate(c);
-            console.log(ran.length ? 'Aplikováno: ' + ran.join(', ') : 'Žádná nová migrace');
+            console.log(ran.length ? 'Applied: ' + ran.join(', ') : 'No new migration');
         }
         finally {
             c.release();
@@ -19,26 +19,26 @@ try {
         if (!email || !['global', 'member'].includes(level))
             throw Error('invite EMAIL global | invite EMAIL member [SITE_ID editor|siteadmin]');
         const raw = await invite(email, level === 'global', site ? Number(site) : null, (role ?? null) as 'editor' | 'siteadmin' | null);
-        console.log('Jednorázový token pozvánky, předejte bezpečným kanálem:');
+        console.log('One-time invitation token, hand it over through a secure channel:');
         console.log(raw);
     }
     else if (command === 'recover') {
         if (!args[0])
             throw Error('recover EMAIL');
-        console.log('Jednorázový token obnovy, předejte bezpečným kanálem:');
+        console.log('One-time recovery token, hand it over through a secure channel:');
         console.log(await issueRecovery(args[0]));
     }
     else if (command === 'site-add') {
         if (!args[0] || !args[1] || process.stdin.isTTY)
-            throw Error('site-add NAME HTTPS_URL, klíč předejte na stdin');
+            throw Error('site-add NAME HTTPS_URL, pass the key on stdin');
         let key = '';
         for await (const chunk of process.stdin) {
             key += chunk;
             if (key.length > 256)
-                throw Error('Neplatný klíč');
+                throw Error('Invalid key');
         }
         await provisionSite(args[0], args[1], key.trim(), null, true);
-        console.log('Web zaregistrován');
+        console.log('Site registered');
     }
     else if (command === 'users') {
         console.log(await transaction(c => rows(c, 'SELECT id,email,global_admin,mfa_enabled,disabled FROM users ORDER BY id')));
@@ -52,13 +52,13 @@ try {
             await c.execute('DELETE FROM sessions WHERE user_id=?', [Number(user)]);
             await c.execute('INSERT INTO audit(user_id,site_id,event) VALUES (?,?,?)', [null, Number(site), 'grant.revoked.cli']);
         });
-        console.log('Oprávnění odebráno');
+        console.log('Permission revoked');
     }
     else
-        throw Error('Příkazy: migrate, invite, recover, users, revoke, site-add');
+        throw Error('Commands: migrate, invite, recover, users, revoke, site-add');
 }
 catch (e) {
-    console.error(e instanceof Error && e.message.startsWith('Příkazy:') ? e.message : 'Operace selhala. Ověřte parametry a připojení; citlivé údaje se nevypisují.');
+    console.error(e instanceof Error && e.message.startsWith('Commands:') ? e.message : 'The operation failed. Check the parameters and the connection; sensitive data is not printed.');
     process.exitCode = 1;
 }
 finally {

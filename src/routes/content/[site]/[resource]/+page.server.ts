@@ -20,13 +20,13 @@ export const actions: Actions = { upload: async (e) => {
                 throw Error();
             const f = await form(e), image = f.get('image');
             if (!(image instanceof File) || !image.size || image.size > 524288 || !['image/png', 'image/jpeg', 'image/webp'].includes(image.type))
-                return fail(400, { error: 'Vyberte PNG, JPEG nebo WebP do 512 KiB.' });
+                return fail(400, { error: 'Choose a PNG, JPEG or WebP file up to 512 KiB.' });
             if (f.get('publicConsent') !== 'yes')
-                return fail(400, { error: 'Potvrďte veřejný charakter obrázku.' });
+                return fail(400, { error: 'Confirm that the image is public.' });
             const { gateway } = await connectContent(s, siteId(e.params.site)), result = await gateway.upload({ base64: Buffer.from(await image.arrayBuffer()).toString('base64'), mime: image.type });
             return { uploaded: result.data as Record<string, unknown> };
         }
         catch {
-            return fail(400, { error: 'Obrázek se nepodařilo nahrát. Ověřte oprávnění, formát a dostupné úložiště webu.' });
+            return fail(400, { error: 'The image could not be uploaded. Check permissions, format and the available site storage.' });
         }
     } };
