@@ -63,7 +63,7 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     await Promise.all(Object.entries(referenceFields[r] ?? {}).map(async ([name, spec]) => { refs[name] = await loadReferenceOptions(gateway, spec.source, spec.source === r ? id : undefined); }));
     if (id === 'new' && refs.site_id?.length && !Number(values.site_id) && (r === 'articles' || r === 'menu'))
         values = { ...values, site_id: defaultPageOption(refs.site_id) };
-    const boxCoverage = r === 'articles' && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'read', 'boxes') ? await loadBoxCoverage(gateway, boxTypes) : null, articleBoxPages = boxCoverage?.story ?? null, otherBoxPages = boxCoverage?.shared ? null : boxCoverage?.other ?? null;
+    const boxCoverage = r === 'articles' && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'read', 'boxes') ? await loadBoxCoverage(gateway, boxTypes) : null, articleBoxPages = boxCoverage?.sharedArticles ? null : boxCoverage?.story ?? null, otherBoxPages = boxCoverage?.shared ? null : boxCoverage?.other ?? null;
     const canAddBox = offersArticleBox(gateway, boxTypes), offerArticleBox = r === 'pages' && id === 'new' && canAddBox, canAddArticleBox = r === 'articles' && canAddBox;
     const liveLinks = id !== 'new' && !deleted && r !== 'images' && r !== 'sections' ? await loadLiveLinks(gateway, baseUrl, r, row, { locale, defaultLocale: locales?.default, articleBoxPages }) : [];
     let image: string | null = null;
