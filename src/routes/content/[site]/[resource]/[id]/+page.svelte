@@ -182,9 +182,9 @@
   <section class="card-flat grid gap-2" aria-labelledby="jazyk">
    <h2 id="jazyk" class="text-base">Překlady</h2>
    <form method="GET" class="grid gap-2">
-{#if data.locales}{@const other=data.locales.list.filter((l)=>l!==data.locales?.default)}{#if other.length}<label class="field"><span>Jazyk překladu</span><select name="locale" required><option value="" disabled selected={!data.locale}>Vyberte jazyk</option>{#each other as l}<option value={l} selected={l===data.locale}>{localeName(l)}</option>{/each}</select><span class="hint">Výchozí jazyk webu ({localeName(data.locales.default)}) se upravuje přímo ve formuláři.</span></label>{:else}<p class="hint">Web nemá nastavený žádný další jazyk, překlady proto zatím nelze přidat.</p>{/if}{:else}<label class="field"><span>Jazyk, například cs nebo en_GB</span><input name="locale" value={data.locale} pattern={'[a-z]{2,3}(_[A-Z]{2})?'} required/>
-</label>{/if}
-{#if !data.locales||data.locales.list.length>1}<div><button class="btn btn-secondary btn-sm">Načíst překlad</button></div>{/if}
+{#if data.locales}<label class="field"><span>Jazyk obsahu</span><select name="locale" onchange={(e)=>e.currentTarget.form?.submit()}>{#each data.locales.list as l}<option value={l===data.locales.default?'':l} selected={l===data.locales.default?!data.locale:l===data.locale}>{localeName(l)}{l===data.locales.default?' (výchozí)':''}</option>{/each}</select><span class="hint">Výchozí jazyk je hlavní obsah a upravuje se ve formuláři výše. Ostatní jazyky se ukládají jako překlad.</span></label>
+{:else}<label class="field"><span>Jazyk, například cs nebo en_GB</span><input name="locale" value={data.locale} pattern={'[a-z]{2,3}(_[A-Z]{2})?'} required/></label>{/if}
+{#if !data.locales}<div><button class="btn btn-secondary btn-sm">Načíst překlad</button></div>{/if}
 </form>
   </section>
  {/if}
