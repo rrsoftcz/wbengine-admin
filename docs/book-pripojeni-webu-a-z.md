@@ -184,7 +184,11 @@ Jazyky jsou konfigurace webu, ne obsah. Definují se jen v sekci `i18n` souboru 
 
 ### Kde v Adminu vidím a vybírám jazykové verze
 
-Při úpravě článku, stránky nebo položky menu je v pravém sloupci seznam **Jazykové verze**. Každý jazyk webu má stav Originál, Překlad existuje nebo Překlad zatím chybí a tlačítko Upravit originál, Upravit překlad nebo Přidat překlad. Originál se upravuje ve velkém formuláři, překlad ve zvláštní kartě pod ním. Překlad článku se ukládá do konceptu a zveřejní se s článkem při publikování. U webu staršího než 4.6.0 se místo seznamu zobrazí textové pole s kódem jazyka.
+- **V seznamu** článků, stránek a menu je sloupec **Jazyky** s údajem například „3 z 20 jazyků“. Po rozkliknutí se ukáže, které jazyky chybí, a odkaz u každého otevře přímo přidání překladu.
+- **V záznamu** je nad formulářem roletka **Jazyk obsahu**. Položky jsou seskupené: originál, přeloženo a chybí. Vedle ní je souhrn „Přeloženo 3 z 20 jazyků, chybí: ...“. Po výběru jazyka se jeho obsah načte do téhož formuláře. Překlad článku se ukládá do konceptu a zveřejní se s článkem při publikování.
+- **Historie** změn je ve výchozím stavu skrytá, zobrazíte ji odkazem „Zobrazit historii“ pod formulářem.
+
+Údaje o překladech vrací web od WBengine 4.7.0 (pole `translation_locales`). U starší verze se stav jazyků nezobrazí a roletka nabízí všechny jazyky bez stavu.
 
 ### Přidání jazyka a změna výchozího
 

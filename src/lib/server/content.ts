@@ -368,19 +368,13 @@ export async function connectContent(s: Session, id: number): Promise<{
         throw new ContentConnectionFailure({ id, name: site.name }, role, cause);
     }
 }
-/** Které jazykové verze záznam má: výchozí je originál, ostatní existují, jen když mají aspoň jedno vyplněné pole. */
-export async function loadLanguageVersions(gateway: Pick<ReturnType<typeof createContentGateway>, 'translation'>, r: Resource, id: string, locales: { default: string; list: string[] }): Promise<{ locale: string; original: boolean; exists: boolean }[]> {
-    return Promise.all(locales.list.map(async (locale) => {
-        if (locale === locales.default)
-            return { locale, original: true, exists: true };
-        try {
-            const data = (await gateway.translation(r, id, locale)).data as Record<string, unknown> | null;
-            return { locale, original: false, exists: !!data && Object.values(data).some(v => typeof v === 'string' && v.trim() !== '') };
-        }
-        catch {
-            return { locale, original: false, exists: false };
-        }
-    }));
+/**
+ * Jazykové verze záznamu z pole translation_locales, které web vrací v seznamu i detailu. Výchozí jazyk je originál.
+ * U webu bez tohoto pole (starší než 4.7) se stav nezjišťuje a exists je null: zjišťování po jazycích by při desítkách jazyků znamenalo stovky požadavků.
+ */
+export function languageVersions(locales: { default: string; list: string[] }, present: unknown): { locale: string; original: boolean; exists: boolean | null }[] {
+    const known = Array.isArray(present) ? new Set(present.filter((x): x is string => typeof x === 'string')) : null;
+    return locales.list.map(locale => ({ locale, original: locale === locales.default, exists: locale === locales.default ? true : known ? known.has(locale) : null }));
 }
 /** Jazyky, které web opravdu obsluhuje. Null u starších webů bez pole i18n (formulář pak nechá ruční zadání). */
 export function projectLocales(raw: unknown): { default: string; list: string[] } | null {

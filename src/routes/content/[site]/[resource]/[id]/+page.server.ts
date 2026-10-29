@@ -1,6 +1,6 @@
 import { contentLoad } from '#lib/server/content-web.ts';
 import { fail, redirect, error } from '@sveltejs/kit';
-import { connectContent, siteId, resourceName, canOperate, parseFields, RemoteFailure, referenceFields, loadReferenceOptions, defaultPageOption, offersArticleBox, loadArticleBoxPages, loadLanguageVersions, type ReferenceOption } from '#lib/server/content.ts';
+import { connectContent, siteId, resourceName, canOperate, parseFields, RemoteFailure, referenceFields, loadReferenceOptions, defaultPageOption, offersArticleBox, loadArticleBoxPages, languageVersions, type ReferenceOption } from '#lib/server/content.ts';
 import { signedIn, form, field } from '#lib/server/web.ts';
 import { defaults, idOf, translationFields } from '#lib/content-schema.ts';
 import type { Resource } from '#lib/server/api-contract.ts';
@@ -10,7 +10,7 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     const offline = e.locals.contentFailure;
     if (e.request.method === 'POST' && offline && offline.resource === r && offline.id === id && offline.site.id === siteId(e.params.site)) {
         const editable = offline.role !== 'editor' || r === 'articles';
-        return { site: offline.site, resource: r, id, row: {} as Record<string, unknown>, values: { ...defaults(r), ...offline.fields }, etag: offline.fields.etag ?? null, deleted: false, boxTypes: [], csrf: e.locals.csrf, locale: offline.fields.locale ?? '', translation: null, translationEtag: null, history: [] as Record<string, unknown>[], historyEtag: null, pagination: undefined, image: null, permissions: {} as Record<string, boolean>, refs: {} as Record<string, ReferenceOption[] | null>, unavailable: true, offlineFields: offline.fields, offlineAction: offline.action, offlineEditable: editable, historyOpen: false, versions: null as { locale: string; original: boolean; exists: boolean }[] | null, locales: null as { default: string; list: string[] } | null, offerArticleBox: false, canAddArticleBox: false, articleBoxPages: null as number[] | null, boxWarning: false };
+        return { site: offline.site, resource: r, id, row: {} as Record<string, unknown>, values: { ...defaults(r), ...offline.fields }, etag: offline.fields.etag ?? null, deleted: false, boxTypes: [], csrf: e.locals.csrf, locale: offline.fields.locale ?? '', translation: null, translationEtag: null, history: [] as Record<string, unknown>[], historyEtag: null, pagination: undefined, image: null, permissions: {} as Record<string, boolean>, refs: {} as Record<string, ReferenceOption[] | null>, unavailable: true, offlineFields: offline.fields, offlineAction: offline.action, offlineEditable: editable, historyOpen: false, versions: null as { locale: string; original: boolean; exists: boolean | null }[] | null, locales: null as { default: string; list: string[] } | null, offerArticleBox: false, canAddArticleBox: false, articleBoxPages: null as number[] | null, boxWarning: false };
     }
     if (id === 'recover') {
         const recovered = e.url.searchParams.get('recoverId');
@@ -49,7 +49,7 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
         translation = result.data as Record<string, unknown>;
         translationEtag = result.etag;
     }
-    const versions = locales && id !== 'new' && !deleted && translationFields[r] && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'translationGet', r) ? await loadLanguageVersions(gateway, r, id, locales) : null;
+    const versions = locales && id !== 'new' && !deleted && translationFields[r] && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'translationGet', r) ? languageVersions(locales, row.translation_locales) : null;
     let history: Record<string, unknown>[] = [], historyEtag: string | null = null, pagination;
     const historyPage = Number(e.url.searchParams.get('historyPage') ?? 1), historyOpen = e.url.searchParams.get('history') === '1' || e.url.searchParams.has('historyPage');
     if (id !== 'new' && r !== 'images' && historyOpen) {

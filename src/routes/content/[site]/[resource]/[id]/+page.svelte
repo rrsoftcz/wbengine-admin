@@ -25,7 +25,7 @@
  const localeQuery=$derived(data.locale?'?locale='+encodeURIComponent(data.locale):'');
  const articles=$derived(data.resource==='articles');
  const translating=$derived(data.id!=='new'&&!data.deleted&&!data.unavailable&&!!translationFields[data.resource]&&!!data.permissions.translationGet&&!!data.locale);
- const missing=$derived((data.versions??[]).filter((v:{exists:boolean})=>!v.exists).map((v:{locale:string})=>v.locale));
+ const missing=$derived((data.versions??[]).filter((v)=>v.exists===false).map((v)=>v.locale));
  const canEdit=$derived(!data.deleted&&!data.unavailable&&data.resource!=='images'&&(translating?data.permissions.translationSave:data.permissions.save));
  beforeNavigate((n)=>{
   if(!dirty)return;
@@ -91,10 +91,15 @@
 {:else}
 {#if data.id!=='new'&&!data.deleted&&translationFields[data.resource]&&data.permissions.translationGet}
  {#if data.versions}
- <nav aria-label="Jazyková verze" class="grid gap-2">
-  <p class="text-sm"><strong>Jazykové verze: {data.versions.filter((v)=>v.exists).length} z {data.versions.length}</strong>{#if missing.length} <span class="text-muted">(chybí: {missing.join(', ')})</span>{:else} <span class="text-muted">(všechny jazyky jsou k dispozici)</span>{/if}</p>
-  <ul class="flex flex-wrap gap-1 border-b border-line">{#each data.versions as v}{@const active=v.original?!data.locale:v.locale===data.locale}<li class="-mb-px"><a href={here+(v.original?'':'?locale='+encodeURIComponent(v.locale))} data-sveltekit-noscroll aria-current={active?'page':undefined} class="inline-flex items-center gap-2 rounded-t-lg border-b-2 px-3 py-2 text-sm font-semibold no-underline {active?'border-brand bg-brand-soft text-brand':'border-transparent text-muted hover:bg-surface-2 hover:text-text'}">{localeName(v.locale)}<span class="badge {v.original?'badge-info':v.exists?'badge-ok':''}">{v.original?'originál':v.exists?'přeloženo':'chybí'}</span></a></li>{/each}</ul>
- </nav>
+ {@const orig=data.versions.filter((v)=>v.original)}{@const done=data.versions.filter((v)=>!v.original&&v.exists===true)}{@const todo=data.versions.filter((v)=>!v.original&&v.exists!==true)}
+ <section class="flex flex-wrap items-end gap-x-6 gap-y-2" aria-label="Jazyková verze">
+  <form method="GET" class="flex flex-wrap items-end gap-3"><label class="field w-64"><span>Jazyk obsahu</span><select name="locale" onchange={(e)=>e.currentTarget.form?.requestSubmit()}>
+   {#each orig as v}<option value="" selected={!data.locale}>{localeName(v.locale)} (originál)</option>{/each}
+   {#if done.length}<optgroup label="Přeloženo ({done.length})">{#each done as v}<option value={v.locale} selected={v.locale===data.locale}>{localeName(v.locale)}</option>{/each}</optgroup>{/if}
+   {#if todo.length}<optgroup label={data.versions.some((v)=>v.exists===null)?'Překlady':'Chybí ('+todo.length+')'}>{#each todo as v}<option value={v.locale} selected={v.locale===data.locale}>{localeName(v.locale)}{v.exists===false?' (zatím chybí)':''}</option>{/each}</optgroup>{/if}
+  </select></label><noscript><button class="btn btn-secondary btn-sm">Načíst jazyk</button></noscript></form>
+  {#if data.versions.every((v)=>v.exists!==null)}<p class="pb-2 text-sm"><strong>Přeloženo {data.versions.filter((v)=>v.exists).length} z {data.versions.length} jazyků</strong>{#if missing.length}<span class="text-muted">, chybí: {missing.slice(0,6).join(', ')}{missing.length>6?' a '+(missing.length-6)+' dalších':''}</span>{/if}</p>{/if}
+ </section>
  {:else}
  <form method="GET" class="flex flex-wrap items-end gap-3"><label class="field w-56"><span>Jazyk překladu, například cs nebo en_GB</span><input name="locale" value={data.locale} pattern={'[a-z]{2,3}(_[A-Z]{2})?'}/></label><button class="btn btn-secondary btn-sm">Načíst jazyk</button>{#if data.locale}<a class="btn btn-ghost btn-sm" href={here}>Zpět na originál</a>{/if}</form>
  {/if}
