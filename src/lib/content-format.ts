@@ -10,3 +10,9 @@ export function changeActor(change: Record<string, unknown>, actors: Record<stri
     const actor = String(change.central_actor ?? '');
     return actor ? (actors[actor] ?? actor) : 'přímo na webu';
 }
+/** Český popis typu změny z webu (action: create, update, delete, restore:N, draft.save, publish ...). */
+export function changeLabel(action: unknown): string {
+    const a = String(action ?? '');
+    const known: Record<string, string> = { create: 'Vytvoření', update: 'Úprava', delete: 'Smazání', publish: 'Publikace', 'draft.create': 'Nový koncept', 'draft.save': 'Uložení konceptu', 'draft.restore': 'Obnovení konceptu', save: 'Uložení konceptu', restore: 'Obnovení' };
+    return known[a] ?? (a.startsWith('restore:') ? 'Obnovení stavu' : a || 'Změna');
+}

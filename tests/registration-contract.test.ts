@@ -79,3 +79,19 @@ test('change time and actor are readable', async () => {
     assert.equal(changeActor({ central_actor: 'admin:9' }, {}), 'admin:9');
     assert.equal(changeActor({ central_actor: null }, {}), 'přímo na webu');
 });
+test('dependents of a page list articles, boxes, menu items and child pages', async () => {
+    const { loadDependents } = await import('../src/lib/server/content.ts');
+    const data: Record<string, Record<string, unknown>[]> = {
+        articles: [{ id: 1, site_id: 5, title: 'A', draft_title: 'Koncept A' }, { id: 2, site_id: 6, title: 'B' }],
+        boxes: [{ id: 3, name: 'Box', sites: [5, 9] }, { id: 4, name: 'Jiný', sites: [{ site_id: 7 }] }],
+        menu: [{ menu_id: 8, site_id: 5, name: 'Menu' }],
+        pages: [{ site_id: 5, parent_id: 0, title: 'Sama', link: '/a/' }, { site_id: 10, parent_id: 5, title: 'Pod', link: '/a/b/' }],
+    };
+    const all: Capabilities = new Proxy({}, { get: () => ({ read: true, write: true }) });
+    const gateway = { role: 'global' as const, scopes: [...scopeProfiles.management.scopes], capabilities: all, list: async (r: string) => ({ data: data[r], pagination: { page: 1, total_pages: 1 } }) } as never;
+    const result = await loadDependents(gateway, 'pages', '5');
+    assert.deepEqual(result?.map(g => [g.resource, g.count]), [['articles', 1], ['boxes', 1], ['menu', 1], ['pages', 1]]);
+    assert.equal(result?.[0].items[0].label, 'Koncept A');
+    assert.deepEqual(await loadDependents(gateway, 'pages', '99'), []);
+    assert.deepEqual(await loadDependents(gateway, 'articles', '1'), []);
+});
