@@ -2,10 +2,10 @@
     import { page } from '$app/state';
     const status = $derived(page.status);
     const text = $derived(
-        status === 404 ? { title: 'Stránka nenalezena', body: 'Adresa neexistuje nebo byla přesunuta. Zkontrolujte ji, nebo se vraťte na úvod.' }
-        : status === 403 ? { title: 'Přístup odepřen', body: 'Pro tuto stránku nemáte oprávnění. Pokud ho potřebujete, požádejte správce.' }
-        : status === 401 ? { title: 'Přihlaste se', body: 'Pro pokračování se nejdříve přihlaste.' }
-        : { title: 'Něco se pokazilo', body: 'Na naší straně došlo k chybě. Zkuste to prosím za chvíli znovu.' }
+        status === 404 ? { title: 'Page not found', body: 'The address does not exist or has been moved. Check it, or go back to the start page.' }
+        : status === 403 ? { title: 'Access denied', body: 'You do not have permission to view this page. If you need it, ask an administrator.' }
+        : status === 401 ? { title: 'Sign in', body: 'Sign in first to continue.' }
+        : { title: 'Something went wrong', body: 'An error occurred on our side. Please try again in a moment.' }
     );
 </script>
 
@@ -13,9 +13,9 @@
 
 <div class="mx-auto max-w-md py-10">
     <div class="card text-center">
-        <p class="eyebrow">Chyba {status}</p>
+        <p class="eyebrow">Error {status}</p>
         <h1 class="mt-2">{text.title}</h1>
         <p class="lead mx-auto mb-6 mt-2">{text.body}</p>
-        <a href="/" class="btn btn-primary">Zpět na úvod</a>
+        <a href="/" class="btn btn-primary">Back to start</a>
     </div>
 </div>

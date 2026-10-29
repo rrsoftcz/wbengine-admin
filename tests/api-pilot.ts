@@ -13,7 +13,7 @@ import { connectContent, canOperate } from '../src/lib/server/content.ts';
 import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
 if (!process.env.DATABASE_URL?.endsWith('/wbengine_admin_pilot') || !process.env.PILOT_API_URL || !process.env.PILOT_API_KEY)
-    throw Error('Pilot vyžaduje vlastní DB wbengine_admin_pilot a izolované API');
+    throw Error('The pilot requires its own wbengine_admin_pilot DB and an isolated API');
 await transaction(async (c) => {
     await migrate(c);
 });
@@ -59,7 +59,7 @@ function decode(s: string) {
 }
 function hidden(html: string, action?: string) {
     const area = action ? html.match(new RegExp('<form\\b[^>]*action="\\?/' + action + '"[^>]*>([\\s\\S]*?)</form>'))?.[1] : html;
-    assert.ok(area, `Formulář ${action ?? ''} musí být dostupný`);
+    assert.ok(area, `The ${action ?? ''} form must be available`);
     const fields: Record<string, string> = {};
     for (const match of area.matchAll(/<input\b[^>]*>/g)) {
         const attrs = Object.fromEntries([...match[0].matchAll(/([\w-]+)="([^"]*)"/g)].map(m => [m[1], decode(m[2])]));
@@ -144,8 +144,8 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     response = await get('/analytics/' + site.id + '?from=' + today + '&to=' + today + '&granularity=day');
     assert.equal(response.status, 200);
     html = await response.text();
-    assert.ok(html.includes('Analytika: PHP pilot ' + suffix));
-    assert.ok(html.includes('Od začátku měření'));
+    assert.ok(html.includes('Analytics: PHP pilot ' + suffix));
+    assert.ok(html.includes('Since measuring began'));
     assertSafe(html);
     html = await (await get(base + '/pages/new')).text();
     response = await post(base + '/pages/new?/save', { ...hidden(html, 'save'), parent_id: '0', link: '/pilot-' + suffix, title: 'Pilot page', strict: '1', visible: '1', html_title: '', html_description: '', html_keywords: '', acl: '0' });
@@ -223,7 +223,7 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     response = await post(base + '/pages/' + recoverable + '?/delete', { ...hidden(html, 'delete'), confirm: 'yes' });
     assert.equal(response.status, 303);
     html = await (await get(base + '/pages/' + recoverable)).text();
-    assert.ok(html.includes('Záznam je odstraněný'));
+    assert.ok(html.includes('The record has been removed'));
     html = await (await get(base + '/pages/' + recoverable + '?history=1')).text();
     response = await post(base + '/pages/' + recoverable + '?/restore', { ...hidden(html, 'restore'), confirm: 'yes' });
     assert.equal(response.status, 303);
@@ -261,7 +261,7 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     response = await post(base + '/images?/upload', imageForm);
     assert.equal(response.status, 200);
     html = await response.text();
-    assert.ok(html.includes('Obrázek nahrán'));
+    assert.ok(html.includes('Image uploaded'));
     const images = (await gateway.list('images')).data as {
         image_id: string;
     }[];

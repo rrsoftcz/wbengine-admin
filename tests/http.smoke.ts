@@ -50,7 +50,7 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     assert.equal(denied.headers.get('location'), '/login');
     const loginPage = await get('/login'), html = await loginPage.text();
     assert.equal(loginPage.headers.get('cache-control'), 'no-store');
-    // no-referrer by způsobil, že prohlížeč u POST formuláře pošle Origin: null a SvelteKit CSRF kontrola jej odmítne.
+    // no-referrer would make the browser send Origin: null on a POST form, which the SvelteKit CSRF check rejects.
     assert.equal(loginPage.headers.get('referrer-policy'), 'same-origin');
     assert.ok(!html.includes('key_cipher'));
     assert.ok(loginPage.headers.getSetCookie().every(c => c.includes('Secure') && c.includes('HttpOnly') && c.includes('SameSite=Strict')));
@@ -74,8 +74,8 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     const registry = await get('/sites');
     assert.equal(registry.status, 200);
     const registryHtml = await registry.text();
-    assert.ok(registryHtml.includes('Registr webů'));
-    assert.ok(registryHtml.includes('Přidat web'));
+    assert.ok(registryHtml.includes('Site registry'));
+    assert.ok(registryHtml.includes('Add site'));
     assert.ok(/<input\b(?=[^>]*\bname="key")(?=[^>]*\btype="password")(?=[^>]*\bautocomplete="off")/.test(registryHtml));
     assert.ok(!/name="key"[^>]*value=/.test(registryHtml));
     assert.ok(!registryHtml.includes('key_cipher'));

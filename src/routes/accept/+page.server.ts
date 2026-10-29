@@ -9,7 +9,7 @@ export const actions: Actions = { default: async (e) => {
             setSession(e, await acceptInvitation(field(f, 'token', 128), field(f, 'password', 256)));
         }
         catch {
-            return fail(400, { error: 'Pozvánka není platná nebo heslo nesplňuje požadavky' });
+            return fail(400, { error: 'The invitation is not valid or the password does not meet the requirements' });
         }
         redirect(303, '/mfa');
     } };

@@ -85,7 +85,7 @@ export async function registerSite(s: Session, name: string, base: string, key: 
 /** Trusted CLI path. Verification is on for the CLI; fixtures may opt out because they provision keys with a narrower profile. */
 export async function provisionSite(name: string, base: string, key: string, actor: number | null = null, verify = false) {
     if (!name.trim() || name.length > 160 || !keyPattern.test(key))
-        throw Error('Neplatná konfigurace webu');
+        throw Error('Invalid site configuration');
     const target = await resolveTarget(base, allowed());
     const verified = verify ? await verifyRegistration(target.url.href, key, allowed()) : null;
     await transaction(async (c) => {
@@ -109,7 +109,7 @@ export async function replaceSiteKey(s: Session, id: number, key: string, deps: 
             integration_id: number | null;
         }>(c, 'SELECT base_url,integration_id FROM sites WHERE id=?', [id]));
         if (!site)
-            throw Error('Web není dostupný');
+            throw Error('Site is not available');
         if (!await consumeAttempt(subject))
             throw new RegistrationError('rate_limited');
         const verified = await (deps.verify ?? verifyRegistration)(site.base_url, key, allowed());
@@ -138,7 +138,7 @@ export async function listAccounts(s: Session) {
 export async function grantSite(s: Session, userId: number, siteId: number, role: 'editor' | 'siteadmin') {
     requireGlobal(s);
     if (!['editor', 'siteadmin'].includes(role))
-        throw Error('Neplatná role');
+        throw Error('Invalid role');
     await transaction(async (c) => {
         await c.execute('INSERT INTO grants(user_id,site_id,role) VALUES (?,?,?) ON DUPLICATE KEY UPDATE role=VALUES(role)', [userId, siteId, role]);
         await c.execute('DELETE FROM sessions WHERE user_id=?', [userId]);
@@ -153,7 +153,7 @@ export async function inspectSite(s: Session, id: number) {
             key_cipher: string;
         }>(c, 'SELECT base_url,key_cipher FROM sites WHERE id=?', [id]);
         if (!site)
-            throw Error('Web není dostupný');
+            throw Error('Site is not available');
         return site;
     });
     const key = vault().decrypt(site.key_cipher, `site:${id}`);
@@ -165,7 +165,7 @@ export async function inspectSite(s: Session, id: number) {
         };
     };
     if (identity?.success !== true || !Array.isArray(identity.data?.scopes) || !identity.data.scopes.includes('discovery:read'))
-        throw Error('Integrační klíč nemá discovery:read');
+        throw Error('The integration key lacks discovery:read');
     await transaction(c => c.execute('INSERT INTO audit(user_id,site_id,event) VALUES (?,?,?)', [s.user.id, id, 'site.discovered']));
     return { ...capabilities, authenticated: true };
 }

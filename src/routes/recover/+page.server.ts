@@ -10,6 +10,6 @@ export const actions: Actions = { default: async (e) => {
             return { success: true };
         }
         catch {
-            return fail(400, { error: 'Obnova se nezdařila' });
+            return fail(400, { error: 'Reset failed' });
         }
     } };

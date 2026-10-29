@@ -1,18 +1,18 @@
 # WBengine Admin
 
-Samostatná centrála pro WBengine API v2: SvelteKit 3.1.0, Svelte 5, TypeScript, adapter-node 6 a MySQL 8.4. Prohlížeč komunikuje pouze s centrálou. Obsah zůstává na jednotlivých webech.
+A standalone control centre for the WBengine API v2: SvelteKit 3.1.0, Svelte 5, TypeScript, adapter-node 6 and MySQL 8.4. The browser talks only to the control centre. Content stays on the individual sites.
 
-Projekt obsahuje účty na pozvánku, hesla, povinné TOTP, záložní kódy, obnovu hesla, SQL sessions, oprávnění po webech, registr a discovery vzdáleného API. Obsahový editor v `/content/{id}` spravuje články, stránky, menu, sekce, registrované boxy, překlady a veřejné rastrové obrázky. Podporuje koncepty, soukromý náhled, explicitní publikování, revize, strukturální obnovu a ruční řešení konfliktů. Přehled první strany v `/analytics/{id}` zobrazuje agregovaná zobrazení. Každá operace vyžaduje současně centrální roli, scope integračního klíče a capability webu.
+The project includes invitation-only accounts, passwords, mandatory TOTP, backup codes, password recovery, SQL sessions, per-site permissions, a registry and discovery of the remote API. The content editor at `/content/{id}` manages articles, pages, menus, sections, registered boxes, translations and public raster images. It supports drafts, private preview, explicit publishing, revisions, structural restore and manual conflict resolution. The front page overview at `/analytics/{id}` shows aggregated views. Every operation requires, at the same time, a central role, an integration key scope and a site capability.
 
-## Dokumentace
+## Documentation
 
-- [Průvodce: od nového webu po správu v centrální administraci (A až Z)](docs/book-pripojeni-webu-a-z.md)
-- [Plán a stav implementace](docs/plan-admin-implementation.md)
-- [Historie změn](docs/ref-changelog.md)
+- [Guide: from a new site to managing it in the central admin (A to Z)](docs/book-pripojeni-webu-a-z.md)
+- [Plan and implementation status](docs/plan-admin-implementation.md)
+- [Changelog](docs/ref-changelog.md)
 
-## Lokální ověření
+## Local verification
 
-Node 22.18 nebo novější, pro kontejner Node 24. Závislosti jsou zamčené v package-lock.json.
+Node 22.18 or newer, Node 24 for the container. Dependencies are locked in package-lock.json.
 
 ```sh
 npm ci --ignore-scripts
@@ -21,15 +21,15 @@ npm run check
 npm run test:mysql
 ```
 
-Poslední příkaz sestaví aplikaci, vytvoří vlastní Compose projekt s náhodným názvem a portem a MySQL 8.4, vygeneruje dočasná hesla mimo repozitář, provede databázové i skutečné HTTP testy a odstraní pouze svůj projekt včetně jeho testovacího volume. Vyžaduje přístup k lokálnímu Dockeru. Nespojuje se s existujícími databázemi. Samostatný `npm run test:integration` vyžaduje DATABASE_URL do databáze s názvem wbengine_admin_test a MASTER_KEY.
+The last command builds the application, creates its own Compose project with a random name and port and MySQL 8.4, generates temporary passwords outside the repository, runs database and real HTTP tests, and removes only its own project including its test volume. It requires access to local Docker. It does not connect to existing databases. The standalone `npm run test:integration` requires a DATABASE_URL pointing to a database named wbengine_admin_test and a MASTER_KEY.
 
-HTTP smoke simuluje TLS terminaci pomocí přímého loopback spojení. Ověřuje cookie flags, CSRF, přesměrování přes MFA, rotaci session, registr a odhlášení. Nenahrazuje ověření certifikátu a proxy v cílovém provozu.
+The HTTP smoke test simulates TLS termination with a direct loopback connection. It verifies cookie flags, CSRF, redirects through MFA, session rotation, the registry and sign-out. It does not replace verifying the certificate and proxy in the target deployment.
 
-## Konfigurace a spuštění
+## Configuration and startup
 
-Zkopírujte `.env.example` do `.env` a lokálně doplňte náhodná hesla a MASTER_KEY: 32 náhodných bajtů v hex formátu. Hlavní klíč uchovávejte v provozním secret store mimo databázi. Při obnově databáze je potřebný odpovídající hlavní klíč. Rotace master key vyžaduje kontrolované přešifrování dat; automatická rotace není součástí této etapy.
+Copy `.env.example` to `.env` and fill in random passwords and MASTER_KEY locally: 32 random bytes in hex format. Keep the master key in an operational secret store outside the database. The matching master key is needed when restoring the database. Rotating the master key requires a controlled re-encryption of the data; automatic rotation is not part of this stage.
 
-DATABASE_URL v Compose používá host `db`. Pro CLI spuštěné na hostiteli použijte vlastní URL s hostem 127.0.0.1 a publikovaným lokálním portem. Runtime i CLI čtou proměnné prostředí; CLI je samo nenačítá z `.env`. Přihlašovací údaje nevkládejte do historie shellu.
+DATABASE_URL in Compose uses the host `db`. For a CLI run on the host, use your own URL with the host 127.0.0.1 and the published local port. Both the runtime and the CLI read environment variables; the CLI does not load them from `.env` itself. Do not put credentials into the shell history.
 
 ```sh
 docker compose up -d db
@@ -37,13 +37,13 @@ npm run admin -- migrate
 docker compose up -d --build app
 ```
 
-App poslouchá na 127.0.0.1:13000 a předpokládá HTTPS reverse proxy. ORIGIN musí být přesný HTTPS origin bez koncového lomítka. Adapter-node 6 ve výchozím stavu odvozuje HTTPS origin z Host hlavičky, centrála jej navíc porovnává s ORIGIN. Proxy musí předávat správný Host a odstraňovat nebo přepisovat vlastní forwarded hlavičky. Důvěryhodné proxy hlavičky nejsou zapnuté. Secure cookies se nevypínají ani ve vývoji; pro ruční použití je třeba lokální HTTPS proxy.
+The app listens on 127.0.0.1:13000 and assumes an HTTPS reverse proxy. ORIGIN must be an exact HTTPS origin without a trailing slash. Adapter-node 6 derives the HTTPS origin from the Host header by default, and the control centre additionally compares it with ORIGIN. The proxy must pass the correct Host and remove or overwrite its own forwarded headers. Trusted proxy headers are not enabled. Secure cookies are never turned off, not even in development; manual use requires a local HTTPS proxy.
 
-Aplikace sama nepouští DDL při každém požadavku. Migraci proveďte před spuštěním každé verze, která přidává soubor v `migrations/`: příkaz `migrate` aplikuje každý soubor `NNN-*.sql` jednou a eviduje jej v tabulce `schema_migrations`. V Docker image je CLI i migrační SQL: lze použít `docker compose run --rm app npm run admin -- migrate`. Image běží jako uživatel node, databáze má samostatného aplikačního uživatele.
+The application does not run DDL on every request. Run the migration before starting every version that adds a file in `migrations/`: the `migrate` command applies each `NNN-*.sql` file once and records it in the `schema_migrations` table. The Docker image contains both the CLI and the migration SQL: you can use `docker compose run --rm app npm run admin -- migrate`. The image runs as the node user, and the database has a separate application user.
 
-## Správa důvěryhodným CLI
+## Administration through the trusted CLI
 
-CLI provádí administrativní operace přímo na serveru. Přístup k němu a prostředí je privilegovaný provozní přístup. Nic automaticky neodesílá e-mailem ani jiným kanálem.
+The CLI performs administrative operations directly on the server. Access to it and to its environment is privileged operational access. It does not send anything automatically by e-mail or any other channel.
 
 ```sh
 npm run admin -- invite admin@example.com global
@@ -51,47 +51,47 @@ npm run admin -- invite editor@example.com member 1 editor
 npm run admin -- recover admin@example.com
 npm run admin -- users
 npm run admin -- revoke 12 1
-npm run admin -- site-add 'Ukázkový web' https://example.com/
+npm run admin -- site-add 'Sample site' https://example.com/
 ```
 
-`invite` vydá jednorázový token s platností 48 hodin. Správce jej předá bezpečným kanálem, uživatel otevře `/accept` a vloží token do formuláře. První globální správce vzniká stejným postupem. Neexistuje veřejná registrace ani výchozí účet. Pozvánka pro již existující e-mail nevytváří další účet ani nepřidává role.
+`invite` issues a one-time token valid for 48 hours. The administrator passes it over a secure channel, and the user opens `/accept` and enters the token into the form. The first global administrator is created the same way. There is no public registration and no default account. An invitation for an already existing e-mail neither creates another account nor adds roles.
 
-`recover` vydá jednorázový token s platností 30 minut pro `/recover`; starší nepoužité tokeny zneplatní. Změna hesla zruší všechny sessions a zachová MFA. Ztrátu TOTP řeší jednorázový záložní kód; webové vypnutí MFA ani obnova přes pouhé heslo nejsou dostupné.
+`recover` issues a one-time token valid for 30 minutes for `/recover`; older unused tokens are invalidated. Changing the password cancels all sessions and keeps MFA. A lost TOTP is handled by a one-time backup code; neither disabling MFA on the web nor recovery with the password alone is available.
 
-`site-add` vyžaduje integrační klíč na stdin, nikoli jako argument. Předejte jej přes zabezpečený pipe ze secret store nebo privátní soubor. Při použití klávesnice CLI operaci odmítne, aby klíč nebyl echo v terminálu. Klíč nesmí být ve shell historii. CLI před uložením klíč ověří stejnou funkcí jako webový formulář. Běžná cesta je webová: globální správce s MFA přidá web na stránce `/sites` (název, HTTPS adresa, integrační klíč vydaný na cílovém webu), klíč se před uložením ověří přes `capabilities` a `identity` a je uložen jen šifrovaně. Stejná stránka umožňuje výměnu klíče: nový klíč se ověří, teprve poté se přepíše uložený a správce odvolá starý klíč na cílovém webu. Klíč se nikdy nevrací do prohlížeče. Globální správce vidí všechny weby bez grantu, ostatním účtům se přidělují siteadmin/editor výběrem podle e-mailu. `revoke` odebere konkrétní webové oprávnění. Změna role nebo odebrání oprávnění zruší sessions dotčeného uživatele.
+`site-add` requires the integration key on stdin, not as an argument. Pass it through a secure pipe from a secret store or a private file. When used from a keyboard, the CLI refuses the operation so that the key is not echoed in the terminal. The key must not be in the shell history. Before saving, the CLI verifies the key with the same function as the web form. The usual route is the web: a global admin with MFA adds a site on the `/sites` page (name, HTTPS address, integration key issued on the target site), the key is verified through `capabilities` and `identity` before saving and is stored only encrypted. The same page allows replacing the key: the new key is verified, only then does it overwrite the stored one, and the administrator revokes the old key on the target site. The key is never returned to the browser. A global admin sees all sites without a grant, and other accounts are assigned siteadmin/editor by choosing the account by e-mail. `revoke` removes a specific site permission. Changing a role or removing a permission cancels the sessions of the affected user.
 
-## Bezpečnostní hranice
+## Security boundaries
 
-- Hesla: scrypt s náhodnou solí, délka 14 až 256 znaků. Heslové a MFA pokusy mají persistentní limity 8 a 12 pokusů za 15 minut. Přihlášení drží zámek řádku uživatele od čtení hesla do vytvoření session, souběžná změna hesla nebo deaktivace proto nemůže vytvořit novou session podle starého stavu.
-- Sessions: databáze obsahuje pouze SHA-256 tokenu, expiraci a CSRF vazbu. Cookie `__Host-wbadmin` má Secure, HttpOnly a SameSite=Strict; životnost 8 hodin. Po MFA se token a CSRF rotují. Všechny měnící formuláře mají session CSRF i kontrolu originu, včetně přihlášení a přípravy MFA.
-- MFA: TOTP SHA-1, 6 číslic, 30 sekund, tolerance jednoho časového kroku. Přijatý counter je uložen atomicky a nelze jej použít znovu. Deset náhodných záložních kódů se ukáže jednou, v DB jsou jen hashe. Enrollment secret se jednorázově ukazuje vlastnímu přihlašovanému účtu při nastavení, v DB je šifrovaný.
-- Tajemství: AES-256-GCM, náhodný IV a autentizovaný kontext konkrétního webu/účtu. Integrační klíče se nevrací v HTML, formulářových chybách, API odpovědích ani auditu. Chybový handler nevypisuje výjimky s přihlašovacími údaji.
-- Oprávnění: kontrola na serveru pro každý přístup, grants jsou vázané na dvojici user/site. Editor smí číst svůj web, upravovat článkové koncepty a jejich překlady a nahrávat veřejné obrázky. Siteadmin navíc mění strukturu, publikuje a odstraňuje obsah, global admin spravuje i registr. Vzdálená identita ani auditní štítek aktéra nepřidělují centrální role. Aktuální registry UI je vyhrazeno global admin.
-- Vzdálené API: pouze konečný seznam resource/operation pod `/api/v2/`, žádný libovolný URL proxy endpoint, žádné redirects, ověřené TLS, celkový 8s deadline od začátku DNS přes TLS až po dokončení těla a limit odpovědi 1 MiB. Odmítnutí, timeout a abort zavírají request i response, odmítnutá odpověď se nedočítá. Identity používá Bearer klíč se scope discovery:read. Discovery je veřejné a nedostává Authorization.
-- SSRF: pouze HTTPS port 443, bez credentials/query/fragment. Před každým spojením se ověří všechny DNS odpovědi a skutečný HTTPS socket používá pouze validovanou IP přes pinned lookup. Zakázané jsou lokální, privátní, link-local, multicast, dokumentační, mapované a vybrané přechodové IPv4/IPv6 rozsahy. Socket neprovádí druhé DNS vyhodnocení. Politika IPv6 je záměrně konzervativní.
-- Intranet je možný pouze po provozním schválení konkrétních IP v `REMOTE_IP_ALLOWLIST`, odděleně od registrace webu. Neexistuje globální allowPrivate. Výjimka neruší TLS validaci ani zákaz redirectů. Mějte i síťový egress firewall jako další vrstvu.
+- Passwords: scrypt with a random salt, length 14 to 256 characters. Password and MFA attempts have persistent limits of 8 and 12 attempts per 15 minutes. Sign-in holds the user row lock from reading the password to creating the session, so a concurrent password change or deactivation cannot create a new session based on the old state.
+- Sessions: the database contains only the SHA-256 of the token, the expiry and the CSRF binding. The `__Host-wbadmin` cookie has Secure, HttpOnly and SameSite=Strict; lifetime 8 hours. After MFA the token and CSRF are rotated. All state-changing forms have session CSRF and an origin check, including sign-in and MFA setup.
+- MFA: TOTP SHA-1, 6 digits, 30 seconds, tolerance of one time step. The accepted counter is stored atomically and cannot be reused. Ten random backup codes are shown once, only hashes are in the DB. The enrollment secret is shown once to the account's own signed-in user during setup, and is encrypted in the DB.
+- Secrets: AES-256-GCM, random IV and an authenticated context of the specific site/account. Integration keys are not returned in HTML, form errors, API responses or the audit. The error handler does not print exceptions with credentials.
+- Permissions: checked on the server for every access, grants are bound to the user/site pair. An editor may read their site, edit article drafts and their translations, and upload public images. A siteadmin additionally changes the structure, publishes and removes content, and a global admin also manages the registry. The remote identity and the actor label in the audit do not assign central roles. The current registry UI is reserved for the global admin.
+- Remote API: only a finite list of resource/operation under `/api/v2/`, no arbitrary URL proxy endpoint, no redirects, verified TLS, an overall 8 s deadline from the start of DNS through TLS to the end of the body, and a 1 MiB response limit. Rejection, timeout and abort close both the request and the response, and a rejected response is not read to the end. Identity uses a Bearer key with the discovery:read scope. Discovery is public and does not receive Authorization.
+- SSRF: only HTTPS port 443, without credentials/query/fragment. All DNS answers are verified before every connection, and the actual HTTPS socket uses only the validated IP through a pinned lookup. Local, private, link-local, multicast, documentation, mapped and selected transition IPv4/IPv6 ranges are forbidden. The socket does not perform a second DNS resolution. The IPv6 policy is deliberately conservative.
+- An intranet is possible only after operational approval of specific IPs in `REMOTE_IP_ALLOWLIST`, separately from site registration. There is no global allowPrivate. An exception does not cancel TLS validation or the redirect ban. Also keep a network egress firewall as another layer.
 
-Audit obsahuje pouze identifikátory, pevný název operace a čas. Neobsahuje těla požadavků, klíče, hesla ani MFA kódy. Expirované sessions, použité pozvánky a recovery záznamy zatím maže provozní údržba; automatická retenční úloha není zapnutá.
+The audit contains only identifiers, a fixed operation name and the time. It does not contain request bodies, keys, passwords or MFA codes. Expired sessions, used invitations and recovery records are for now deleted by operational maintenance; an automatic retention job is not enabled.
 
-Architektura navazuje na [oficiální adapter-node](https://svelte.dev/docs/kit/adapter-node), [server actions](https://svelte.dev/docs/kit/form-actions) a server-only adresář `src/lib/server`. Kit 3 používá konfiguraci ve vite.config.ts, `$app/tsconfig` a package subpath import `#lib/*`. Obsahový serverový gateway používá konečný allowlist resource/operation, silné ETag a kontrolu site grants. Při HTTP 412 zachová přesný rozepsaný obsah i původní ETag. Ruční sloučení je samostatná operace pouze pro čtení aktuální verze, následné uložení je výslovné. Náhled je v iframe bez sandbox výjimek a s restriktivní CSP, externí média a skripty jsou blokované. Obrázky do 512 KiB jsou po nahrání veřejné a UI vyžaduje potvrzení této vlastnosti.
+The architecture builds on the [official adapter-node](https://svelte.dev/docs/kit/adapter-node), [server actions](https://svelte.dev/docs/kit/form-actions) and the server-only directory `src/lib/server`. Kit 3 uses configuration in vite.config.ts, `$app/tsconfig` and the package subpath import `#lib/*`. The content server gateway uses a finite resource/operation allowlist, strong ETags and a check of site grants. On HTTP 412 it preserves the exact content being edited and the original ETag. A manual merge is a separate read-only operation for the current version, and the subsequent save is explicit. The preview is in an iframe without sandbox exceptions and with a restrictive CSP, external media and scripts are blocked. Images up to 512 KiB are public after upload, and the UI requires confirmation of this property.
 
 
-## Analytika WBengine
+## WBengine analytics
 
-Dashboard `/analytics/{id}` je dostupný uživatelům s grantem k danému webu a jen pokud vzdálený integrační klíč obsahuje `analytics:read` a API oznamuje `capabilities.analytics.read`. Klíč zůstává na serveru. Přehled nabízí denní, týdenní a měsíční agregace, nejnavštěvovanější stránky a články, nejčastější výskyty boxů a celoživotní součty.
+The dashboard `/analytics/{id}` is available to users with a grant for the given site, and only if the remote integration key contains `analytics:read` and the API announces `capabilities.analytics.read`. The key stays on the server. The overview offers daily, weekly and monthly aggregations, the most visited pages and articles, the most frequent box occurrences and lifetime totals.
 
-Výchozí období obsahuje 30 kalendářních dat končících předchozím dnem UTC. Díky tomu administrace nepožádá web o budoucí místní datum, pokud je jeho časové pásmo za UTC. Denní hranice odpovědi se řídí časovým pásmem cílového webu. Období před prvním zaznamenaným veřejným zobrazením jsou označena jako neúplná.
+The default period contains 30 calendar dates ending on the previous UTC day. This way the admin does not ask the site for a future local date if its time zone is ahead of UTC. The daily boundary of the response follows the time zone of the target site. Periods before the first recorded public view are marked as incomplete.
 
-## Připojení nového webu
+## Connecting a new site
 
-Požadavky na cílovém webu: WBengine 4.2.0 nebo novější, zapnuté `apiV2` v `Settings.json`, HTTPS a aplikované migrace frameworku `4.0.0/002` a `4.0.0/007` (`doctor` je hlásí jako `migration.002` a `migration.007`).
+Requirements on the target site: WBengine 4.2.0 or newer, `apiV2` enabled in `Settings.json`, HTTPS and the applied framework migrations `4.0.0/002` and `4.0.0/007` (`doctor` reports them as `migration.002` and `migration.007`).
 
-1. Na cílovém webu se přihlaste jako ADMIN, otevřete stránku Integrace, potvrďte heslo a vydejte klíč. Zobrazí se jednou: adresa webu, doporučený název a klíč.
-2. V centrálním Adminu otevřete Weby, zvolte Přidat web a vložte název, HTTPS adresu a klíč. Před uložením se ověří `capabilities` a `identity`, klíč musí mít všech 17 scopes profilu Správa webu (volitelně navíc `analytics:read`).
-3. Chyby se zobrazují jako konkrétní pokyn: chybějící API nebo migrace, neplatný klíč, chybějící scope, nedostupný web, duplicitní adresa, omezení pokusů (HTTP 429, zkuste za několik minut).
-4. Výměna klíče: vydejte na webu nový klíč (volba nahrazované integrace), vložte jej v Adminu u webu do Vyměnit integrační klíč a teprve po ověření odvolejte starý klíč na cílovém webu. Ztracený klíč nelze zobrazit znovu, postup je stejný jako při výměně.
+1. On the target site sign in as ADMIN, open the Integrations page, confirm your password and issue a key. It is shown once: the site address, a recommended name and the key.
+2. In the central Admin open Sites, choose Add site and enter the name, the HTTPS address and the key. Before saving, `capabilities` and `identity` are verified, and the key must have all 17 scopes of the Site management profile (optionally also `analytics:read`).
+3. Errors are shown as a concrete instruction: missing API or migration, invalid key, missing scope, unreachable site, duplicate address, attempt limit (HTTP 429, try again in a few minutes).
+4. Replacing the key: issue a new key on the site (the option for the integration being replaced), enter it in Admin for the site under Replace integration key, and only after verification revoke the old key on the target site. A lost key cannot be displayed again, the procedure is the same as for replacing.
 
-Na cílovém webu je před zapnutím potřeba ručně aplikovat `migrations/4.0.0/006-analytics.sql` z WBengine a přidat do `Settings.json` například:
+On the target site, before enabling, you need to apply `migrations/4.0.0/006-analytics.sql` from WBengine manually and add to `Settings.json`, for example:
 
 ```json
 "analytics": {
@@ -101,20 +101,20 @@ Na cílovém webu je před zapnutím potřeba ručně aplikovat `migrations/4.0.
 }
 ```
 
-Denní agregace se po 62 dnech odstraňují, celoživotní součty stránek a boxů zůstávají v `cms_analytics_totals`. Celoživotní počet článků vychází z původního `cms_articles.views`. Nové denní řady začínají až po zapnutí, starší denní historie se nedopočítává. Lokální provozní údržbu lze spustit přes frameworkové CLI, například `php vendor/wbengine/wbengine/bin/wbengine.php analytics:prune --config=/path/to/src/Config/Settings.json`; příkaz odstraní nejvýše 1000 starých denních řádků na jedno spuštění.
+Daily aggregations are removed after 62 days, lifetime totals of pages and boxes remain in `cms_analytics_totals`. The lifetime article count comes from the original `cms_articles.views`. New daily series start only after enabling, older daily history is not backfilled. Local operational maintenance can be run through the framework CLI, for example `php vendor/wbengine/wbengine/bin/wbengine.php analytics:prune --config=/path/to/src/Config/Settings.json`; the command removes at most 1000 old daily rows per run.
 
-Analytika ukládá pouze souhrnné počty podle data a ID obsahu. Nezaznamenává IP adresy, cookies, uživatelská ID, User-Agent, referrer, query parametry ani individuální návštěvy. Návštěvnost se proto označuje jako zobrazení, nikoli unikátní osoby. Neznámé robotické požadavky se počítají stejně jako ostatní veřejné požadavky. Cache HIT a odpovědi 304 se zahrnují; výskyt boxu označuje neprázdný vygenerovaný výstup v odpovědi, nikoli potvrzení jeho zobrazení na obrazovce.
+Analytics stores only summary counts by date and content ID. It does not record IP addresses, cookies, user IDs, User-Agent, referrer, query parameters or individual visits. Traffic is therefore called views, not unique people. Unknown robot requests are counted the same as other public requests. Cache HIT and 304 responses are included; a box occurrence means a non-empty generated output in the response, not a confirmation that it was displayed on screen.
 
-Článkový formulář ukládá koncept. Tlačítko publikování zveřejní pouze poslední uložený koncept; neuložené změny ve formuláři nejsou jeho součástí. Náhled zobrazuje uložený koncept, případně zvolený překlad, v samostatném sandboxu. Obnova revize znovu vytvoří koncept a nepublikuje jej automaticky.
+The article form saves a draft. The publish button publishes only the last saved draft; unsaved changes in the form are not part of it. The preview shows the saved draft, or the selected translation, in a separate sandbox. Restoring a revision recreates a draft and does not publish it automatically.
 
-Struktura se ukládá přímo. Po odstranění stránky, menu, sekce nebo boxu zůstane otevřená historie pro obnovu. Pro dříve odstraněný záznam lze v kolekci zadat jeho ID. Obnova používá vlastní recovery ETag z historie; běžný detail ETag jej nenahrazuje. API při obnově znovu ověřuje vazby, překlady i dostupné registrované boxy.
+Structure is saved directly. After a page, menu, section or box is removed, an open history remains for restoring. For a previously removed record you can enter its ID in the collection. Restore uses its own recovery ETag from the history; the regular detail ETag does not replace it. During restore the API re-verifies the links, translations and available registered boxes.
 
-Při konfliktu se neprovádí automatický retry. Uživatel může svoje změny zahodit a načíst vzdálený stav, nebo si zobrazí aktuální obsah a výslovně převezme jeho ETag pro ruční sloučení. Tato operace sama nic nezapisuje. Změny poté zkontroluje a uloží samostatně.
+On conflict no automatic retry is performed. The user can discard their changes and load the remote state, or display the current content and explicitly take over its ETag for a manual merge. This operation writes nothing by itself. The changes are then reviewed and saved separately.
 
-`tests/api-pilot.ts` ověřuje skutečné centrální HTML formuláře proti aktuálnímu PHP API přes ověřené HTTPS. Poskytovatel fixture je ve frameworkovém projektu `tests/pilot/`. Používá vlastní Docker síť, databáze, generovanou CA a klíče mimo Git. Consumer potřebuje `PILOT_API_URL`, `PILOT_API_KEY`, `DATABASE_URL` končící `/wbengine_admin_pilot`, `MASTER_KEY`, `REMOTE_IP_ALLOWLIST` a `NODE_EXTRA_CA_CERTS`. Test se spouští uvnitř produkční image s mountem tohoto adresáře tests a runtime CA, nikoli proti produkčnímu webu. Nevyžaduje vypnutí TLS ověřování a nevypisuje klíče.
+`tests/api-pilot.ts` verifies real central HTML forms against the current PHP API over verified HTTPS. The fixture provider is in the framework project `tests/pilot/`. It uses its own Docker network, databases, a generated CA and keys outside Git. The consumer needs `PILOT_API_URL`, `PILOT_API_KEY`, `DATABASE_URL` ending in `/wbengine_admin_pilot`, `MASTER_KEY`, `REMOTE_IP_ALLOWLIST` and `NODE_EXTRA_CA_CERTS`. The test runs inside the production image with a mount of this tests directory and the runtime CA, not against a production site. It does not require disabling TLS verification and does not print keys.
 
 
-Společná CI administrace nyní používá dvě skutečně nezávislé API instalace. Stejně lokálně:
+The shared administration CI now uses two truly independent API installations. The same locally:
 
 ```sh
 sh /path/to/wbengine/tests/pilot/pilot.sh start
@@ -124,4 +124,4 @@ sh /path/to/wbengine/tests/pilot/pilot.sh backup-check
 sh /path/to/wbengine/tests/pilot/pilot.sh reset
 ```
 
-Příprava obrazů a oprávnění je popsána v jádru tests/pilot/ref-pilot.md. Finite testovací ovládání výpadku/revokace nepřidává Docker socket ani veřejný řídicí endpoint do centrály. Při nedostupném nebo odmítnutém spojení zůstává odeslaný formulář a ETag ve stejném requestu zachován; další pokus je ruční a znovu kontroluje veškerá oprávnění.
+Preparing images and permissions is described in the core tests/pilot/ref-pilot.md. The finite test control of outage/revocation adds neither the Docker socket nor a public control endpoint to the control centre. When the connection is unavailable or rejected, the submitted form and ETag are preserved in the same request; the next attempt is manual and re-checks all permissions.

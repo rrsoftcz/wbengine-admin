@@ -34,9 +34,9 @@ export function createContentActions(connect: typeof connectContent = connectCon
             const etag = field(f, 'etag', 100), locale = String(f.get('locale') ?? '');
             if (action === 'merge') {
                 if (f.get('mergeConsent') !== 'yes')
-                    throw Error('Potvrďte ruční sloučení');
+                    throw Error('Confirm the manual merge');
                 const current = locale ? await gateway.translation(r, id, locale) : await gateway.get(r, id);
-                return { action: locale ? 'translationSave' : 'save', values: dirtyValues(f, r), translationValues: dirtyValues(f, r), etag: current.etag, translationEtag: current.etag, merged: true, message: 'Načtena aktuální verze. Ručně zkontrolujte a slučte svoje změny s obsahem níže, potom je uložte.' };
+                return { action: locale ? 'translationSave' : 'save', values: dirtyValues(f, r), translationValues: dirtyValues(f, r), etag: current.etag, translationEtag: current.etag, merged: true, message: 'The current version has been loaded. Manually review and merge your changes with the content below, then save them.' };
             }
             if (action === 'save') {
                 const data = parseFields(r, f, false, boxTypes);
@@ -55,18 +55,18 @@ export function createContentActions(connect: typeof connectContent = connectCon
             }
             else if (action === 'delete') {
                 if (f.get('confirm') !== 'yes')
-                    throw Error('Potvrďte odstranění');
+                    throw Error('Confirm the removal');
                 await gateway.remove(r, id, etag);
                 redirect(303, `/content/${e.params.site}/${r}` + (!['articles', 'images'].includes(r) ? '/' + id + '?deleted=1' : ''));
             }
             else if (action === 'publish') {
                 if (f.get('confirm') !== 'yes')
-                    throw Error('Potvrďte publikování');
+                    throw Error('Confirm the publication');
                 await gateway.publish(id, etag);
             }
             else if (action === 'restore') {
                 if (f.get('confirm') !== 'yes')
-                    throw Error('Potvrďte obnovu');
+                    throw Error('Confirm the restore');
                 await gateway.restore(r, id, field(f, 'change_id', 32), etag);
             }
             else {
@@ -86,7 +86,7 @@ export function createContentActions(connect: typeof connectContent = connectCon
                     e.locals.contentFailure = { ...local, resource: r, id, action, fields: dirty(f) };
             }
             const badField = cause instanceof RemoteFailure ? fieldOfError(cause.code) : undefined, badLabel = badField ? schemas[r].find(x => x.name === badField)?.label : undefined;
-            return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? (badLabel ? `Pole „${badLabel}“: ${cause.message}` : cause.message) : 'Operace se nezdařila. Zkontrolujte pole, oprávnění a dostupnost webu.', field: badLabel ? badField : undefined, conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
+            return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? (badLabel ? `Field “${badLabel}”: ${cause.message}` : cause.message) : 'The operation failed. Check the fields, permissions and site availability.', field: badLabel ? badField : undefined, conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
         }
         redirect(303, `/content/${e.params.site}/${r}/${target}` + (f?.get('locale') ? '?locale=' + encodeURIComponent(String(f.get('locale'))) : query ? '?' + query : ''));
     };

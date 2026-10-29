@@ -11,7 +11,7 @@ function docker(args: string[], extraEnv: Record<string, string> = {}) {
     const r = spawnSync('docker', [...base, ...args], { encoding: 'utf8', env: { ...process.env, ...extraEnv } });
     if (r.status !== 0) {
         process.stderr.write(r.stderr ?? '');
-        throw Error('Izolovaný Docker test selhal');
+        throw Error('The isolated Docker test failed');
     }
     return r.stdout;
 }
@@ -23,7 +23,7 @@ try {
     for (const file of ['tests/mysql.integration.ts', 'tests/http.smoke.ts']) {
         const r = spawnSync(process.execPath, ['--experimental-strip-types', '--test', file], { stdio: 'inherit', env });
         if (r.status !== 0)
-            throw Error('Integrační test selhal');
+            throw Error('The integration test failed');
     }
 }
 catch (e) {

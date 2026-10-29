@@ -5,9 +5,9 @@ import { sessionCookie } from '#lib/server/web.ts';
 export const handle: Handle = async ({ event, resolve }) => {
     const canonical = process.env.ORIGIN;
     if (!canonical || new URL(canonical).protocol !== 'https:' || new URL(canonical).origin !== canonical)
-        throw Error('Chybí HTTPS ORIGIN');
+        throw Error('Missing HTTPS ORIGIN');
     if (event.url.origin !== canonical)
-        return new Response('Neplatný původ požadavku', { status: 400 });
+        return new Response('Invalid request origin', { status: 400 });
     event.locals.session = await loadSession(event.cookies.get(sessionCookie));
     let csrf = event.cookies.get('__Host-wbcsrf');
     if (!csrf || !/^[A-Za-z0-9_-]{43}$/.test(csrf)) {
@@ -22,4 +22,4 @@ export const handle: Handle = async ({ event, resolve }) => {
     if(!response.headers.has('Content-Security-Policy'))response.headers.set('Content-Security-Policy', "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     return response;
 };
-export const handleError: HandleServerError = () => ({ message: 'Požadavek se nepodařilo zpracovat' });
+export const handleError: HandleServerError = () => ({ message: 'The request could not be processed' });

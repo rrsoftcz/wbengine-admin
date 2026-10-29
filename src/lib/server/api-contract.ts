@@ -24,55 +24,55 @@ export interface ApiReply {
         total_pages: number;
     };
 }
-/** Konečný katalog kódů chyb API verze 2 s českými hláškami. Jiný kód se nikdy nezobrazí. */
+/** Closed catalog of API v2 error codes with English messages. Any other code is never shown. */
 export const errorMessages: Record<string, string> = {
-    missing_site: 'Vyberte stránku, na které se článek zobrazí, a zkuste to znovu.',
-    article_site_conflict: 'Na vybrané stránce už je zobrazen jiný článek. Vyberte jinou stránku.',
-    missing_field: 'Chybí povinné pole. Vyplňte všechna povinná pole a zkuste to znovu.',
-    invalid_field: 'Formulář obsahuje pole, které web nepodporuje.',
-    invalid_body: 'Web odeslaná data nepřijal. Načtěte stránku znovu a zkuste to ještě jednou.',
-    invalid_format: 'Nový obsah musí být ve formátu Markdown.',
-    format_replacement_required: 'Původní text je ve starém formátu HTML. Pro publikování jej nahraďte Markdownem (úvod i celý text).',
-    invalid_link: 'Odkaz stránky musí být místní adresa začínající lomítkem, například /o-nas/.',
-    duplicate_link: 'Stránka s tímto odkazem už existuje. Zvolte jiný odkaz.',
-    invalid_key: 'Klíč sekce smí obsahovat malá písmena, číslice a podtržítko a musí začínat písmenem.',
-    duplicate_key: 'Sekce s tímto klíčem už existuje. Zvolte jiný klíč.',
-    invalid_name: 'Název má neplatnou délku nebo obsah.',
-    invalid_status: 'Chybový stav sekce musí být 0 nebo HTTP chyba od 400.',
-    invalid_parent: 'Nadřazená položka je neplatná. Položka nemůže být svým vlastním rodičem.',
-    invalid_source: 'Zdroj nesmí obsahovat řídicí znaky ani zalomení řádku.',
-    invalid_box_type: 'Tento typ boxu není na webu registrován.',
-    invalid_box_section: 'Tento typ boxu nelze použít v zvolené sekci.',
-    invalid_box_settings: 'Nastavení boxu obsahuje nepodporovanou hodnotu.',
-    invalid_locale: 'Jazyk překladu je neplatný.',
-    invalid_id: 'Identifikátor záznamu je neplatný.',
-    invalid_resource: 'Tento druh obsahu nepodporuje požadovanou operaci.',
-    invalid_recovery: 'Tento druh obsahu nepodporuje obnovu překladu.',
-    invalid_pagination: 'Stránkování seznamu je neplatné.',
-    invalid_image: 'Obrázek je poškozený nebo má neplatný formát.',
-    unsupported_image: 'Podporované jsou pouze obrázky PNG, JPEG a WebP.',
-    image_too_large: 'Obrázek je příliš velký. Nejvýše 512 KiB.',
-    image_storage_unconfigured: 'Na webu není nastaveno úložiště obrázků.',
-    image_storage_unavailable: 'Úložiště obrázků na webu je teď nedostupné.',
-    no_draft: 'Článek nemá žádný koncept k publikování.',
-    draft_too_large: 'Koncept je příliš rozsáhlý.',
-    body_too_large: 'Odeslaná data jsou příliš velká.',
-    resource_in_use: 'Záznam nelze odstranit, protože na něj odkazují jiné záznamy. Nejdřív odstraňte závislé položky.',
-    precondition_failed: 'Obsah se mezitím změnil. Vaše úpravy zůstaly zachovány.',
-    precondition_required: 'Chybí verze obsahu. Načtěte jej znovu.',
-    not_found: 'Záznam nebyl nalezen.',
-    forbidden: 'Chybí oprávnění nebo scope.',
-    rate_limited: 'Příliš mnoho požadavků. Zkuste to za chvíli.',
-    unavailable: 'API webu je dočasně nedostupné. Zkuste to později.'
+    missing_site: 'Select the page the article is shown on and try again.',
+    article_site_conflict: 'Another article is already shown on the selected page. Select a different page.',
+    missing_field: 'A required field is missing. Fill in all required fields and try again.',
+    invalid_field: 'The form contains a field the site does not support.',
+    invalid_body: 'The site did not accept the submitted data. Reload the page and try again.',
+    invalid_format: 'New content must be in Markdown format.',
+    format_replacement_required: 'The original text is in the old HTML format. To publish, replace it with Markdown (both the intro and the full text).',
+    invalid_link: 'The page link must be a local address starting with a slash, for example /about/.',
+    duplicate_link: 'A page with this link already exists. Choose a different link.',
+    invalid_key: 'The section key may contain lowercase letters, digits and underscores and must start with a letter.',
+    duplicate_key: 'A section with this key already exists. Choose a different key.',
+    invalid_name: 'The name has an invalid length or content.',
+    invalid_status: 'The section error status must be 0 or an HTTP error from 400.',
+    invalid_parent: 'The parent item is invalid. An item cannot be its own parent.',
+    invalid_source: 'The source must not contain control characters or line breaks.',
+    invalid_box_type: 'This box type is not registered on the site.',
+    invalid_box_section: 'This box type cannot be used in the selected section.',
+    invalid_box_settings: 'The box settings contain an unsupported value.',
+    invalid_locale: 'The translation language is invalid.',
+    invalid_id: 'The record identifier is invalid.',
+    invalid_resource: 'This kind of content does not support the requested operation.',
+    invalid_recovery: 'This kind of content does not support translation restore.',
+    invalid_pagination: 'The list pagination is invalid.',
+    invalid_image: 'The image is corrupted or has an invalid format.',
+    unsupported_image: 'Only PNG, JPEG and WebP images are supported.',
+    image_too_large: 'The image is too large. Maximum 512 KiB.',
+    image_storage_unconfigured: 'Image storage is not configured on the site.',
+    image_storage_unavailable: 'Image storage on the site is currently unavailable.',
+    no_draft: 'The article has no draft to publish.',
+    draft_too_large: 'The draft is too large.',
+    body_too_large: 'The submitted data is too large.',
+    resource_in_use: 'The record cannot be removed because other records refer to it. Remove the dependent items first.',
+    precondition_failed: 'The content has changed in the meantime. Your edits have been kept.',
+    precondition_required: 'The content version is missing. Reload it.',
+    not_found: 'The record was not found.',
+    forbidden: 'Missing permission or scope.',
+    rate_limited: 'Too many requests. Try again in a moment.',
+    unavailable: 'The site API is temporarily unavailable. Try again later.'
 };
-/** Pole formuláře, kterého se kód chyby týká (název pole schématu), aby je editor mohl označit. */
+/** The form field a given error code relates to (schema field name), so the editor can mark it. */
 export const errorFields: Record<string, string> = {
     missing_site: 'site_id', article_site_conflict: 'site_id', invalid_link: 'link', duplicate_link: 'link', invalid_key: 'key', duplicate_key: 'key',
     invalid_name: 'name', invalid_status: 'return_error_code', invalid_parent: 'parent_id', invalid_source: 'source', invalid_box_type: 'type',
     invalid_box_section: 'section_id', invalid_box_settings: 'settings', invalid_format: 'content_format'
 };
 export const fieldOfError = (code: unknown): string | undefined => typeof code === 'string' && Object.hasOwn(errorFields, code) ? errorFields[code] : undefined;
-/** Vrací kód jen pokud je v katalogu, jinak obecný kód odmítnutí. */
+/** Returns the code only if it is in the catalog, otherwise the generic rejection code. */
 export function safeErrorCode(value: unknown): string {
     return typeof value === 'string' && Object.hasOwn(errorMessages, value) ? value : 'remote_rejected';
 }
@@ -80,7 +80,7 @@ export class RemoteFailure extends Error {
     status: number;
     code: string;
     constructor(status: number, code: string) {
-        super(status === 412 ? 'Obsah se mezitím změnil. Vaše úpravy zůstaly zachovány.' : status === 428 ? 'Chybí verze obsahu. Načtěte jej znovu.' : status === 403 ? 'Chybí oprávnění nebo scope.' : status === 404 ? 'Záznam nebyl nalezen.' : Object.hasOwn(errorMessages, code) ? errorMessages[code] : status === 409 ? 'Operace koliduje s aktuálním stavem nebo vazbami.' : 'Vzdálené API požadavek odmítlo.');
+        super(status === 412 ? 'The content has changed in the meantime. Your edits have been kept.' : status === 428 ? 'The content version is missing. Reload it.' : status === 403 ? 'Missing permission or scope.' : status === 404 ? 'The record was not found.' : Object.hasOwn(errorMessages, code) ? errorMessages[code] : status === 409 ? 'The operation conflicts with the current state or dependencies.' : 'The remote API rejected the request.');
         this.status = status;
         this.code = code;
     }
@@ -97,30 +97,30 @@ export function planApiCall(call: ApiCall): {
         return { path: op, method: 'GET' };
     if (op === 'analyticsOverview') {
         if (!isIsoDate(call.from) || !isIsoDate(call.to) || !['day', 'week', 'month'].includes(call.granularity ?? '') || Date.parse(`${call.to}T00:00:00Z`) < Date.parse(`${call.from}T00:00:00Z`) || (Date.parse(`${call.to}T00:00:00Z`) - Date.parse(`${call.from}T00:00:00Z`)) / 86400000 >= 62)
-            throw Error('Neplatné období analytiky');
+            throw Error('Invalid analytics period');
         return { path: `analytics/overview?from=${encodeURIComponent(call.from)}&to=${encodeURIComponent(call.to)}&granularity=${encodeURIComponent(call.granularity!)}`, method: 'GET' };
     }
     if (!resources.includes(r as Resource))
-        throw Error('Nepovolený prostředek');
+        throw Error('Disallowed resource');
     const id = call.id;
     const paged = () => {
         const page = call.page ?? 1;
         if (!Number.isInteger(page) || page < 1 || page > 1000000)
-            throw Error('Neplatná stránka');
+            throw Error('Invalid page');
         const perPage = call.perPage ?? 25;
         if (!Number.isInteger(perPage) || perPage < 1 || perPage > 100)
-            throw Error('Neplatný počet na stránku');
+            throw Error('Invalid page size');
         return `?page=${page}&per_page=${perPage}`;
     };
     if (op === 'list')
         return { path: r + paged(), method: 'GET' };
     if (op === 'create') {
         if (!call.data || Array.isArray(call.data))
-            throw Error('Chybí data');
+            throw Error('Missing data');
         return { path: r!, method: 'POST', data: call.data };
     }
     if (r === 'images' ? !/^[a-f0-9]{32}$/.test(id ?? '') : !/^[1-9][0-9]{0,9}$/.test(id ?? '') || Number(id) > 2147483647)
-        throw Error('Neplatné ID');
+        throw Error('Invalid ID');
     let path = `${r}/${id}`, method = 'GET';
     if (op === 'get')
         return { path, method };
@@ -136,7 +136,7 @@ export function planApiCall(call: ApiCall): {
         return { path: path + '/changes' + paged(), method };
     else if (op === 'preview' && r === 'articles') {
         if (call.locale && !/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(call.locale))
-            throw Error('Neplatný jazyk');
+            throw Error('Invalid language');
         return { path: path + '/preview' + (call.locale ? '?locale=' + encodeURIComponent(call.locale) : ''), method };
     }
     else if ((op === 'publish' || op === 'restore') && r === 'articles') {
@@ -150,14 +150,14 @@ export function planApiCall(call: ApiCall): {
     else if (op === 'translationGet' || op === 'translationSave' || op === 'translationDelete') {
         const entity = ({ articles: 'article', pages: 'site', menu: 'menu' } as Record<string, string>)[r!];
         if (!entity || !/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(call.locale ?? ''))
-            throw Error('Nepovolený překlad');
+            throw Error('Disallowed translation');
         path = `translations/${entity}/${id}/${call.locale}`;
         method = op === 'translationGet' ? 'GET' : op === 'translationSave' ? 'PUT' : 'DELETE';
         if (method === 'GET')
             return { path, method };
     }
     else
-        throw Error('Nepovolená operace');
+        throw Error('Disallowed operation');
     if (!strongEtag(call.etag))
         throw new RemoteFailure(428, 'precondition_required');
     return { path, method, etag: call.etag, ...(method === 'DELETE' ? {} : { data: call.data ?? {} }) };

@@ -17,7 +17,7 @@
                oninput={(e) => (length = e.currentTarget.value.length)} />
         {#if mounted}
             <button type="button" class="btn btn-ghost btn-sm absolute right-1.5 top-1/2 -translate-y-1/2" aria-pressed={visible} aria-controls={id} onclick={() => (visible = !visible)}>
-                {visible ? 'Skrýt' : 'Zobrazit'}
+                {visible ? 'Hide' : 'Show'}
             </button>
         {/if}
     </div>
@@ -28,7 +28,7 @@
                 <span class="block h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
                     <span class="block h-full rounded-full transition-all {ok ? 'bg-ok' : 'bg-warn'}" style="width: {Math.min(100, (length / need) * 100)}%"></span>
                 </span>
-                <span class="mt-1 block {ok ? 'text-ok' : ''}">{ok ? 'Délka hesla je v pořádku.' : `Zadáno ${length} z ${need} znaků, ještě ${need - length}.`}</span>
+                <span class="mt-1 block {ok ? 'text-ok' : ''}">{ok ? 'Password length is fine.' : `${length} of ${need} characters entered, ${need - length} more to go.`}</span>
             </span>
         {/if}
     </p>

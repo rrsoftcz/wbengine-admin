@@ -19,12 +19,12 @@ export interface BoxType {
 }
 export function resourceName(value: string): Resource {
     if (!resources.includes(value as Resource))
-        throw Error('Neznámý obsah');
+        throw Error('Unknown content');
     return value as Resource;
 }
 export function siteId(value: string) {
     if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(Number(value)))
-        throw Error('Neplatný web');
+        throw Error('Invalid site');
     return Number(value);
 }
 export function canOperate(role: Role, scopes: string[], caps: Capabilities, action: string, r: Resource) {
@@ -48,24 +48,24 @@ export interface ReferenceOption {
     label: string;
     link?: string;
 }
-/** Pole s číselným ID jiného záznamu: z kterého seznamu se nabízí volba a jak se popisuje. */
+/** Field holding the numeric ID of another record: which list offers the choice and how it is described. */
 export const referenceFields: Partial<Record<Resource, Record<string, { source: Resource; zero?: string }>>> = {
-    articles: { site_id: { source: 'pages', zero: 'Zatím nevybráno (článek nepůjde publikovat)' } },
-    pages: { parent_id: { source: 'pages', zero: 'Žádná (kořen)' } },
-    menu: { site_id: { source: 'pages', zero: 'Zatím nevybráno' }, parent: { source: 'menu', zero: 'Žádná (kořen)' } },
-    boxes: { section_id: { source: 'sections', zero: 'Zatím nevybráno' } }
+    articles: { site_id: { source: 'pages', zero: 'Not selected yet (the article cannot be published)' } },
+    pages: { parent_id: { source: 'pages', zero: 'None (root)' } },
+    menu: { site_id: { source: 'pages', zero: 'Not selected yet' }, parent: { source: 'menu', zero: 'None (root)' } },
+    boxes: { section_id: { source: 'sections', zero: 'Not selected yet' } }
 };
 function optionLabel(source: Resource, row: Record<string, unknown>): string {
     const text = (v: unknown) => typeof v === 'string' ? v.slice(0, 120) : '';
     if (source === 'pages')
-        return `${text(row.title) || 'Bez názvu'} (${text(row.link) || '?'})`;
+        return `${text(row.title) || 'Untitled'} (${text(row.link) || '?'})`;
     if (source === 'sections')
-        return text(row.title) ? `${text(row.title)} (${text(row.key)})` : text(row.key) || 'Bez názvu';
-    return text(row.name) || text(row.title) || 'Bez názvu';
+        return text(row.title) ? `${text(row.title)} (${text(row.key)})` : text(row.key) || 'Untitled';
+    return text(row.name) || text(row.title) || 'Untitled';
 }
 /**
- * Načte možnosti pro pole odkazující na jiné záznamy. Při chybě nebo nedostupnosti vrací null a pole
- * zůstane číselné. Dotazuje se jen po stránkách po 100 záznamech, nejvýše 5 stránek.
+ * Loads the options for fields that refer to other records. On error or unavailability it returns null and the field
+ * stays numeric. It queries in pages of 100 records, at most 5 pages.
  */
 export async function loadReferenceOptions(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, source: Resource, excludeId?: string): Promise<ReferenceOption[] | null> {
     const found: ReferenceOption[] = [];
@@ -88,14 +88,14 @@ export async function loadReferenceOptions(gateway: Pick<ReturnType<typeof creat
     }
     return found;
 }
-/** Rozumná výchozí stránka pro nový záznam: první, která není kořen "/", jinak první. */
+/** Sensible default page for a new record: the first one that is not the root "/", otherwise the first. */
 export function defaultPageOption(options: ReferenceOption[]): number {
     const pick = options.find(o => o.link !== '/') ?? options[0];
     return pick?.value ?? 0;
 }
 /**
- * Sjednotí odkaz stránky do tvaru, který používá web: počáteční i koncové lomítko (/o-nas/), kořen zůstává "/".
- * Při neplatných znacích nic nepřidává, ať rozhodne validace API.
+ * Normalises a page link to the form the site uses: leading and trailing slash (/about/), the root stays "/".
+ * With invalid characters it adds nothing, so the API validation decides.
  */
 export function normalizePageLink(raw: string): string {
     const link = raw.trim();
@@ -103,11 +103,11 @@ export function normalizePageLink(raw: string): string {
         return link;
     return (link.startsWith('/') ? '' : '/') + link + (link.endsWith('/') ? '' : '/');
 }
-/** Zda web nabízí typ boxu pro články (story) a smíme zapisovat boxy. */
+/** Whether the site offers the article box type (story) and we may write boxes. */
 export function offersArticleBox(gateway: Pick<ReturnType<typeof createContentGateway>, 'role' | 'scopes' | 'capabilities'>, boxTypes: BoxType[]): boolean {
     return gateway.capabilities.boxes?.write === true && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'save', 'boxes') && boxTypes.some(x => x.type === 'story' && x.sections.includes('central'));
 }
-/** Najde ID sekce s klíčem central v seznamu sekcí webu (nejvýše 5 stránek po 100 záznamech). */
+/** Finds the ID of the section with the key central in the site's section list (at most 5 pages of 100 records). */
 export async function findCentralSection(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>): Promise<number | null> {
     for (let page = 1; page <= 5; page++) {
         const reply = await gateway.list('sections', page, 100);
@@ -122,8 +122,8 @@ export async function findCentralSection(gateway: Pick<ReturnType<typeof createC
     return null;
 }
 /**
- * Po vytvoření stránky přidá box, který na ní vykresluje články. Nikdy nevyhazuje chybu: stránka už existuje.
- * Vrací 'skipped' (web box nenabízí), 'created' nebo 'failed'.
+ * After a page is created, adds a box that renders articles on it. Never throws: the page already exists.
+ * Returns 'skipped' (the site does not offer the box), 'created' or 'failed'.
  */
 export async function createArticleBox(gateway: ReturnType<typeof createContentGateway>, boxTypes: BoxType[], pageId: number, pageTitle: string): Promise<'skipped' | 'created' | 'failed'> {
     if (!offersArticleBox(gateway, boxTypes))
@@ -132,14 +132,14 @@ export async function createArticleBox(gateway: ReturnType<typeof createContentG
         const section = await findCentralSection(gateway);
         if (!section || !Number.isSafeInteger(pageId) || pageId < 1)
             return 'failed';
-        await gateway.save('boxes', null, { name: ('Článek: ' + pageTitle).slice(0, 100), type: 'story', settings: {}, section_id: section, static: 1, shared: 0, device_min: 1, device_strict: 0, order: 0, sites: [pageId] });
+        await gateway.save('boxes', null, { name: ('Article: ' + pageTitle).slice(0, 100), type: 'story', settings: {}, section_id: section, static: 1, shared: 0, device_min: 1, device_strict: 0, order: 0, sites: [pageId] });
         return 'created';
     }
     catch {
         return 'failed';
     }
 }
-/** ID stránek, na kterých je box vykreslující články. Null, pokud to nelze zjistit (box se pak nehlásí). */
+/** IDs of pages that have a box rendering articles. Null if it cannot be determined (the box is then not reported). */
 export async function loadArticleBoxPages(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, boxTypes: BoxType[]): Promise<number[] | null> {
     if (!boxTypes.some(x => x.type === 'story'))
         return null;
@@ -173,7 +173,7 @@ export function parseFields(r: Resource, f: FormData, translation = false, boxTy
         if (translation && !translationFields[r]?.includes(spec.name))
             continue;
         const raw = f.get(spec.name);
-        // Nezaškrtnutý přepínač prohlížeč do formuláře neposílá: u ukládání celého záznamu to znamená 0.
+        // The browser does not submit an unchecked toggle: when saving a whole record that means 0.
         if (spec.kind === 'boolean' && raw === null && !translation) {
             output[spec.name] = 0;
             continue;
@@ -181,29 +181,29 @@ export function parseFields(r: Resource, f: FormData, translation = false, boxTy
         if (typeof raw !== 'string')
             continue;
         if (spec.max && Buffer.byteLength(raw) > spec.max)
-            throw Error(`Pole ${spec.label} je příliš dlouhé`);
+            throw Error(`Field ${spec.label} is too long`);
         if (spec.kind === 'number' || spec.kind === 'boolean') {
             if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))
-                throw Error(`Neplatné pole ${spec.label}`);
+                throw Error(`Invalid field ${spec.label}`);
             output[spec.name] = Number(raw);
         }
         else if (spec.kind === 'format') {
             if (raw === 'markdown')
                 output.content_format = 'markdown';
             else if (raw !== 'legacy_html')
-                throw Error('Neplatný formát');
+                throw Error('Invalid format');
         }
         else if (spec.kind === 'ids') {
             output[spec.name] = raw.trim() ? raw.split(',').map(x => {
                 if (!/^[1-9][0-9]*$/.test(x.trim()))
-                    throw Error('Neplatné ID stránky');
+                    throw Error('Invalid page ID');
                 return Number(x.trim());
             }) : [];
         }
         else if (spec.kind === 'json') {
             const value = JSON.parse(raw || '{}');
             if (!value || Array.isArray(value) || typeof value !== 'object')
-                throw Error('Nastavení musí být objekt');
+                throw Error('Settings must be an object');
             output[spec.name] = value;
         }
         else
@@ -212,13 +212,13 @@ export function parseFields(r: Resource, f: FormData, translation = false, boxTy
     if (r === 'boxes') {
         const type = boxTypes.find(x => x.type === output.type);
         if (!type)
-            throw Error('Typ boxu není registrovaný');
+            throw Error('Box type is not registered');
         const settings: Record<string, string> = {};
         for (const [name, values] of Object.entries(type.settings)) {
             const value = f.get('setting_' + name);
             if (typeof value === 'string' && value) {
                 if (!values.includes(value))
-                    throw Error('Nepovolené nastavení boxu');
+                    throw Error('Disallowed box settings');
                 settings[name] = value;
             }
         }
@@ -262,7 +262,7 @@ export function createContentGateway(options: GatewayOptions) {
         restore(r: Resource, id: string, changeId: string, etag: string) {
             check(r === 'articles' ? 'restore' : 'structureRestore', r);
             if (!/^[1-9][0-9]*$/.test(changeId))
-                throw Error('Neplatná revize');
+                throw Error('Invalid revision');
             return options.call({ operation: r === 'articles' ? 'restore' : 'structureRestore', resource: r, id, etag, data: r === 'articles' ? { revision_id: Number(changeId) } : { change_id: Number(changeId) } });
         },
         publish(id: string, etag: string) {
@@ -331,7 +331,7 @@ export async function connectContent(s: Session, id: number): Promise<{
             await requireSite(c, s, id, 'read');
         }
         catch (cause) {
-            if (cause instanceof Error && cause.message === 'Chybí oprávnění k webu')
+            if (cause instanceof Error && cause.message === 'Missing site permission')
                 throw new RemoteFailure(403, 'forbidden');
             throw cause;
         }
@@ -359,7 +359,7 @@ export async function connectContent(s: Session, id: number): Promise<{
             scopes?: unknown;
         };
         if (caps.api_version !== '2.0' || !caps.capabilities || !Array.isArray(user.scopes) || !user.scopes.every(x => typeof x === 'string'))
-            throw Error('Neplatná discovery odpověď');
+            throw Error('Invalid discovery response');
         const scopes = user.scopes as string[];
         if (!scopes.includes('discovery:read'))
             throw new RemoteFailure(403, 'forbidden');
@@ -371,14 +371,14 @@ export async function connectContent(s: Session, id: number): Promise<{
     }
 }
 /**
- * Jazykové verze záznamu z pole translation_locales, které web vrací v seznamu i detailu. Výchozí jazyk je originál.
- * U webu bez tohoto pole (starší než 4.7) se stav nezjišťuje a exists je null: zjišťování po jazycích by při desítkách jazyků znamenalo stovky požadavků.
+ * Language versions of a record from the translation_locales field, which the site returns in both list and detail. The default language is the original.
+ * For a site without this field (older than 4.7) the state is not probed and exists is null: probing per language would mean hundreds of requests with dozens of languages.
  */
 export function languageVersions(locales: { default: string; list: string[] }, present: unknown): { locale: string; original: boolean; exists: boolean | null }[] {
     const known = Array.isArray(present) ? new Set(present.filter((x): x is string => typeof x === 'string')) : null;
     return locales.list.map(locale => ({ locale, original: locale === locales.default, exists: locale === locales.default ? true : known ? known.has(locale) : null }));
 }
-/** Jazyky, které web opravdu obsluhuje. Null u starších webů bez pole i18n (formulář pak nechá ruční zadání). */
+/** Languages the site really serves. Null for older sites without the i18n field (the form then keeps manual entry). */
 export function projectLocales(raw: unknown): { default: string; list: string[] } | null {
     const value = raw as { default?: unknown; locales?: unknown } | null;
     const valid = (x: unknown): x is string => typeof x === 'string' && /^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(x);
@@ -401,30 +401,30 @@ export function renderPreviewDocument(value: {
     return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; sandbox"><title>${title}</title><style>body{max-width:75ch;margin:2rem auto;font:17px/1.6 system-ui;overflow-wrap:anywhere}pre{white-space:pre-wrap}</style></head><body><h1>${title}</h1>${value.introtext}${value.bodytext}</body></html>`;
 }
 
-/** Kdo změny provedl: web ukládá central_actor jako admin:ID, e-mail se dohledá v Adminu. Změna bez aktéra vznikla přímo na webu. */
+/** Who made the changes: the site stores central_actor as admin:ID, the e-mail is looked up in Admin. A change without an actor was made directly on the site. */
 export async function loadActors(history: Record<string, unknown>[]): Promise<Record<string, string>> {
     const ids = [...new Set(history.map(h => /^admin:([1-9][0-9]{0,18})$/.exec(String(h.central_actor ?? ''))?.[1]).filter((x): x is string => !!x))].slice(0, 50);
     if (!ids.length)
         return {};
     const found = await transaction(c => rows<{ id: number | string; email: string }>(c, `SELECT id,email FROM users WHERE id IN (${ids.map(() => '?').join(',')})`, ids));
     const map = Object.fromEntries(found.map(u => [`admin:${u.id}`, u.email]));
-    return Object.fromEntries(ids.map(id => [`admin:${id}`, map[`admin:${id}`] ?? `smazaný uživatel #${id}`]));
+    return Object.fromEntries(ids.map(id => [`admin:${id}`, map[`admin:${id}`] ?? `deleted user #${id}`]));
 }
 
 export type Dependents = { resource: Resource; label: string; count: number; items: { id: string; label: string }[]; truncated: boolean }[];
 /**
- * Co ještě visí na stránce, sekci nebo položce menu. Web smazání s vazbami odmítne (resource_in_use), Admin to ukáže předem
- * a nabídne odkazy na závislé záznamy. Null: nelze ověřit (chybí oprávnění ke čtení nebo web neodpověděl), rozhodne web.
+ * What still depends on a page, section or menu item. The site rejects deleting with dependencies (resource_in_use), Admin shows it up front
+ * and offers links to the dependent records. Null: cannot be verified (missing read permission or the site did not respond), the site decides.
  */
 export async function loadDependents(gateway: Pick<ReturnType<typeof createContentGateway>, 'list' | 'role' | 'scopes' | 'capabilities'>, r: Resource, id: string): Promise<Dependents | null> {
     const targets: { resource: Resource; label: string; match: (row: Record<string, unknown>) => boolean }[] = [];
     const num = (v: unknown) => Number(v && typeof v === 'object' ? (v as Record<string, unknown>).site_id ?? (v as Record<string, unknown>).id : v);
     if (r === 'pages')
-        targets.push({ resource: 'articles', label: 'Články', match: row => String(row.site_id) === id }, { resource: 'boxes', label: 'Boxy', match: row => Array.isArray(row.sites) && row.sites.some(x => String(num(x)) === id) }, { resource: 'menu', label: 'Položky menu', match: row => String(row.site_id) === id }, { resource: 'pages', label: 'Podstránky', match: row => String(row.parent_id) === id });
+        targets.push({ resource: 'articles', label: 'Articles', match: row => String(row.site_id) === id }, { resource: 'boxes', label: 'Boxes', match: row => Array.isArray(row.sites) && row.sites.some(x => String(num(x)) === id) }, { resource: 'menu', label: 'Menu items', match: row => String(row.site_id) === id }, { resource: 'pages', label: 'Subpages', match: row => String(row.parent_id) === id });
     else if (r === 'sections')
         targets.push({ resource: 'boxes', label: 'Boxy v sekci', match: row => String(row.section_id) === id });
     else if (r === 'menu')
-        targets.push({ resource: 'menu', label: 'Podřízené položky menu', match: row => String(row.parent) === id });
+        targets.push({ resource: 'menu', label: 'Child menu items', match: row => String(row.parent) === id });
     if (!targets.length)
         return [];
     const out: Dependents = [];
@@ -463,9 +463,9 @@ export async function loadDependents(gateway: Pick<ReturnType<typeof createConte
 
 export type LiveLink = { label: string; url: string; note: string | null };
 /**
- * Adresy, na kterých je záznam vidět na živém webu. Stránka a položka menu mají jednu, článek stránku, na které je zařazen,
- * box všechny stránky ze svého seznamu. Poznámka říká, proč se obsah na adrese zatím neukáže (skrytá stránka, chybí box s články).
- * Prázdný seznam: záznam nemá vlastní adresu (sekce, obrázek, box bez stránek).
+ * Addresses where a record is visible on the live site. A page and a menu item have one, an article has the page it is placed on,
+ * a box has all pages from its list. The note says why the content does not show at the address yet (hidden page, missing article box).
+ * Empty list: the record has no address of its own (section, image, box without pages).
  */
 export async function loadLiveLinks(gateway: Pick<ReturnType<typeof createContentGateway>, 'get'>, baseUrl: string | undefined, r: Resource, row: Record<string, unknown>, options: { locale?: string; defaultLocale?: string; articleBoxPages?: number[] | null } = {}): Promise<LiveLink[]> {
     if (!baseUrl)
@@ -488,9 +488,9 @@ export async function loadLiveLinks(gateway: Pick<ReturnType<typeof createConten
             continue;
         const id = Number(page.site_id ?? page.id);
         const notes = [
-            Number(page.visible) === 0 ? 'stránka je skrytá, web ji nezobrazí' : '',
-            r === 'articles' && options.articleBoxPages && !options.articleBoxPages.includes(id) ? 'na stránce chybí box s články, článek se nezobrazí' : '',
-            r === 'articles' && row.draft ? 'veřejně je vidět jen publikovaná verze' : ''
+            Number(page.visible) === 0 ? 'the page is hidden, the site will not show it' : '',
+            r === 'articles' && options.articleBoxPages && !options.articleBoxPages.includes(id) ? 'the page has no article box, the article will not be shown' : '',
+            r === 'articles' && row.draft ? 'only the published version is publicly visible' : ''
         ].filter(Boolean);
         links.push({ label: String(page.title ?? page.link), url, note: notes.length ? notes.join('; ') : null });
     }

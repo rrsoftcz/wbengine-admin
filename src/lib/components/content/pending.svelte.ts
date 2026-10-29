@@ -2,8 +2,8 @@ import { tick } from 'svelte';
 import type { ActionResult, SubmitFunction } from '$app/forms';
 
 /**
- * Společný stav odesílání formulářů přes use:enhance: která akce právě běží, stav posledního
- * neúspěšného výsledku a přesun fokusu na zprávu s výsledkem (#vysledek).
+ * Shared submit state for forms using use:enhance: which action is running, the status of the last
+ * failed result, and moving focus to the result message (#vysledek).
  */
 export function createPending(options: { reset?: boolean; onResult?: (result: ActionResult) => void } = {}) {
     let current = $state('');

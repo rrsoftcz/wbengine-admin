@@ -1,11 +1,11 @@
 <script lang="ts">
     let { state }: { state: 'draft' | 'published' | 'deleted' | 'new' | 'readonly' } = $props();
     const spec = {
-        draft: ['badge badge-warn', 'Koncept'],
-        published: ['badge badge-ok', 'Publikováno'],
-        deleted: ['badge badge-danger', 'Smazáno'],
-        new: ['badge badge-brand', 'Nový záznam'],
-        readonly: ['badge', 'Pouze čtení']
+        draft: ['badge badge-warn', 'Draft'],
+        published: ['badge badge-ok', 'Published'],
+        deleted: ['badge badge-danger', 'Deleted'],
+        new: ['badge badge-brand', 'New record'],
+        readonly: ['badge', 'Read only']
     } as const;
 </script>
 

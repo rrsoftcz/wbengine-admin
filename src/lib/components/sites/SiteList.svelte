@@ -24,15 +24,15 @@
                         <a href={site.base_url} target="_blank" rel="noopener noreferrer" class="text-sm text-muted">{siteHost(site.base_url)}</a>
                     </div>
                     <div class="flex items-center gap-2">
-                        {#if site.integrationId}<span class="badge badge-ok">Integrace č. {site.integrationId}</span>{:else}<span class="badge badge-warn">Bez ověření</span>{/if}
-                        <a class="btn btn-ghost btn-sm" href={'/content/' + site.id}>Obsah</a>
+                        {#if site.integrationId}<span class="badge badge-ok">Integration no. {site.integrationId}</span>{:else}<span class="badge badge-warn">Unverified</span>{/if}
+                        <a class="btn btn-ghost btn-sm" href={'/content/' + site.id}>Content</a>
                     </div>
                 </div>
                 <form method="POST" action="?/inspect" class="mt-3" aria-busy={busy === site.id}
                     use:enhance={() => { busy = site.id; return async ({ update }) => { busy = null; await update({ reset: false }); }; }}>
                     <input type="hidden" name="csrf" value={csrf} />
                     <input type="hidden" name="site" value={site.id} />
-                    <button class="btn btn-secondary btn-sm" disabled={busy === site.id} aria-busy={busy === site.id}>{#if busy === site.id}<span class="spinner" aria-hidden="true"></span>Načítám{:else}Načíst schopnosti a ověřit klíč{/if}</button>
+                    <button class="btn btn-secondary btn-sm" disabled={busy === site.id} aria-busy={busy === site.id}>{#if busy === site.id}<span class="spinner" aria-hidden="true"></span>Loading{:else}Load capabilities and verify key{/if}</button>
                 </form>
                 {#key form}
                     {#if form?.action === 'inspect' && form.site === site.id}
@@ -40,7 +40,7 @@
                             <div class="mt-3"><ErrorBox error={form.error} /></div>
                         {:else if form.discovery}
                             <div class="mt-3 rounded-xl bg-surface-2 p-4" role="status" tabindex="-1" use:focusOnMount>
-                                <p class="text-sm font-semibold">Klíč je platný. Schopnosti webu (API {form.discovery.version}):</p>
+                                <p class="text-sm font-semibold">The key is valid. Site capabilities (API {form.discovery.version}):</p>
                                 <div class="mt-2"><CapabilityChips resources={form.discovery.resources} /></div>
                             </div>
                         {/if}
@@ -51,5 +51,5 @@
         {/each}
     </ul>
 {:else}
-    <p class="text-muted">Zatím není zaregistrován žádný web. Přidejte první pomocí průvodce výše.</p>
+    <p class="text-muted">No site is registered yet. Add the first one using the wizard above.</p>
 {/if}

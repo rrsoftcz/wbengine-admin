@@ -8,21 +8,21 @@
     let pending = $state(false);
 </script>
 
-<svelte:head><title>Přijetí pozvánky | WBengine</title></svelte:head>
+<svelte:head><title>Accept invitation | WBengine</title></svelte:head>
 
 <div class="card">
-    <h1>Přijmout pozvánku</h1>
-    <p class="lead mb-6 mt-2">Vložte kód pozvánky od správce a zvolte si heslo. Poté si nastavíte ověření kódem z telefonu.</p>
+    <h1>Accept invitation</h1>
+    <p class="lead mb-6 mt-2">Enter the invitation code from your administrator and choose a password. Then you will set up verification with a code from your phone.</p>
     <FormAlert message={form?.error} />
     <form method="POST" use:enhance={authEnhance((v) => (pending = v))} class="grid gap-4">
         <input type="hidden" name="csrf" value={data.csrf}/>
         <div class="field">
-            <label for="token" class="text-sm font-semibold">Kód pozvánky</label>
+            <label for="token" class="text-sm font-semibold">Invitation code</label>
             <input id="token" name="token" required autocomplete="off" autocapitalize="off" spellcheck="false" data-secret aria-describedby="token-hint" />
-            <p id="token-hint" class="hint">Kód vám správce předal bezpečnou cestou, zkopírujte ho celý.</p>
+            <p id="token-hint" class="hint">Your administrator gave you the code through a secure channel. Copy all of it.</p>
         </div>
-        <PasswordField id="password" label="Nové heslo" autocomplete="new-password" minlength={14} showMeter hint="Heslo musí mít alespoň 14 znaků. Dobře poslouží i delší věta." />
-        <SubmitButton {pending} label="Vytvořit účet" pendingLabel="Vytvářím účet..." />
+        <PasswordField id="password" label="New password" autocomplete="new-password" minlength={14} showMeter hint="The password must be at least 14 characters long. A longer sentence works well." />
+        <SubmitButton {pending} label="Create account" pendingLabel="Creating account..." />
     </form>
-    <p class="mt-5 text-center text-sm text-muted">Už máte účet? <a href="/login">Přihlásit se</a></p>
+    <p class="mt-5 text-center text-sm text-muted">Already have an account? <a href="/login">Sign in</a></p>
 </div>

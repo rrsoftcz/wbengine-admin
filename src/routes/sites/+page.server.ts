@@ -32,7 +32,7 @@ async function readForm(e: Parameters<typeof form>[0]) {
         return null;
     }
 }
-const stale = (action: string) => fail(403, { error: 'Formulář je neplatný nebo prošel. Načtěte stránku znovu.', code: 'csrf', missing: [] as string[], values: {} as Record<string, string>, action, site: 0 });
+const stale = (action: string) => fail(403, { error: 'The form is invalid or has expired. Reload the page.', code: 'csrf', missing: [] as string[], values: {} as Record<string, string>, action, site: 0 });
 export const actions: Actions = {
     register: async (e) => {
         const s = globalAdmin(e), f = await readForm(e);
@@ -70,10 +70,10 @@ export const actions: Actions = {
             if (!Number.isSafeInteger(user) || user < 1 || !Number.isSafeInteger(site) || site < 1)
                 throw Error();
             await grantSite(s, user, site, field(f, 'role') as 'editor' | 'siteadmin');
-            return { success: 'Oprávnění uloženo', action: 'grant' };
+            return { success: 'Permission saved', action: 'grant' };
         }
         catch {
-            return fail(400, { error: 'Oprávnění se nepodařilo uložit', action: 'grant' });
+            return fail(400, { error: 'Could not save the permission', action: 'grant' });
         }
     },
     inspect: async (e) => {
@@ -85,7 +85,7 @@ export const actions: Actions = {
             return { discovery: await inspectSite(s, site), site };
         }
         catch {
-            return fail(400, { error: 'Discovery se nezdařilo. Ověřte TLS, DNS a scope discovery:read.', action: 'inspect', site });
+            return fail(400, { error: 'Discovery failed. Check TLS, DNS and the discovery:read scope.', action: 'inspect', site });
         }
     }
 };

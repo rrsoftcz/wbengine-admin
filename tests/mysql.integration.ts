@@ -9,7 +9,7 @@ import { registerSite, listSites, grantSite, replaceSiteKey } from '../src/lib/s
 import { RegistrationError, type VerifiedSite } from '../src/lib/server/registration-contract.ts';
 import { validateBaseUrl } from '../src/lib/server/remote.ts';
 if (!process.env.DATABASE_URL?.includes('wbengine_admin_test'))
-    throw Error('Integrace vyžaduje izolovanou DB wbengine_admin_test');
+    throw Error('The integration test requires the isolated wbengine_admin_test DB');
 await transaction(async (c) => {
     await migrate(c);
     for (const table of ['audit', 'backup_codes', 'recovery', 'sessions', 'invitations', 'grants', 'sites', 'login_attempts', 'users'])

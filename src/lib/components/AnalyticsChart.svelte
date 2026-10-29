@@ -1,12 +1,12 @@
 <script lang="ts">
     import type { AnalyticsSeriesPoint } from '#lib/server/analytics.ts';
     type Metric = 'page_views' | 'article_views' | 'box_appearances';
-    let { series, metric = 'page_views', label = 'Zobrazení stránek' }: { series: AnalyticsSeriesPoint[]; metric?: Metric; label?: string } = $props();
+    let { series, metric = 'page_views', label = 'Page views' }: { series: AnalyticsSeriesPoint[]; metric?: Metric; label?: string } = $props();
 
     const width = 640, height = 240, left = 48, right = 16, top = 16, bottom = 32;
-    const nf = new Intl.NumberFormat('cs-CZ');
+    const nf = new Intl.NumberFormat('en-GB');
     const values = $derived(series.map(point => point[metric]));
-    // Horní mez osy zaokrouhlená na hezké číslo (1, 2, 5 krát mocnina deseti).
+    // Upper axis limit rounded to a round number (1, 2, 5 times a power of ten).
     const maximum = $derived.by(() => {
         const peak = Math.max(1, ...values);
         const power = 10 ** Math.floor(Math.log10(peak));
@@ -26,8 +26,8 @@
     const total = $derived(values.reduce((sum, value) => sum + value, 0));
     const peakIndex = $derived(values.indexOf(Math.max(...values, 0)));
     const summary = $derived(series.length
-        ? `Graf: ${label}. ${series.length} období od ${series[0].period_start} do ${series[series.length - 1].period_start}, celkem ${nf.format(total)}. Nejvyšší hodnota ${nf.format(values[peakIndex] ?? 0)} v období od ${series[peakIndex]?.period_start}. Přesné hodnoty jsou v tabulce pod grafem.`
-        : 'Bez dat.');
+        ? `Chart: ${label}. ${series.length} periods from ${series[0].period_start} to ${series[series.length - 1].period_start}, total ${nf.format(total)}. Highest value ${nf.format(values[peakIndex] ?? 0)} in the period starting ${series[peakIndex]?.period_start}. Exact values are in the table below the chart.`
+        : 'No data.');
     const uid = $props.id();
 </script>
 
@@ -48,5 +48,5 @@
             <circle cx={x(index)} cy={y(point[metric])} r={series.length > 45 ? 2 : 3.5} class="fill-surface stroke-brand" stroke-width="2"><title>{point.period_start}: {nf.format(point[metric])}</title></circle>
         {/each}
     </svg>
-    <figcaption class="mt-2 text-sm text-muted">{label}. Přesné hodnoty jsou uvedené v tabulce pod grafem.</figcaption>
+    <figcaption class="mt-2 text-sm text-muted">{label}. Exact values are given in the table below the chart.</figcaption>
 </figure>

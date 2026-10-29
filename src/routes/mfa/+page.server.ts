@@ -17,7 +17,7 @@ export const actions: Actions = { enroll: async (e) => {
             return { secret: await setupMfa(e.locals.session) };
         }
         catch {
-            return fail(400, { error: 'Nastavení se nezdařilo' });
+            return fail(400, { error: 'Setup failed' });
         }
     }, verify: async (e) => {
         if (!e.locals.session)
@@ -29,7 +29,7 @@ export const actions: Actions = { enroll: async (e) => {
             setSession(e, result.sessionToken);
         }
         catch {
-            return fail(400, { error: 'Ověření se nezdařilo nebo je dočasně omezené' });
+            return fail(400, { error: 'Verification failed or is temporarily restricted' });
         }
         if (result.codes.length)
             return { codes: result.codes };
