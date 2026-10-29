@@ -16,3 +16,15 @@ export function changeLabel(action: unknown): string {
     const known: Record<string, string> = { create: 'Vytvoření', update: 'Úprava', delete: 'Smazání', publish: 'Publikace', 'draft.create': 'Nový koncept', 'draft.save': 'Uložení konceptu', 'draft.restore': 'Obnovení konceptu', save: 'Uložení konceptu', restore: 'Obnovení' };
     return known[a] ?? (a.startsWith('restore:') ? 'Obnovení stavu' : a || 'Změna');
 }
+/** Názvy akcí odstranění podle typu záznamu: tlačítko, potvrzení (2. pád) a objekt věty (4. pád). */
+export const deleteNames: Record<string, { button: string; confirm: string; object: string }> = {
+    articles: { button: 'Smazat článek', confirm: 'Potvrzuji smazání článku', object: 'Článek' },
+    pages: { button: 'Odstranit stránku', confirm: 'Potvrzuji odstranění stránky', object: 'Stránku' },
+    menu: { button: 'Odstranit položku menu', confirm: 'Potvrzuji odstranění položky menu', object: 'Položku menu' },
+    sections: { button: 'Odstranit sekci', confirm: 'Potvrzuji odstranění sekce', object: 'Sekci' },
+    boxes: { button: 'Zrušit box', confirm: 'Potvrzuji zrušení boxu', object: 'Box' },
+    images: { button: 'Odstranit obrázek', confirm: 'Potvrzuji odstranění obrázku', object: 'Obrázek' },
+};
+export function deleteName(resource: string) {
+    return deleteNames[resource] ?? { button: 'Odstranit záznam', confirm: 'Potvrzuji odstranění', object: 'Záznam' };
+}
