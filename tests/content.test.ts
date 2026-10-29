@@ -204,7 +204,7 @@ test('every error code tied to a field names a real schema field, and the source
     assert.ok(!errorMessages.invalid_source.includes('in the text'));
 });
 
-import { normalizePageLink, offersArticleBox, createArticleBox, findCentralSection, loadArticleBoxPages } from '../src/lib/server/content.ts';
+import { normalizePageLink, offersArticleBox, createArticleBox, findCentralSection, loadArticleBoxPages, loadBoxCoverage } from '../src/lib/server/content.ts';
 test('page link is normalized to /slug/ form, root and invalid characters are left alone', () => {
     assert.equal(normalizePageLink('/testovaci-blog'), '/testovaci-blog/');
     assert.equal(normalizePageLink('about/'), '/about/');
@@ -284,4 +284,11 @@ test('article box pages are found from story boxes and failures hide the notice'
     assert.equal(await loadArticleBoxPages(g, []), null);
     const broken = createContentGateway({ role: 'global', scopes: ['boxes:read'], capabilities: { boxes: { read: true } }, call: async () => { throw new RemoteFailure(500, 'x'); } });
     assert.equal(await loadArticleBoxPages(broken, story), null);
+});
+
+test('box coverage separates story boxes from custom and shared boxes', async () => {
+    const calls: unknown[] = [];
+    const g = boxGateway(calls, { boxes: [{ type: 'story', sites: [5] }, { type: null, sites: ['18', 19] }, { type: null, shared: 1, sites: [] }] });
+    assert.deepEqual(await loadBoxCoverage(g, story), { story: [5], other: [18, 19], shared: true });
+    assert.equal(await loadBoxCoverage(g, []), null);
 });

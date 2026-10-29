@@ -53,7 +53,7 @@ export const referenceFields: Partial<Record<Resource, Record<string, { source: 
     articles: { site_id: { source: 'pages', zero: 'Not selected yet (the article cannot be published)' } },
     pages: { parent_id: { source: 'pages', zero: 'None (root)' } },
     menu: { site_id: { source: 'pages', zero: 'Not selected yet' }, parent: { source: 'menu', zero: 'None (root)' } },
-    boxes: { section_id: { source: 'sections', zero: 'Not selected yet' } }
+    boxes: { section_id: { source: 'sections', zero: 'Not selected yet' }, sites: { source: 'pages' } }
 };
 function optionLabel(source: Resource, row: Record<string, unknown>): string {
     const text = (v: unknown) => typeof v === 'string' ? v.slice(0, 120) : '';
@@ -140,22 +140,32 @@ export async function createArticleBox(gateway: ReturnType<typeof createContentG
     }
 }
 /** IDs of pages that have a box rendering articles. Null if it cannot be determined (the box is then not reported). */
-export async function loadArticleBoxPages(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, boxTypes: BoxType[]): Promise<number[] | null> {
+export type BoxCoverage = { story: number[]; other: number[]; shared: boolean };
+/**
+ * Pages covered by boxes. Only registered story boxes are known to display articles. Boxes of other or unregistered types
+ * (for example a custom module that renders the article of its page itself) are collected separately, because the site does
+ * not tell whether they show articles. A shared box appears on every page of its section, so it is reported as a flag.
+ */
+export async function loadBoxCoverage(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, boxTypes: BoxType[]): Promise<BoxCoverage | null> {
     if (!boxTypes.some(x => x.type === 'story'))
         return null;
-    const pages = new Set<number>();
+    const story = new Set<number>(), other = new Set<number>();
+    let shared = false;
     try {
         for (let page = 1; page <= 5; page++) {
             const reply = await gateway.list('boxes', page, 100);
             if (!Array.isArray(reply.data))
                 return null;
             for (const row of reply.data as Record<string, unknown>[]) {
-                if (row?.type !== 'story' || !Array.isArray(row.sites))
+                if (!row || typeof row !== 'object')
                     continue;
-                for (const site of row.sites) {
+                const target = row.type === 'story' ? story : other;
+                if (Number(row.shared) === 1 && row.type !== 'story')
+                    shared = true;
+                for (const site of Array.isArray(row.sites) ? row.sites : []) {
                     const id = Number(site && typeof site === 'object' ? (site as Record<string, unknown>).site_id ?? (site as Record<string, unknown>).id : site);
                     if (Number.isSafeInteger(id) && id > 0)
-                        pages.add(id);
+                        target.add(id);
                 }
             }
             if (!reply.pagination || page >= reply.pagination.total_pages)
@@ -165,7 +175,10 @@ export async function loadArticleBoxPages(gateway: Pick<ReturnType<typeof create
     catch {
         return null;
     }
-    return [...pages];
+    return { story: [...story], other: [...other], shared };
+}
+export async function loadArticleBoxPages(gateway: Pick<ReturnType<typeof createContentGateway>, 'list'>, boxTypes: BoxType[]): Promise<number[] | null> {
+    return (await loadBoxCoverage(gateway, boxTypes))?.story ?? null;
 }
 export function parseFields(r: Resource, f: FormData, translation = false, boxTypes: BoxType[] = []) {
     const output: Record<string, unknown> = {};
@@ -182,8 +195,8 @@ export function parseFields(r: Resource, f: FormData, translation = false, boxTy
             continue;
         if (spec.max && Buffer.byteLength(raw) > spec.max)
             throw Error(`Field ${spec.label} is too long`);
-        if (spec.kind === 'number' || spec.kind === 'boolean') {
-            if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))
+        if (spec.kind === 'number' || spec.kind === 'boolean' || spec.kind === 'device') {
+            if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)) || (spec.kind === 'device' && Number(raw) > 3))
                 throw Error(`Invalid field ${spec.label}`);
             output[spec.name] = Number(raw);
         }

@@ -13,7 +13,9 @@ const directory=await mkdtemp(join(process.cwd(),'.svelte-kit','tmp-resource-fie
 after(()=>rm(directory,{recursive:true,force:true}));
 const source=await readFile(new URL('../src/lib/components/ResourceFields.svelte',import.meta.url),'utf8');
 const compiled=compile(source,{generate:'server',filename:'ResourceFields.svelte'});
-const modulePath=join(directory,'ResourceFields.mjs');await writeFile(modulePath,compiled.js.code);
+const pickerSource=await readFile(new URL('../src/lib/components/PagePicker.svelte',import.meta.url),'utf8');
+await writeFile(join(directory,'PagePicker.mjs'),compile(pickerSource,{generate:'server',filename:'PagePicker.svelte'}).js.code);
+const modulePath=join(directory,'ResourceFields.mjs');await writeFile(modulePath,compiled.js.code.replace("./PagePicker.svelte","./PagePicker.mjs"));
 const {default:Component}=await import(pathToFileURL(modulePath).href);
 function controls(resource:Resource,values:Record<string,unknown>,translation=false){const html=render(Component,{props:{resource,values,translation}}).body;return [...html.matchAll(/<(?:input|textarea|select)\b[^>]*>/g)].map(m=>m[0]);}
 function byName(nodes:string[],name:string){const node=nodes.find(s=>s.includes(`name="${name}"`));assert.ok(node,`Control ${name} must be rendered`);return node;}
@@ -32,3 +34,14 @@ assert.ok(page({}).includes('/about-us/'));
 const art=render(Component,{props:{resource:'articles' as Resource,values:{...defaults('articles'),site_id:2},refs:{site_id:[{value:2,label:'A'},{value:3,label:'B'}]},siteId:7,articleBoxPages:[3]}}).body;
 assert.ok(art.includes('This page does not have a box that displays articles yet'));assert.ok(art.includes('/content/7/boxes/new'));
 const fine=render(Component,{props:{resource:'articles' as Resource,values:{...defaults('articles'),site_id:3},refs:{site_id:[{value:2,label:'A'},{value:3,label:'B'}]},siteId:7,articleBoxPages:[3]}}).body;assert.ok(!fine.includes('does not have a box'));});
+
+test('box device is a named select and pages are a picker with chips and a shared notice',()=>{
+const render2=(values:Record<string,unknown>)=>render(Component,{props:{resource:'boxes' as Resource,values:{...defaults('boxes'),...values},refs:{sites:[{value:1,label:'Home (/)'},{value:2,label:'About (/about/)'}]},boxTypes:[]}}).body;
+const html=render2({device_min:2,sites:[2],shared:0});
+assert.ok(/<select[^>]*name="device_min"/.test(html));
+for(const label of ['Any device','Mobile','Tablet','Desktop PC'])assert.ok(html.includes(label));
+assert.ok(/<option(?=[^>]*value="2")(?=[^>]*selected)[^>]*>Tablet/.test(html.replace(/<!---->/g,'')));
+assert.ok(html.includes('About (/about/)')&&/name="sites"[^>]*value="2"|value="2"[^>]*name="sites"/.test(html));
+assert.ok(!html.includes('The box is shared'));
+assert.ok(render2({shared:1,sites:[]}).includes('The box is shared'));
+});
