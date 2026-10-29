@@ -10,7 +10,7 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     const offline = e.locals.contentFailure;
     if (e.request.method === 'POST' && offline && offline.resource === r && offline.id === id && offline.site.id === siteId(e.params.site)) {
         const editable = offline.role !== 'editor' || r === 'articles';
-        return { site: offline.site, resource: r, id, row: {} as Record<string, unknown>, values: { ...defaults(r), ...offline.fields }, etag: offline.fields.etag ?? null, deleted: false, boxTypes: [], csrf: e.locals.csrf, locale: offline.fields.locale ?? '', translation: null, translationEtag: null, history: [] as Record<string, unknown>[], historyEtag: null, pagination: undefined, image: null, permissions: {} as Record<string, boolean>, refs: {} as Record<string, ReferenceOption[] | null>, unavailable: true, offlineFields: offline.fields, offlineAction: offline.action, offlineEditable: editable, versions: null as { locale: string; original: boolean; exists: boolean }[] | null, locales: null as { default: string; list: string[] } | null, offerArticleBox: false, canAddArticleBox: false, articleBoxPages: null as number[] | null, boxWarning: false };
+        return { site: offline.site, resource: r, id, row: {} as Record<string, unknown>, values: { ...defaults(r), ...offline.fields }, etag: offline.fields.etag ?? null, deleted: false, boxTypes: [], csrf: e.locals.csrf, locale: offline.fields.locale ?? '', translation: null, translationEtag: null, history: [] as Record<string, unknown>[], historyEtag: null, pagination: undefined, image: null, permissions: {} as Record<string, boolean>, refs: {} as Record<string, ReferenceOption[] | null>, unavailable: true, offlineFields: offline.fields, offlineAction: offline.action, offlineEditable: editable, historyOpen: false, versions: null as { locale: string; original: boolean; exists: boolean }[] | null, locales: null as { default: string; list: string[] } | null, offerArticleBox: false, canAddArticleBox: false, articleBoxPages: null as number[] | null, boxWarning: false };
     }
     if (id === 'recover') {
         const recovered = e.url.searchParams.get('recoverId');
@@ -51,8 +51,8 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     }
     const versions = locales && id !== 'new' && !deleted && translationFields[r] && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'translationGet', r) ? await loadLanguageVersions(gateway, r, id, locales) : null;
     let history: Record<string, unknown>[] = [], historyEtag: string | null = null, pagination;
-    const historyPage = Number(e.url.searchParams.get('historyPage') ?? 1);
-    if (id !== 'new' && r !== 'images') {
+    const historyPage = Number(e.url.searchParams.get('historyPage') ?? 1), historyOpen = e.url.searchParams.get('history') === '1' || e.url.searchParams.has('historyPage');
+    if (id !== 'new' && r !== 'images' && historyOpen) {
         const result = await gateway.history(r, id, historyPage);
         history = result.data as Record<string, unknown>[];
         historyEtag = result.etag;
@@ -67,6 +67,6 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     let image: string | null = null;
     if (r === 'images' && ['image/png', 'image/jpeg', 'image/webp'].includes(String(row.mime)) && typeof row.base64 === 'string' && row.base64.length <= 699052 && /^[A-Za-z0-9+/]*={0,2}$/.test(row.base64))
         image = `data:${row.mime};base64,${row.base64}`;
-    return { versions, locales: locales ?? null, offerArticleBox, canAddArticleBox, articleBoxPages, boxWarning: r === 'pages' && e.url.searchParams.get('boxWarning') === '1', refs, unavailable: false, offlineFields: {} as Record<string, string>, offlineAction: 'save' as const, offlineEditable: false, site, resource: r, id, row: { ...row, base64: undefined } as Record<string, unknown>, values, etag, deleted, boxTypes, csrf: e.locals.csrf, locale, translation, translationEtag, history, historyEtag, pagination, image, permissions: Object.fromEntries(['save', 'delete', 'publish', 'restore', 'structureRestore', 'preview', 'translationGet', 'translationSave', 'translationDelete'].map(action => [action, canOperate(gateway.role, gateway.scopes, gateway.capabilities, action, r)])) };
+    return { historyOpen, versions, locales: locales ?? null, offerArticleBox, canAddArticleBox, articleBoxPages, boxWarning: r === 'pages' && e.url.searchParams.get('boxWarning') === '1', refs, unavailable: false, offlineFields: {} as Record<string, string>, offlineAction: 'save' as const, offlineEditable: false, site, resource: r, id, row: { ...row, base64: undefined } as Record<string, unknown>, values, etag, deleted, boxTypes, csrf: e.locals.csrf, locale, translation, translationEtag, history, historyEtag, pagination, image, permissions: Object.fromEntries(['save', 'delete', 'publish', 'restore', 'structureRestore', 'preview', 'translationGet', 'translationSave', 'translationDelete'].map(action => [action, canOperate(gateway.role, gateway.scopes, gateway.capabilities, action, r)])) };
 });
 export { contentActions as actions } from '#lib/server/content-actions.ts';
