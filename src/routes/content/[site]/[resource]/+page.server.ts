@@ -1,11 +1,15 @@
 import {contentLoad} from '#lib/server/content-web.ts';
 import { fail, redirect } from '@sveltejs/kit';
-import { connectContent, siteId, resourceName, canOperate } from '#lib/server/content.ts';
+import { connectContent, siteId, resourceName, canOperate, loadLanguageVersions } from '#lib/server/content.ts';
+import { translationFields, idOf } from '#lib/content-schema.ts';
 import { signedIn, form } from '#lib/server/web.ts';
 import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async (e) => contentLoad(async()=>{
-    const r = resourceName(e.params.resource), { site, gateway } = await connectContent(signedIn(e), siteId(e.params.site)), page = Number(e.url.searchParams.get('page') ?? 1), list = await gateway.list(r, page);
-    return { site, resource: r, items: list.data as Record<string, unknown>[], pagination: list.pagination, csrf: e.locals.csrf, canCreate: canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'save', r) };
+    const r = resourceName(e.params.resource), { site, gateway, locales } = await connectContent(signedIn(e), siteId(e.params.site)), page = Number(e.url.searchParams.get('page') ?? 1), list = await gateway.list(r, page);
+    const items = list.data as Record<string, unknown>[], langs: Record<string, { locale: string; original: boolean; exists: boolean }[]> = {};
+    if (locales && locales.list.length > 1 && translationFields[r] && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'translationGet', r))
+        await Promise.all(items.map(async (row) => { const id = idOf(r, row); langs[id] = await loadLanguageVersions(gateway, r, id, locales); }));
+    return { langs, site, resource: r, items, pagination: list.pagination, csrf: e.locals.csrf, canCreate: canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'save', r) };
 });
 export const actions: Actions = { upload: async (e) => {
         const s = signedIn(e);

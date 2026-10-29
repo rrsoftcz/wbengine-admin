@@ -16,6 +16,7 @@
     const nounNew:Record<string,string>={articles:'Nový článek',pages:'Nová stránka',menu:'Nová položka menu',sections:'Nová sekce',boxes:'Nový box',images:'Nový obrázek'};
     const title=(row:Record<string,unknown>)=>String(row.draft_title??row.title??row.name??row.image_id??row.key??idOf(data.resource,row));
     const rows=$derived(data.items.filter((row:Record<string,unknown>)=>!query.trim()||(title(row)+' '+idOf(data.resource,row)+' '+String(row.link??'')).toLowerCase().includes(query.trim().toLowerCase())));
+    const hasLangs=$derived(Object.keys(data.langs??{}).length>0);
     const size=(n:unknown)=>{const v=Number(n);return v>=1024?new Intl.NumberFormat('cs-CZ',{maximumFractionDigits:1}).format(v/1024)+' KiB':String(v)+' B';};
 </script>
 
@@ -52,18 +53,19 @@
     <div class="card-flat overflow-x-auto p-0">
         <table class="table">
             <caption class="sr-only">{labels[data.resource]}, {data.site.name}</caption>
-            <thead><tr><th scope="col">Název</th>{#if data.resource==='articles'}<th scope="col">Stav</th>{/if}{#if data.resource==='images'}<th scope="col">Soubor</th>{:else}<th scope="col" class="hidden sm:table-cell">Adresa</th>{/if}<th scope="col" class="text-right">ID</th></tr></thead>
+            <thead><tr><th scope="col">Název</th>{#if data.resource==='articles'}<th scope="col">Stav</th>{/if}{#if hasLangs}<th scope="col">Jazyky</th>{/if}{#if data.resource==='images'}<th scope="col">Soubor</th>{:else}<th scope="col" class="hidden sm:table-cell">Adresa</th>{/if}<th scope="col" class="text-right">ID</th></tr></thead>
             <tbody>
                 {#each rows as row}
                     <tr>
                         <td class="max-w-xs font-semibold"><a class="block truncate" href={base+'/'+idOf(data.resource,row)}>{title(row)}</a></td>
                         {#if data.resource==='articles'}<td>{#if row.has_draft}<StatusBadge state="draft"/>{:else}<StatusBadge state="published"/>{/if}</td>{/if}
+                        {#if hasLangs}<td><span class="flex flex-wrap gap-1">{#each data.langs[idOf(data.resource,row)]??[] as v}<a class="badge {v.exists?'badge-brand':''} no-underline {v.exists?'':'opacity-60'}" href={base+'/'+idOf(data.resource,row)+(v.original?'':'?locale='+encodeURIComponent(v.locale))} title={v.original?'Upravit originál':v.exists?'Upravit překlad':'Přidat překlad'}>{v.locale}{v.original?' (originál)':v.exists?'':' +'}</a>{/each}</span></td>{/if}
                         {#if data.resource==='images'}<td class="text-muted"><span class="block">{String(row.mime)}, {size(row.size)}, veřejný soubor</span><code class="break-all">{String(row.url)}</code></td>
                         {:else}<td class="hidden text-muted sm:table-cell">{#if row.link}<code>{String(row.link)}</code>{/if}</td>{/if}
                         <td class="text-right text-muted">{idOf(data.resource,row)}</td>
                     </tr>
                 {:else}
-                    <tr><td colspan="4" class="text-center text-muted">Nic neodpovídá hledání „{query}“.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted">Nic neodpovídá hledání „{query}“.</td></tr>
                 {/each}
             </tbody>
         </table>
