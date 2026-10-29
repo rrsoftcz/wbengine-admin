@@ -71,3 +71,11 @@ test('projectLocales keeps only well formed locales and tolerates old sites', as
     assert.equal(projectLocales(undefined), null);
     assert.equal(projectLocales({ default: 'EN', locales: [] }), null);
 });
+test('change time and actor are readable', async () => {
+    const { changeTime, changeActor } = await import('../src/lib/content-format.ts');
+    assert.match(changeTime(1793292721), /^\d{1,2}\. \d{1,2}\. \d{4}/);
+    assert.equal(changeTime('2026-10-29 10:00'), '2026-10-29 10:00');
+    assert.equal(changeActor({ central_actor: 'admin:7' }, { 'admin:7': 'a@b.cz' }), 'a@b.cz');
+    assert.equal(changeActor({ central_actor: 'admin:9' }, {}), 'admin:9');
+    assert.equal(changeActor({ central_actor: null }, {}), 'přímo na webu');
+});

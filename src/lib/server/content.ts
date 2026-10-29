@@ -398,3 +398,13 @@ export function renderPreviewDocument(value: {
     const title = value.title.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
     return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; sandbox"><title>${title}</title><style>body{max-width:75ch;margin:2rem auto;font:17px/1.6 system-ui;overflow-wrap:anywhere}pre{white-space:pre-wrap}</style></head><body><h1>${title}</h1>${value.introtext}${value.bodytext}</body></html>`;
 }
+
+/** Kdo změny provedl: web ukládá central_actor jako admin:ID, e-mail se dohledá v Adminu. Změna bez aktéra vznikla přímo na webu. */
+export async function loadActors(history: Record<string, unknown>[]): Promise<Record<string, string>> {
+    const ids = [...new Set(history.map(h => /^admin:([1-9][0-9]{0,18})$/.exec(String(h.central_actor ?? ''))?.[1]).filter((x): x is string => !!x))].slice(0, 50);
+    if (!ids.length)
+        return {};
+    const found = await transaction(c => rows<{ id: number | string; email: string }>(c, `SELECT id,email FROM users WHERE id IN (${ids.map(() => '?').join(',')})`, ids));
+    const map = Object.fromEntries(found.map(u => [`admin:${u.id}`, u.email]));
+    return Object.fromEntries(ids.map(id => [`admin:${id}`, map[`admin:${id}`] ?? `smazaný uživatel #${id}`]));
+}
