@@ -72,7 +72,7 @@
   <div class="flex flex-wrap items-center gap-2">
    {#if articles&&data.id!=='new'&&data.permissions.preview}<a class="btn btn-secondary btn-sm" href={here+'/preview'+localeQuery} target="_blank" rel="noopener noreferrer" onclick={(e)=>{e.preventDefault();previewVisible=!previewVisible;}}>{previewVisible?'Skrýt náhled':'Náhled'}</a>{/if}
    {#if articles&&data.row.draft&&data.permissions.publish}<a class="btn btn-secondary btn-sm" href="#publikace" onclick={()=>open('publish')}>Publikovat</a>{/if}
-   {#if data.id!=='new'&&data.permissions.delete}<a class="btn btn-ghost btn-sm text-danger" href="#smazat" onclick={()=>open('delete')}>Smazat</a>{/if}
+   {#if data.id!=='new'&&data.permissions.delete}<a class="btn btn-ghost btn-sm text-danger" href={data.dependents?.length?'#vazby':'#smazat'} onclick={()=>{if(!data.dependents?.length)open('delete');}}>{data.dependents?.length?'Smazat (blokováno vazbami)':'Smazat'}</a>{/if}
    {#if canEdit}<SubmitButton form="save-form" busy={pending.is(translating?'?/translationSave':'?/save')} small>{translating?'Uložit překlad':articles?'Uložit koncept':'Uložit změny'}</SubmitButton>{/if}
   </div>
  </div>
@@ -209,12 +209,15 @@
  {/if}
 
  {#if data.permissions.delete}
+ {#if data.dependents&&data.dependents.length}
+  <section id="vazby" class="card-flat grid gap-3 border-warn text-sm" aria-labelledby="vazby-nadpis">
+   <h2 id="vazby-nadpis" class="text-base text-warn">Záznam nelze odstranit</h2>
+   <p>Visí na něm další obsah. Nejdřív ho odstraňte nebo přesuňte, potom záznam půjde smazat. Web by smazání odmítl.</p>
+   {#each data.dependents??[] as group}<section class="grid gap-1"><h3 class="text-sm">{group.label} ({group.count})</h3><ul class="grid gap-1">{#each group.items as item}<li><a href={'/content/'+data.site.id+'/'+group.resource+'/'+item.id}>{item.label}</a></li>{/each}{#if group.truncated}<li class="text-muted">a další ({group.count-group.items.length})</li>{/if}</ul></section>{/each}
+  </section>
+ {:else}
   <details id="smazat" bind:open={deleteOpen} class="card-flat border-danger/40">
    <summary class="font-semibold text-danger">Odstranit záznam</summary>
-   {#if data.dependents&&data.dependents.length}
-   <div class="mt-3 grid gap-3" role="status"><p class="alert alert-warn">Záznam nelze odstranit, dokud na něm visí další obsah. Nejdřív odstraňte nebo přesuňte položky níže, potom se vraťte.</p>
-    {#each data.dependents as group}<section class="grid gap-1"><h3 class="text-sm">{group.label} ({group.count})</h3><ul class="grid gap-1 text-sm">{#each group.items as item}<li><a href={'/content/'+data.site.id+'/'+group.resource+'/'+item.id}>{item.label}</a></li>{/each}{#if group.truncated}<li class="text-muted">a další ({group.count-group.items.length})</li>{/if}</ul></section>{/each}</div>
-   {:else}
    <form method="POST" action="?/delete" use:enhance={pending.submit} class="mt-3 grid gap-3">
 <p class="hint">Odstranění je změna veřejného obsahu. Předem ověřte návaznosti a odkazy.</p>
 <input name="csrf" type="hidden" value={data.csrf}/>
@@ -223,8 +226,9 @@
 <input name="confirm" value="yes" type="checkbox" required/> Potvrzuji odstranění</label>
 <div><SubmitButton variant="danger" busy={pending.is('?/delete')}>Odstranit</SubmitButton></div>
 </form>
-     {/if}
-  </details>
+    </details>
+ {/if}
+
  {/if}
 </aside>
 {/if}
