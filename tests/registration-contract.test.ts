@@ -95,3 +95,23 @@ test('dependents of a page list articles, boxes, menu items and child pages', as
     assert.deepEqual(await loadDependents(gateway, 'pages', '99'), []);
     assert.deepEqual(await loadDependents(gateway, 'articles', '1'), []);
 });
+test('liveUrl and loadLiveLinks build the public address of a record', async () => {
+    const { liveUrl } = await import('../src/lib/content-format.ts');
+    const { loadLiveLinks } = await import('../src/lib/server/content.ts');
+    assert.equal(liveUrl('https://www.wbengine.org/', '/test-2/'), 'https://www.wbengine.org/test-2/');
+    assert.equal(liveUrl('https://www.wbengine.org', '/test-2/', 'cs', 'en'), 'https://www.wbengine.org/cs/test-2/');
+    assert.equal(liveUrl('https://www.wbengine.org', '/test-2/', 'en', 'en'), 'https://www.wbengine.org/test-2/');
+    assert.equal(liveUrl('https://www.wbengine.org', 'https://evil.example/'), null);
+    assert.equal(liveUrl('https://www.wbengine.org', ''), null);
+    const pages: Record<string, Record<string, unknown>> = { 5: { site_id: 5, title: 'Test 2', link: '/test-2/', visible: 1 }, 6: { site_id: 6, title: 'Skryta', link: '/skryta/', visible: 0 } };
+    const gateway = { async get(_r: string, id: string) { if (!pages[id]) throw new RemoteFailure(404, 'not_found'); return { data: pages[id], etag: null }; } } as never;
+    const base = 'https://www.wbengine.org/';
+    assert.deepEqual((await loadLiveLinks(gateway, base, 'pages', pages[5])).map(x => x.url), ['https://www.wbengine.org/test-2/']);
+    const article = await loadLiveLinks(gateway, base, 'articles', { site_id: 5, draft: { content: {} } }, { articleBoxPages: [] });
+    assert.match(article[0].note ?? '', /chybí box/);
+    assert.match(article[0].note ?? '', /publikovaná/);
+    const box = await loadLiveLinks(gateway, base, 'boxes', { sites: [{ site_id: 5 }, 6, 99] });
+    assert.equal(box.length, 2);
+    assert.match(box[1].note ?? '', /skrytá/);
+    assert.deepEqual(await loadLiveLinks(gateway, base, 'sections', { section_id: 1 }), []);
+});

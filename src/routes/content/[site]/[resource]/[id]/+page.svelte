@@ -186,6 +186,13 @@
 </details>{/if}
  </section>
 
+ {#if data.liveLinks.length}
+  <section class="card-flat grid gap-2 text-sm" aria-labelledby="ziva-adresa">
+   <h2 id="ziva-adresa" class="text-base">{data.liveLinks.length>1?'Živé adresy':'Živá adresa'}</h2>
+   <ul class="grid gap-2">{#each data.liveLinks as link}<li class="grid gap-0.5"><a href={link.url} target="_blank" rel="noopener noreferrer" class="break-all font-semibold">{link.url}</a><span class="text-xs text-muted">{link.label}</span>{#if link.note}<span class="text-xs text-muted">{link.note}</span>{/if}</li>{/each}</ul>
+  </section>
+ {/if}
+
  {#if data.history.length}
   <section class="card-flat grid gap-2 text-sm" aria-labelledby="posledni-zmeny">
    <h2 id="posledni-zmeny" class="text-base">Poslední změny</h2>

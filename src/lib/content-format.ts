@@ -28,3 +28,17 @@ export const deleteNames: Record<string, { button: string; confirm: string; obje
 export function deleteName(resource: string) {
     return deleteNames[resource] ?? { button: 'Odstranit záznam', confirm: 'Potvrzuji odstranění', object: 'Záznam' };
 }
+
+/** Živá adresa stránky na webu: základ webu + odkaz stránky, u jiného než výchozího jazyka s jeho předponou. Null: odkaz nelze složit. */
+export function liveUrl(baseUrl: string, link: unknown, locale = '', defaultLocale = ''): string | null {
+    const path = String(link ?? '').trim();
+    if (!path || /^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith('//'))
+        return null;
+    try {
+        const prefix = locale && locale !== defaultLocale ? '/' + locale : '';
+        return new URL(prefix + (path.startsWith('/') ? path : '/' + path), baseUrl).href;
+    }
+    catch {
+        return null;
+    }
+}

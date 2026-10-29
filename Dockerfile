@@ -14,5 +14,6 @@ COPY --from=build --chown=node:node /app/scripts ./scripts
 COPY --from=build --chown=node:node /app/migrations ./migrations
 COPY --from=build --chown=node:node /app/src/lib/server ./src/lib/server
 COPY --from=build --chown=node:node /app/src/lib/content-schema.ts ./src/lib/content-schema.ts
+COPY --from=build --chown=node:node /app/src/lib/content-format.ts ./src/lib/content-format.ts
 USER node
 CMD ["node","build"]
