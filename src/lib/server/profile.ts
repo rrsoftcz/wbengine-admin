@@ -118,7 +118,7 @@ export async function profileInfo(userId: number): Promise<ProfileInfo> {
 
 const categoryFilter: Record<ActivityCategory, string> = {
     signin: "event IN ('login.password','login.mfa','logout')",
-    account: "(event LIKE 'password.%' OR event LIKE 'mfa.%' OR event='recovery.issued' OR event='profile.locale')",
+    account: "(event LIKE 'password.%' OR event LIKE 'mfa.%' OR event LIKE 'user.%' OR event='recovery.issued' OR event='profile.locale')",
     sites: "(event LIKE 'site.%' OR event LIKE 'grant.%' OR event LIKE 'invite.%')"
 };
 export const activityPageSize = 20;

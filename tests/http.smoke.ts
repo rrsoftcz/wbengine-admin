@@ -89,6 +89,13 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     const filtered = await (await get('/profile?activity=sites&activityPage=999')).text();
     assert.ok(filtered.includes('No activity of this type.') || filtered.includes('Showing'));
     assert.equal((await get('/profile?activity=%27%3B--&activityPage=-4')).status, 200);
+    const users = await get('/users?q=http-');
+    assert.equal(users.status, 200);
+    const usersHtml = await users.text();
+    assert.ok(usersHtml.includes('Invite a user') && usersHtml.includes(email));
+    assert.equal((await get('/users?page=-3&q=%25')).status, 200);
+    assert.equal((await get('/users/999999')).status, 404);
+    assert.equal((await get('/users/abc')).status, 404);
     csrf = csrfFrom(await (await get('/')).text())!;
     assert.equal((await post('/?/logout', { csrf })).status, 303);
     assert.equal((await get('/sites')).headers.get('location'), '/login');

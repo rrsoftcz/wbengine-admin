@@ -12,6 +12,8 @@ export default {
     'app.shell.roleMember': 'Team member',
     'app.nav.sites': 'Sites',
     'app.nav.sitesHint': 'Overview and content management',
+    'app.nav.users': 'Users',
+    'app.nav.usersHint': 'Accounts, invitations, access',
     'app.nav.registry': 'Site registry',
     'app.nav.registryHint': 'Adding a site, keys, permissions',
     'app.error.title': '{title} | WBengine',

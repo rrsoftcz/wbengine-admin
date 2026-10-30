@@ -6,7 +6,7 @@ export type ActivityCategory = (typeof activityCategories)[number];
 export function activityCategory(event: string): ActivityCategory | 'other' {
     if (['login.password', 'login.mfa', 'logout'].includes(event))
         return 'signin';
-    if (/^(password|mfa)\./.test(event) || event === 'recovery.issued' || event === 'profile.locale')
+    if (/^(password|mfa|user)\./.test(event) || event === 'recovery.issued' || event === 'profile.locale')
         return 'account';
     if (/^(site|grant|invite)\./.test(event))
         return 'sites';

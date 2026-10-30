@@ -8,7 +8,7 @@
     const path = $derived(page.url.pathname);
     const items = $derived([
         { href: '/', label: t('app.nav.sites'), hint: t('app.nav.sitesHint'), match: (p: string) => p === '/' || p.startsWith('/content') || p.startsWith('/analytics'), icon: 'grid' },
-        ...(user.globalAdmin ? [{ href: '/sites', label: t('app.nav.registry'), hint: t('app.nav.registryHint'), match: (p: string) => p.startsWith('/sites'), icon: 'shield' }] : [])
+        ...(user.globalAdmin ? [{ href: '/sites', label: t('app.nav.registry'), hint: t('app.nav.registryHint'), match: (p: string) => p.startsWith('/sites'), icon: 'shield' }, { href: '/users', label: t('app.nav.users'), hint: t('app.nav.usersHint'), match: (p: string) => p.startsWith('/users'), icon: 'people' }] : [])
     ]);
     const initials = $derived(user.email.slice(0, 2).toUpperCase());
 </script>
@@ -35,6 +35,7 @@
                    class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold no-underline transition {active ? 'bg-brand-soft text-brand' : 'text-muted hover:bg-surface-2 hover:text-text'}">
                     <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         {#if item.icon === 'grid'}<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                        {:else if item.icon === 'people'}<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M17 14.2c2.4 0 4 1.8 4 4.3"/>
                         {:else}<path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>{/if}
                     </svg>
                     <span>{item.label}</span>
