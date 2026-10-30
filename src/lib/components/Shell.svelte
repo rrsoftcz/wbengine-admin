@@ -46,8 +46,13 @@
             <div class="mb-3 flex items-center gap-3 px-2">
                 <span class="grid size-9 shrink-0 place-items-center rounded-full bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">{initials}</span>
                 <span class="min-w-0 leading-tight"><span class="block truncate text-sm font-semibold" title={user.email}>{user.email}</span><span class="block text-xs text-muted">{user.globalAdmin ? t('app.shell.roleGlobal') : t('app.shell.roleMember')}</span></span>
+                <a href="/profile" onclick={() => (open = false)} aria-current={path.startsWith('/profile') ? 'page' : undefined} aria-label={t('app.shell.profile')} title={t('app.shell.profile')}
+                   class="ml-auto grid size-9 shrink-0 place-items-center rounded-xl no-underline transition {path.startsWith('/profile') ? 'bg-brand-soft text-brand' : 'text-muted hover:bg-surface-2 hover:text-text'}">
+                    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+                    </svg>
+                </a>
             </div>
-            <a href="/profile" onclick={() => (open = false)} aria-current={path.startsWith('/profile') ? 'page' : undefined} class="btn btn-ghost btn-sm btn-block mb-2">{t('app.shell.profile')}</a>
             <form method="POST" action="/?/logout" use:enhance={() => async ({ update }) => { await update({ reset: false }); }}>
                 <input type="hidden" name="csrf" value={csrf} />
                 <button class="btn btn-secondary btn-sm btn-block">{t('app.shell.signOut')}</button>
