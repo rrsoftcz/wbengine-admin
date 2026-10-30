@@ -110,8 +110,13 @@ export function createApiClient({ deadlineMs = 8000, resolver, transport = reque
                             let code = 'remote_rejected';
                             try {
                                 const raw = Buffer.concat(errorChunks).toString();
-                                if (!(key && raw.includes(key)))
-                                    code = safeErrorCode(JSON.parse(raw)?.error?.code);
+                                if (!(key && raw.includes(key))) {
+                                    const reported = JSON.parse(raw)?.error?.code;
+                                    code = safeErrorCode(reported);
+                                    // The server log keeps the code the site reported, even when the catalog has no text for it.
+                                    if (typeof reported === 'string' && /^[a-z0-9_]{1,64}$/.test(reported))
+                                        console.warn(`Remote API ${status} ${call.operation}: ${reported}`);
+                                }
                             }
                             catch { /* invalid body: generic message */ }
                             fail(new RemoteFailure(status, code));
