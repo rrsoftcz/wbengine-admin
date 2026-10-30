@@ -28,4 +28,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     if(!response.headers.has('Content-Security-Policy'))response.headers.set('Content-Security-Policy', "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     return response;
 };
-export const handleError: HandleServerError = ({ event }) => ({ message: event.locals.t('error.generic') });
+export const handleError: HandleServerError = ({ error, event }) => {
+    console.error(error);
+    return { message: event.locals.t('error.generic') };
+};

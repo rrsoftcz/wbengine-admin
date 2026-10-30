@@ -11,7 +11,7 @@
     let pending = $state('');
     const info = $derived(data.info);
     const when = (value: string | null) => (value ? new Intl.DateTimeFormat(intl(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Prague' }).format(new Date(value.replace(' ', 'T') + 'Z')) : '');
-    const eventLabel = (event: string) => t((`profile.event.${event}` in page.data.messages ? `profile.event.${event}` : 'profile.event.other') as MessageKey);
+    const eventLabel = (event: string) => t((`profile.event.${event}` in page.data.uiMessages ? `profile.event.${event}` : 'profile.event.other') as MessageKey);
     const run = (name: string) => () => { pending = name; return async ({ update }: { update: (o?: { reset?: boolean }) => Promise<void> }) => { pending = ''; await update({ reset: true }); }; };
     const mine = (section: string) => (form && 'section' in form && form.section === section ? form : null);
 </script>

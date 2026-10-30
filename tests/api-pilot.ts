@@ -22,7 +22,7 @@ await new Promise<void>(r => socket.listen(0, '127.0.0.1', r));
 const port = (socket.address() as import('node:net').AddressInfo).port;
 await new Promise<void>(r => socket.close(() => r()));
 const transport = `http://127.0.0.1:${port}`, origin = `https://127.0.0.1:${port}`;
-const child = spawn(process.execPath, ['build'], { env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), ORIGIN: origin, BODY_SIZE_LIMIT: '1048576' }, stdio: 'ignore' });
+const child = spawn(process.execPath, ['build'], { env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), ORIGIN: origin, BODY_SIZE_LIMIT: '1048576' }, stdio: ['ignore', 'ignore', 'inherit'] });
 after(async () => {
     child.kill('SIGKILL');
     await database().end();
