@@ -2,7 +2,7 @@ import errorCatalog from '../i18n/en/errors.ts';
 import type { MessageKey, Translate } from '../i18n/index.ts';
 export const resources = ['articles', 'pages', 'menu', 'sections', 'boxes', 'images'] as const;
 export type Resource = typeof resources[number];
-export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
+export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'activity' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
 export interface ApiCall {
     operation: Operation;
     resource?: Resource;
@@ -15,6 +15,8 @@ export interface ApiCall {
     from?: string;
     to?: string;
     granularity?: 'day' | 'week' | 'month';
+    /** Filters of the change feed (operation 'activity'). */
+    feed?: { outcome?: 'applied' | 'rejected'; resource?: string; source?: string; actor?: string };
 }
 export interface ApiReply {
     data: unknown;
@@ -79,6 +81,33 @@ export function planApiCall(call: ApiCall): {
         if (!isIsoDate(call.from) || !isIsoDate(call.to) || !['day', 'week', 'month'].includes(call.granularity ?? '') || Date.parse(`${call.to}T00:00:00Z`) < Date.parse(`${call.from}T00:00:00Z`) || (Date.parse(`${call.to}T00:00:00Z`) - Date.parse(`${call.from}T00:00:00Z`)) / 86400000 >= 62)
             throw Error('Invalid analytics period');
         return { path: `analytics/overview?from=${encodeURIComponent(call.from)}&to=${encodeURIComponent(call.to)}&granularity=${encodeURIComponent(call.granularity!)}`, method: 'GET' };
+    }
+    if (op === 'activity') {
+        const page = call.page ?? 1, perPage = call.perPage ?? 25, feed = call.feed ?? {};
+        if (!Number.isInteger(page) || page < 1 || page > 1000000 || !Number.isInteger(perPage) || perPage < 1 || perPage > 100)
+            throw Error('Invalid page');
+        const query = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+        if (feed.outcome) {
+            if (!['applied', 'rejected'].includes(feed.outcome))
+                throw Error('Invalid outcome');
+            query.set('outcome', feed.outcome);
+        }
+        if (feed.resource) {
+            if (!/^[a-z_]{1,32}$/.test(feed.resource))
+                throw Error('Invalid resource');
+            query.set('resource', feed.resource);
+        }
+        if (feed.source) {
+            if (!['v2', 'v1', 'cli'].includes(feed.source))
+                throw Error('Invalid source');
+            query.set('source', feed.source);
+        }
+        if (feed.actor) {
+            if (feed.actor.length > 128 || /[\u0000-\u001f\u007f]/.test(feed.actor))
+                throw Error('Invalid actor');
+            query.set('actor', feed.actor);
+        }
+        return { path: `changes?${query}`, method: 'GET' };
     }
     if (!resources.includes(r as Resource))
         throw Error('Disallowed resource');
