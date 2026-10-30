@@ -81,6 +81,14 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     assert.ok(!registryHtml.includes('key_cipher'));
     // The message catalog mentions the key prefix; only an actual key (prefix plus secret body) is a leak.
     assert.ok(!/wbv2_[A-Za-z0-9_-]{20,}/.test(registryHtml));
+    const profile = await get('/profile');
+    assert.equal(profile.status, 200);
+    const profileHtml = await profile.text();
+    assert.ok(profileHtml.includes('Recent activity') && profileHtml.includes('Signed in with password'));
+    assert.ok(profileHtml.includes('Showing 1 to'));
+    const filtered = await (await get('/profile?activity=sites&activityPage=999')).text();
+    assert.ok(filtered.includes('No activity of this type.') || filtered.includes('Showing'));
+    assert.equal((await get('/profile?activity=%27%3B--&activityPage=-4')).status, 200);
     csrf = csrfFrom(await (await get('/')).text())!;
     assert.equal((await post('/?/logout', { csrf })).status, 303);
     assert.equal((await get('/sites')).headers.get('location'), '/login');

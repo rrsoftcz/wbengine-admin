@@ -6,12 +6,43 @@
     import PasswordField from '#lib/components/auth/PasswordField.svelte';
     import SubmitButton from '#lib/components/auth/SubmitButton.svelte';
     import BackupCodes from '#lib/components/auth/BackupCodes.svelte';
+    import Pager from '#lib/components/content/Pager.svelte';
+    import { activityCategories, activityCategory, type ActivityCategory } from '#lib/activity.ts';
     import type { MessageKey } from '#lib/i18n/index.ts';
     let { data, form } = $props();
     let pending = $state('');
     const info = $derived(data.info);
     const when = (value: string | null) => (value ? new Intl.DateTimeFormat(intl(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Prague' }).format(new Date(value.replace(' ', 'T') + 'Z')) : '');
-    const eventLabel = (event: string) => t((`profile.event.${event}` in page.data.uiMessages ? `profile.event.${event}` : 'profile.event.other') as MessageKey);
+    const act = $derived(data.activity);
+    const eventLabel = (event: string) => {
+        const key = `profile.event.${event.split(':')[0]}`;
+        return t((key in page.data.uiMessages ? key : 'profile.event.other') as MessageKey);
+    };
+    const categoryTone = { signin: 'brand', account: 'warn', sites: 'ok', other: 'brand' } as const;
+    const activityHref = (category: ActivityCategory | null, n: number) => {
+        const q = new URLSearchParams();
+        if (category) q.set('activity', category);
+        if (n > 1) q.set('activityPage', String(n));
+        return `?${q}#activity`;
+    };
+    // Entries grouped by calendar day (Europe/Prague), with Today and Yesterday named by the language.
+    const dayKey = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Prague' }).format(d);
+    const groups = $derived.by(() => {
+        const out: { key: string; label: string; entries: (typeof act.items[number] & { iso: string; time: string })[] }[] = [];
+        const today = new Date(), rel = new Intl.RelativeTimeFormat(intl(), { numeric: 'auto' });
+        for (const a of act.items) {
+            const d = new Date(a.at.replace(' ', 'T') + 'Z'), key = dayKey(d);
+            let g = out.find((x) => x.key === key);
+            if (!g) {
+                const days = Math.round((Date.parse(dayKey(today)) - Date.parse(key)) / 86400000);
+                const label = days === 0 || days === 1 ? rel.format(-days, 'day') : new Intl.DateTimeFormat(intl(), { dateStyle: 'full', timeZone: 'Europe/Prague' }).format(d);
+                g = { key, label: label.charAt(0).toUpperCase() + label.slice(1), entries: [] };
+                out.push(g);
+            }
+            g.entries.push({ ...a, iso: d.toISOString(), time: new Intl.DateTimeFormat(intl(), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Prague' }).format(d) });
+        }
+        return out;
+    });
     const run = (name: string) => () => { pending = name; return async ({ update }: { update: (o?: { reset?: boolean }) => Promise<void> }) => { pending = ''; await update({ reset: true }); }; };
     const mine = (section: string) => (form && 'section' in form && form.section === section ? form : null);
 </script>
@@ -97,10 +128,33 @@
         </form>
     </section>
 
-    <section class="card" aria-labelledby="p-activity">
-        <h2 id="p-activity" class="mb-4">{t('profile.activity.heading')}</h2>
-        {#if info.activity.length}
-            <ul class="m-0 grid list-none gap-2 p-0 text-sm">{#each info.activity as a}<li class="flex justify-between gap-4"><span>{eventLabel(a.event)}</span><span class="text-muted">{when(a.at)}</span></li>{/each}</ul>
-        {:else}<p class="text-sm text-muted">{t('profile.activity.empty')}</p>{/if}
+    <section class="card" aria-labelledby="p-activity" id="activity">
+        <h2 id="p-activity" class="mb-1">{t('profile.activity.heading')}</h2>
+        <p class="hint mb-4">{t('profile.activity.hint')}</p>
+        <nav class="mb-4 flex flex-wrap gap-2" aria-label={t('profile.activity.filterLabel')}>
+            {#each [null, ...activityCategories] as c}
+                <a href={activityHref(c, 1)} data-sveltekit-noscroll aria-current={act.category === c ? 'true' : undefined}
+                   class="btn btn-sm {act.category === c ? 'btn-primary' : 'btn-secondary'}">{t(c ? (`profile.activity.category.${c}` as MessageKey) : 'profile.activity.category.all')}</a>
+            {/each}
+        </nav>
+        {#if groups.length}
+            <p class="mb-3 text-sm text-muted" aria-live="polite">{t('profile.activity.range', { from: (act.page - 1) * act.perPage + 1, to: (act.page - 1) * act.perPage + act.items.length, total: act.total })}</p>
+            {#each groups as group}
+                <h3 class="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted first:mt-0">{group.label}</h3>
+                <ul class="m-0 list-none divide-y divide-line rounded-xl border border-line p-0">
+                    {#each group.entries as a}
+                        <li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-sm">
+                            <time class="w-12 shrink-0 tabular-nums text-muted" datetime={a.iso}>{a.time}</time>
+                            <span class="min-w-0 flex-1">
+                                <span class="font-medium">{eventLabel(a.event)}</span>
+                                {#if a.site}<span class="text-muted"> &middot; {a.site}</span>{/if}
+                            </span>
+                            <span class="badge badge-{categoryTone[activityCategory(a.event)]}">{t(`profile.activity.category.${activityCategory(a.event)}` as MessageKey)}</span>
+                        </li>
+                    {/each}
+                </ul>
+            {/each}
+            {#if act.totalPages > 1}<Pager page={act.page} totalPages={act.totalPages} href={(n) => activityHref(act.category, n)} />{/if}
+        {:else}<p class="text-sm text-muted">{act.category ? t('profile.activity.emptyFiltered') : t('profile.activity.empty')}</p>{/if}
     </section>
 </div>

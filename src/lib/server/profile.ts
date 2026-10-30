@@ -2,6 +2,7 @@ import { transaction, rows, type Connection } from './db.ts';
 import { token, tokenHash, hashPassword, verifyPassword } from './security.ts';
 import { isLocale } from '../i18n/index.ts';
 import type { Session } from './auth.ts';
+import { activityCategories, type ActivityCategory } from '../activity.ts';
 
 /** A rejected profile action; `code` selects the translated message `profile.error.<code>`. */
 export class ProfileError extends Error {
@@ -102,7 +103,6 @@ export interface ProfileInfo {
     createdAt: string;
     passwordChangedAt: string | null;
     grants: { site: string; role: string }[];
-    activity: { event: string; at: string }[];
 }
 
 export async function profileInfo(userId: number): Promise<ProfileInfo> {
@@ -112,7 +112,32 @@ export async function profileInfo(userId: number): Promise<ProfileInfo> {
             throw new ProfileError('unavailable');
         const [codes] = await rows<{ n: number }>(c, 'SELECT COUNT(*) AS n FROM backup_codes WHERE user_id=?', [userId]);
         const grants = await rows<{ site: string; role: string }>(c, 'SELECT s.name AS site,g.role FROM grants g JOIN sites s ON s.id=g.site_id WHERE g.user_id=? ORDER BY s.name', [userId]);
-        const activity = await rows<{ event: string; at: string }>(c, 'SELECT event,created_at AS at FROM audit WHERE user_id=? ORDER BY id DESC LIMIT 10', [userId]);
-        return { email: u.email, globalAdmin: !!u.global_admin, mfaEnabled: !!u.mfa_enabled, backupCodesLeft: Number(codes?.n ?? 0), createdAt: u.created_at, passwordChangedAt: u.password_changed_at, grants, activity };
+        return { email: u.email, globalAdmin: !!u.global_admin, mfaEnabled: !!u.mfa_enabled, backupCodesLeft: Number(codes?.n ?? 0), createdAt: u.created_at, passwordChangedAt: u.password_changed_at, grants };
+    });
+}
+
+const categoryFilter: Record<ActivityCategory, string> = {
+    signin: "event IN ('login.password','login.mfa','logout')",
+    account: "(event LIKE 'password.%' OR event LIKE 'mfa.%' OR event='recovery.issued' OR event='profile.locale')",
+    sites: "(event LIKE 'site.%' OR event LIKE 'grant.%' OR event LIKE 'invite.%')"
+};
+export const activityPageSize = 20;
+
+export interface ActivityEntry {
+    event: string;
+    at: string;
+    site: string | null;
+}
+
+/** One page of the account's own audit trail, newest first, optionally limited to a category. */
+export async function accountActivity(userId: number, category: ActivityCategory | null, page: number, perPage = activityPageSize) {
+    const where = 'a.user_id=?' + (category ? ' AND ' + categoryFilter[category].replaceAll('event', 'a.event') : '');
+    const offset = (Math.max(1, Math.floor(page)) - 1) * perPage;
+    return transaction(async (c) => {
+        const [count] = await rows<{ n: number }>(c, `SELECT COUNT(*) AS n FROM audit a WHERE ${where}`, [userId]);
+        const total = Number(count?.n ?? 0);
+        // LIMIT and OFFSET are validated integers, not user text.
+        const items = await rows<ActivityEntry>(c, `SELECT a.event,a.created_at AS at,s.name AS site FROM audit a LEFT JOIN sites s ON s.id=a.site_id WHERE ${where} ORDER BY a.id DESC LIMIT ${Number(perPage)} OFFSET ${Number(offset)}`, [userId]);
+        return { items, total, totalPages: Math.max(1, Math.ceil(total / perPage)) };
     });
 }

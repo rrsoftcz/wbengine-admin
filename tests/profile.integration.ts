@@ -4,7 +4,7 @@ import { database, transaction, rows } from '../src/lib/server/db.ts';
 import { invite, acceptInvitation, loadSession, login, setupMfa, completeMfa } from '../src/lib/server/auth.ts';
 import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
-import { changePassword, regenerateBackupCodes, resetMfa, setLocale, profileInfo, ProfileError } from '../src/lib/server/profile.ts';
+import { changePassword, regenerateBackupCodes, resetMfa, setLocale, profileInfo, accountActivity, ProfileError } from '../src/lib/server/profile.ts';
 if (!process.env.DATABASE_URL?.includes('wbengine_admin_test'))
     throw Error('The integration test requires the isolated wbengine_admin_test DB');
 await transaction(async (c) => { await migrate(c); });
@@ -66,4 +66,28 @@ test('interface language is stored per user and validated', async () => {
     await setLocale(session.user.id, null);
     assert.equal((await loadSession((await login('lang@example.test', password))!))!.user.locale, null);
     await rejectsWith(setLocale(session.user.id, 'fr'), 'invalidLocale');
+});
+
+test('account activity pages newest first, filters by category and stays bounded', async () => {
+    const { session } = await enrolled('activity@example.test');
+    const id = session.user.id;
+    await transaction(async (c) => {
+        for (let i = 0; i < 45; i++)
+            await c.execute('INSERT INTO audit(user_id,event) VALUES (?,?)', [id, i % 3 === 0 ? 'logout' : i % 3 === 1 ? 'password.changed' : 'site.registered']);
+    });
+    const all = await accountActivity(id, null, 1, 20);
+    assert.equal(all.items.length, 20);
+    assert.ok(all.total >= 45);
+    assert.equal(all.totalPages, Math.ceil(all.total / 20));
+    const last = await accountActivity(id, null, all.totalPages, 20);
+    assert.ok(last.items.length >= 1 && last.items.length <= 20);
+    const ids = new Set([...all.items, ...(await accountActivity(id, null, 2, 20)).items].map((x) => x.at + x.event));
+    assert.ok(ids.size >= 2);
+    const sites = await accountActivity(id, 'sites', 1, 20);
+    // 15 inserted site events plus the invitation the account was created from.
+    assert.equal(sites.total, 16);
+    assert.ok(sites.items.every((x) => x.event === 'site.registered' || x.event === 'invite.accepted'));
+    const account = await accountActivity(id, 'account', 1, 100);
+    assert.ok(account.items.every((x) => /^(password|mfa)\./.test(x.event) || x.event === 'profile.locale' || x.event === 'recovery.issued'));
+    assert.equal((await accountActivity(id, null, 9999, 20)).items.length, 0);
 });
