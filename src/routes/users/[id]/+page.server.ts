@@ -4,16 +4,16 @@ import { userDetail, issueRecoveryFor, setDisabled, setGlobalAdmin, revokeGrant,
 import { accountActivity } from '#lib/server/profile.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-const userId = (raw: string) => {
+const userId = (raw: string, t: (key: 'users.error.notFound') => string) => {
     const id = Number(raw);
     if (!Number.isInteger(id) || id < 1)
-        error(404, 'Not found');
+        error(404, t('users.error.notFound'));
     return id;
 };
 
 export const load: PageServerLoad = async (e) => {
     const s = globalAdmin(e);
-    const id = userId(e.params.id);
+    const id = userId(e.params.id, e.locals.t);
     try {
         const user = await userDetail(s, id);
         const activity = await accountActivity(id, null, 1, 10);
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async (e) => {
 /** Runs one action, turning a rejected one into a translated message and a successful one into `done`. */
 async function run(e: Parameters<Actions[string]>[0], done: string, action: (s: ReturnType<typeof globalAdmin>, f: FormData, id: number) => Promise<Record<string, unknown> | void>) {
     const s = globalAdmin(e);
-    const id = userId(e.params.id!);
+    const id = userId(e.params.id!, e.locals.t);
     try {
         const f = await form(e);
         const extra = await action(s, f, id);

@@ -63,9 +63,9 @@
         <a class="btn btn-secondary mt-4" href={'/content/' + data.site.id}>{t('analytics.backToSite')}</a>
     </div>
 {:else if data.overview}
-    <section class="card-flat mb-6" aria-labelledby="obdobi">
+    <section class="card-flat mb-6" aria-labelledby="period">
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="obdobi" class="text-base">{t('analytics.period.heading')}</h2>
+            <h2 id="period" class="text-base">{t('analytics.period.heading')}</h2>
             <div class="inline-flex rounded-xl border border-line-strong bg-surface-2 p-1" role="group" aria-label={t('analytics.period.presets')}>
                 {#each presets as preset}
                     <a href={presetHref(preset.days)} aria-current={activePreset === preset.days ? 'true' : undefined}
@@ -96,8 +96,8 @@
         <p class="alert alert-warn mb-6" role="status">{t('analytics.period.incomplete')}</p>
     {/if}
 
-    <section aria-labelledby="souhrn" class="mb-6">
-        <h2 id="souhrn" class="sr-only">{t('analytics.summary.heading')}</h2>
+    <section aria-labelledby="summary" class="mb-6">
+        <h2 id="summary" class="sr-only">{t('analytics.summary.heading')}</h2>
         <ul class="grid gap-4 sm:grid-cols-3">
             {#each metrics as item}
                 {@const tr = trend(item.key)}
@@ -134,9 +134,9 @@
         </section>
     {/if}
 
-    <section class="card-flat mb-6" aria-labelledby="rada">
+    <section class="card-flat mb-6" aria-labelledby="series">
         <details>
-            <summary id="rada" class="font-semibold">{t('analytics.table.summary')}</summary>
+            <summary id="series" class="font-semibold">{t('analytics.table.summary')}</summary>
             <div class="mt-3 overflow-x-auto">
                 <table class="table">
                     <caption class="sr-only">{t('analytics.table.caption')}</caption>

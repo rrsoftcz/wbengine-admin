@@ -9,6 +9,17 @@ Target: **0.2.0**.
 
 ### Added
 
+- Interface languages English, Czech, German and Polish (catalog under `src/lib/i18n`, per-user setting,
+  cookie and browser fallback, parity test). User profile with password change, backup codes, MFA reset,
+  language and a paged, filterable activity list.
+- Central user management for global admins (`/users`): invite, disable and enable, promote and demote,
+  recovery codes, MFA reset, revoke site access, all audited.
+- Per-site Activity page (change feed of the site, rejected writes), Site users (create with a one-time
+  password link, role, disable and enable) and Site settings (redacted configuration, cache flush).
+  These need the scopes `audit:read`, `users:read`, `users:write`, `cache:write` and `config:read`;
+  older keys still register and the pages ask for a new key.
+- Device names and a page picker in the box form, live URL of a record, an article-box notice that follows
+  the site's `renders_articles` flag.
 - Per-site analytics dashboard with daily, weekly and monthly trends, top pages,
   articles and boxes, and lifetime totals.
 - Server-side analytics API gateway with site-grant, `analytics:read` scope and

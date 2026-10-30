@@ -61,7 +61,7 @@
                 {/each}
             </ul>
         {:else}<p class="text-sm text-muted">{t('users.detail.noSites')}</p>{/if}
-        {#if !u.globalAdmin}<p class="hint mt-3">{t('users.detail.grantHint')} <a href="/sites#opravneni">{t('users.detail.grantLink')}</a></p>{/if}
+        {#if !u.globalAdmin}<p class="hint mt-3">{t('users.detail.grantHint')} <a href="/sites#permissions">{t('users.detail.grantLink')}</a></p>{/if}
     </section>
 
     <section class="card" aria-labelledby="d-actions">

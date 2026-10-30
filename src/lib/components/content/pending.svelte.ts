@@ -17,7 +17,7 @@ export function createPending(options: { reset?: boolean; onResult?: (result: Ac
             await update({ reset: options.reset ?? false });
             current = '';
             await tick();
-            document.getElementById('vysledek')?.focus();
+            document.getElementById('result')?.focus();
         };
     };
     return {

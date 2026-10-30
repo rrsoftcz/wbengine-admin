@@ -110,7 +110,7 @@ The default period contains 30 calendar dates ending on the previous UTC day. Th
 Requirements on the target site: WBengine 4.2.0 or newer, `apiV2` enabled in `Settings.json`, HTTPS and the applied framework migrations `4.0.0/002` and `4.0.0/007` (`doctor` reports them as `migration.002` and `migration.007`).
 
 1. On the target site sign in as ADMIN, open the Integrations page, confirm your password and issue a key. It is shown once: the site address, a recommended name and the key.
-2. In the central Admin open Sites, choose Add site and enter the name, the HTTPS address and the key. Before saving, `capabilities` and `identity` are verified, and the key must have all 17 scopes of the Site management profile (optionally also `analytics:read`).
+2. In the central Admin open Sites, choose Add site and enter the name, the HTTPS address and the key. Before saving, `capabilities` and `identity` are verified, and the key must have the 17 core scopes of the Site management profile. The newer scopes `audit:read`, `users:read`, `users:write`, `cache:write`, `config:read` (and optionally `analytics:read`) are accepted but not required: without them the Activity, Site users and Site settings pages ask for a new key.
 3. Errors are shown as a concrete instruction: missing API or migration, invalid key, missing scope, unreachable site, duplicate address, attempt limit (HTTP 429, try again in a few minutes).
 4. Replacing the key: issue a new key on the site (the option for the integration being replaced), enter it in Admin for the site under Replace integration key, and only after verification revoke the old key on the target site. A lost key cannot be displayed again, the procedure is the same as for replacing.
 

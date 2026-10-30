@@ -48,12 +48,12 @@
  {#snippet badges()}{#if badge}<StatusBadge state={badge}/>{:else if data.permissions.save===false&&data.id!=='new'&&!data.unavailable}<StatusBadge state="readonly"/>{/if}{/snippet}
 </PageHeader>
 
-<div id="vysledek" tabindex="-1" class="outline-none">
+<div id="result" tabindex="-1" class="outline-none">
  {#if data.boxWarning}<section class="mb-6 rounded-2xl border-2 border-warn bg-warn-soft p-5 text-text" role="alert" aria-labelledby="box-varovani"><h2 id="box-varovani" class="text-warn">{t('content.detail.boxWarning.title')}</h2><p class="mt-1">{t('content.detail.boxWarning.text')}</p><p class="mt-3"><a class="btn btn-secondary btn-sm" href={'/content/'+data.site.id+'/boxes/new'}>{t('content.detail.boxWarning.action')}</a></p></section>{/if}
  {#if form?.error&&!form?.conflict}<p class="alert alert-error mb-4" role="alert">{form.error}</p>{/if}
  {#if form?.message}<p class="alert alert-ok mb-4" role="status">{form.message}</p>{/if}
- {#if form?.conflict}<section class="mb-6 rounded-2xl border-2 border-warn bg-warn-soft p-5 text-text" role="alert" aria-labelledby="konflikt">
-  <h2 id="konflikt" class="text-warn">{t('content.detail.conflict.title')}</h2>
+ {#if form?.conflict}<section class="mb-6 rounded-2xl border-2 border-warn bg-warn-soft p-5 text-text" role="alert" aria-labelledby="conflict">
+  <h2 id="conflict" class="text-warn">{t('content.detail.conflict.title')}</h2>
   <p class="mt-1">{t('content.detail.conflict.text')}</p>
   <details class="mt-3" open>
    <summary class="font-semibold">{t('content.detail.conflict.current')}</summary>
@@ -77,7 +77,7 @@
   <div class="flex flex-wrap items-center gap-2">
    {#if articles&&data.id!=='new'&&data.permissions.preview}<a class="btn btn-secondary btn-sm" href={here+'/preview'+localeQuery} target="_blank" rel="noopener noreferrer" onclick={(e)=>{e.preventDefault();previewVisible=!previewVisible;}}>{previewVisible?t('content.toolbar.hidePreview'):t('content.toolbar.preview')}</a>{/if}
    {#if articles&&data.row.draft&&data.permissions.publish}<a class="btn btn-secondary btn-sm" href="#publikace" onclick={()=>open('publish')}>{t('content.toolbar.publish')}</a>{/if}
-   {#if data.id!=='new'&&data.permissions.delete}<a class="btn btn-ghost btn-sm text-danger" href={data.dependents?.length?'#vazby':'#smazat'} onclick={()=>{if(!data.dependents?.length)open('delete');}}>{data.dependents?.length?t('content.toolbar.blocked',{button:dn.button}):dn.button}</a>{/if}
+   {#if data.id!=='new'&&data.permissions.delete}<a class="btn btn-ghost btn-sm text-danger" href={data.dependents?.length?'#dependents':'#delete'} onclick={()=>{if(!data.dependents?.length)open('delete');}}>{data.dependents?.length?t('content.toolbar.blocked',{button:dn.button}):dn.button}</a>{/if}
    {#if canEdit}<SubmitButton form="save-form" busy={pending.is(translating?'?/translationSave':'?/save')} small>{translating?t('content.toolbar.saveTranslation'):articles?t('content.toolbar.saveDraft'):t('content.toolbar.saveChanges')}</SubmitButton>{/if}
   </div>
  </div>
@@ -121,8 +121,8 @@
  {:else}<section class="card"><p class="alert alert-info mb-3">{t('content.detail.readOnlyNotice')}</p>
 <pre class="whitespace-pre-wrap break-words">{JSON.stringify(data.values,null,2)}</pre></section>{/if}
 {:else}
-  <section class="card grid gap-4" aria-labelledby="preklad">
-   <h2 id="preklad">{t('content.translation.title',{locale:data.locale})}</h2>
+  <section class="card grid gap-4" aria-labelledby="translation">
+   <h2 id="translation">{t('content.translation.title',{locale:data.locale})}</h2>
    <p class="hint">{t('content.translation.hint',{locale:data.locale})}</p>
    {#if data.permissions.translationSave}<form id="save-form" method="POST" action="?/translationSave" use:enhance={pending.submit} oninput={()=>{dirty=true;}} class="grid gap-5">
 <input name="csrf" type="hidden" value={data.csrf}/>
@@ -152,8 +152,8 @@
 
 {#if data.id!=='new'&&data.resource!=='images'}
 {#if data.historyOpen}
-  <section class="card" aria-labelledby="historie">
-   <h2 id="historie">{articles?t('content.history.titleArticle'):t('content.history.titleStructure')}</h2>
+  <section class="card" aria-labelledby="history">
+   <h2 id="history">{articles?t('content.history.titleArticle'):t('content.history.titleStructure')}</h2>
    <p class="hint mb-4">{articles?t('content.history.hintArticle'):t('content.history.hintStructure')}</p>
    {#if data.history.length}<ol class="relative ml-2 grid gap-5 border-l border-line-strong pl-6">{#each data.history as change}<li class="relative">
 <span class="absolute -left-[1.95rem] top-1.5 size-3 rounded-full border-2 border-brand bg-surface" aria-hidden="true"></span>
@@ -202,7 +202,7 @@
   <section class="card-flat grid gap-2 text-sm" aria-labelledby="posledni-zmeny">
    <h2 id="posledni-zmeny" class="text-base">{t('content.aside.latest')}</h2>
    <ol class="divide-y divide-line overflow-hidden rounded-xl border border-line">{#each data.history.slice(0,5) as change}<li class="grid gap-0.5 bg-surface px-3 py-2"><span class="flex items-center justify-between gap-2"><span class="font-semibold">{changeLabel(change.action,t)}</span><span class="text-xs text-muted">{t(articles?'content.aside.revisionRef':'content.aside.changeRef',{id:String(change.revision_id??change.change_id)})}</span></span><span>{changeTime(change.created_at,intl())}</span><span class="break-all text-xs text-muted">{changeActor(change,data.actors,t)}</span></li>{/each}</ol>
-   <a href={here+'?'+(data.locale?'locale='+encodeURIComponent(data.locale)+'&':'')+'history=1#historie'} data-sveltekit-noscroll>{t('content.aside.allChanges')}</a>
+   <a href={here+'?'+(data.locale?'locale='+encodeURIComponent(data.locale)+'&':'')+'history=1#history'} data-sveltekit-noscroll>{t('content.aside.allChanges')}</a>
   </section>
  {/if}
 
@@ -222,13 +222,13 @@
 
  {#if data.permissions.delete}
  {#if data.dependents&&data.dependents.length}
-  <section id="vazby" class="card-flat grid gap-3 border-warn text-sm" aria-labelledby="vazby-nadpis">
-   <h2 id="vazby-nadpis" class="text-base text-warn">{t(cannotRemoveKey(data.resource))}</h2>
+  <section id="dependents" class="card-flat grid gap-3 border-warn text-sm" aria-labelledby="dependents-heading">
+   <h2 id="dependents-heading" class="text-base text-warn">{t(cannotRemoveKey(data.resource))}</h2>
    <p>{t('content.dependents.text')}</p>
    {#each data.dependents??[] as group}<section class="grid gap-1"><h3 class="text-sm">{group.label} ({group.count})</h3><ul class="grid gap-1">{#each group.items as item}<li><a href={'/content/'+data.site.id+'/'+group.resource+'/'+item.id}>{item.label}</a></li>{/each}{#if group.truncated}<li class="text-muted">{t('content.dependents.andMore',{count:group.count-group.items.length})}</li>{/if}</ul></section>{/each}
   </section>
  {:else}
-  <details id="smazat" bind:open={deleteOpen} class="card-flat border-danger/40">
+  <details id="delete" bind:open={deleteOpen} class="card-flat border-danger/40">
    <summary class="font-semibold text-danger">{dn.button}</summary>
    <form method="POST" action="?/delete" use:enhance={pending.submit} class="mt-3 grid gap-3">
 <p class="hint">{t('content.delete.hint')}</p>

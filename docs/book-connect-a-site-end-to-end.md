@@ -239,4 +239,8 @@ sudo resolvectl flush-caches
 
 Repeat the verification, it must return the public IP. A connection from the container to the public address of the same server then usually works. Do not allow the loopback address via `REMOTE_IP_ALLOWLIST`: inside the container it would point to the container itself, not to the site, and it would weaken the protection. The allowlist is intended only for specific approved intranet addresses. If you do not have access to the host, you can give the Admin container public DNS servers via `compose.override.yaml` (`services: app: dns: [1.1.1.1, 9.9.9.9]`), but that does not change the host resolver.
 
+## Key scopes and rotation
+
+A key issued by a current site has every scope the Admin uses. A key issued before the newer scopes existed still registers, because only the 17 core scopes are required, but the pages that need `audit:read` (Activity), `users:read` and `users:write` (Site users) or `cache:write` and `config:read` (Site settings) show a notice. Issue a new key on the Integrations page of the site and replace it in the site registry; the scopes of a key never change afterwards.
+
 Related documentation: the Admin README (operations, CLI, security boundaries), the README and `docs/deploy-vps-docker.md` of the skeleton, `ref-api-v2.md` and the framework README (API v2, user management from the command line), and the Getting started and Central administration pages at `https://www.wbengine.org/docs/`.
