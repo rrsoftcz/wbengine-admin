@@ -224,6 +224,16 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     assert.equal(response.status, 303);
     html = await (await get(base + '/pages/' + recoverable)).text();
     assert.ok(html.includes('The record has been removed'));
+    // Activity feed of the site: the writes made above, with the central actor resolved and the source named.
+    const activity = await get(base + '/activity');
+    assert.equal(activity.status, 200);
+    html = await activity.text();
+    assert.ok(html.includes('Creation') && html.includes('Deletion'), 'The activity feed lists creations and deletions');
+    assert.ok(html.includes('Admin or API'));
+    assert.ok(html.includes('#' + recoverable));
+    assert.equal((await get(base + '/activity?outcome=rejected')).status, 200);
+    assert.equal((await get(base + '/activity?resource=pages&source=v2&page=1')).status, 200);
+    assert.equal((await get(base + '/activity?resource=%27%3B--&page=-1')).status, 200);
     html = await (await get(base + '/pages/' + recoverable + '?history=1')).text();
     response = await post(base + '/pages/' + recoverable + '?/restore', { ...hidden(html, 'restore'), confirm: 'yes' });
     assert.equal(response.status, 303);

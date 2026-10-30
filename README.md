@@ -41,6 +41,10 @@ The app listens on 127.0.0.1:13000 and assumes an HTTPS reverse proxy. ORIGIN mu
 
 The application does not run DDL on every request. Run the migration before starting every version that adds a file in `migrations/`: the `migrate` command applies each `NNN-*.sql` file once and records it in the `schema_migrations` table. The Docker image contains both the CLI and the migration SQL: you can use `docker compose run --rm app npm run admin -- migrate`. The image runs as the node user, and the database has a separate application user.
 
+## Activity
+
+Site administrators see an Activity page per site (button on the site overview): the change log of the site with who made each change, when, and through what (Admin or API, site login, command line), filterable by record type and source, plus the writes the site rejected (error code only). It needs a site running the change feed (`GET /api/v2/changes`) and an integration key with the `audit:read` scope; a key issued before that scope existed shows a notice asking for a new key.
+
 ## Interface language and profile
 
 The interface is available in English, Czech, German and Polish. The language is chosen per request: the signed-in user's saved language (Profile, Language), then the `wb_locale` cookie, then the browser's `Accept-Language`, then English. Every user-visible string lives in the catalog `src/lib/i18n/<language>/` (English is the source and the fallback); components use `t('key')`, server code uses `locals.t('key')`. A test fails when a translation has an unknown key, an empty text or different placeholders, or when a finished language lacks a key.

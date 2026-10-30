@@ -3,12 +3,14 @@ import { remoteGet } from './remote.ts';
 /** Scopes accepted by Wbengine\Api\V2\Model::SCOPES (framework v4.0.x). Analytics is not issuable yet. */
 export const frameworkScopes = ['discovery:read', 'articles:read', 'articles:write', 'pages:read', 'pages:write', 'menu:read', 'menu:write', 'sections:read', 'sections:write', 'boxes:read', 'boxes:write', 'translations:read', 'translations:write', 'images:read', 'images:write', 'preview:read', 'publish:write'] as const;
 export const analyticsScope = 'analytics:read';
+/** Reading the change log. Part of the key profile of newer sites, so older keys without it stay registrable. */
+export const auditScope = 'audit:read';
 /** Single source of truth for the key purpose. canOperate() in content.ts must never require a scope outside it. */
 export const scopeProfiles = {
     management: {
         label: 'Site management in WBengine Admin',
         scopes: [...frameworkScopes] as string[],
-        optional: [analyticsScope] as string[]
+        optional: [analyticsScope, auditScope] as string[]
     }
 } as const;
 export type ScopeProfile = keyof typeof scopeProfiles;
