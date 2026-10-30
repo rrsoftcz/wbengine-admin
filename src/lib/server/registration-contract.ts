@@ -11,8 +11,9 @@ export const siteAdminScopes = ['users:read', 'users:write', 'cache:write', 'con
 export const scopeProfiles = {
     management: {
         label: 'Site management in WBengine Admin',
-        scopes: [...frameworkScopes] as string[],
-        optional: [analyticsScope, auditScope, ...siteAdminScopes] as string[]
+        /** A key always carries discovery:read. Every other permission is a choice of the site administrator who issues the key. */
+        scopes: ['discovery:read'] as string[],
+        optional: [...frameworkScopes.filter(scope => scope !== 'discovery:read'), analyticsScope, auditScope, ...siteAdminScopes] as string[]
     }
 } as const;
 export type ScopeProfile = keyof typeof scopeProfiles;
@@ -131,8 +132,11 @@ export async function verifyRegistration(base: string, key: string, allowlist: s
     const missing = wanted.scopes.filter(s => !granted.includes(s));
     if (missing.length)
         throw new RegistrationError('missing_scope', missing);
+    // A key that allows nothing beyond discovery has nothing the Admin could manage.
+    if (!granted.some(s => wanted.optional.includes(s)))
+        throw new RegistrationError('missing_scope');
     const unknown = granted.filter(s => !wanted.scopes.includes(s) && !wanted.optional.includes(s));
     if (unknown.length)
         throw new RegistrationError('bad_contract');
-    return { integrationId: id, scopes: granted, version: capabilities.version, resources: capabilities.resources, extras: granted.filter(s => wanted.optional.includes(s)) };
+    return { integrationId: id, scopes: granted, version: capabilities.version, resources: capabilities.resources, extras: granted.filter(s => wanted.optional.includes(s) && !frameworkScopes.includes(s as (typeof frameworkScopes)[number])) };
 }

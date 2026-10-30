@@ -16,7 +16,7 @@ export const load: PageServerLoad = async (e) => {
         accounts: await listAccounts(s),
         grants: grants.map(g => ({ user: g.user_id, site: g.site_id, role: g.role, email: g.email })),
         profile: e.locals.t('sites.profile.management'),
-        scopes: [...scopeProfiles.management.scopes],
+        scopes: [...scopeProfiles.management.scopes, ...scopeProfiles.management.optional],
         csrf: e.locals.csrf
     };
 };

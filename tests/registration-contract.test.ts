@@ -7,9 +7,12 @@ const key = 'wbv2_' + 'a'.repeat(64);
 const caps = { success: true, data: { api_version: '2.0', capabilities: { discovery: { read: true, write: false }, articles: { read: true, write: true } } } };
 const identity = (scopes: string[], id: unknown = 7) => ({ success: true, data: { integration_id: id, name: 'Admin', scopes } });
 const getter = (scopes: string[], id: unknown = 7) => async (_b: string, resource: string) => resource === 'capabilities' ? caps : identity(scopes, id);
-test('management profile equals the framework whitelist and excludes analytics', () => {
-    assert.deepEqual([...scopeProfiles.management.scopes].sort(), [...frameworkScopes].sort());
-    assert.ok(!scopeProfiles.management.scopes.includes(analyticsScope));
+const allScopes = [...scopeProfiles.management.scopes, ...scopeProfiles.management.optional];
+test('a key needs only discovery, every other permission is a choice of the administrator who issues it', () => {
+    assert.deepEqual([...scopeProfiles.management.scopes], ['discovery:read']);
+    for (const scope of frameworkScopes)
+        assert.ok(allScopes.includes(scope), `chybí ${scope}`);
+    assert.ok(scopeProfiles.management.optional.includes(analyticsScope));
 });
 test('canOperate never requires a scope outside the management profile', () => {
     const asked = new Set<string>();
@@ -27,23 +30,27 @@ test('canOperate never requires a scope outside the management profile', () => {
                 canOperate(role, new Recorder(), all, action, r);
     assert.ok(asked.size > 10);
     for (const scope of asked)
-        assert.ok(scopeProfiles.management.scopes.includes(scope), `scope mimo profil: ${scope}`);
+        assert.ok(allScopes.includes(scope), `scope mimo profil: ${scope}`);
 });
 test('verification returns identity and resources for a complete key', async () => {
-    const result = await verifyRegistration('https://example.com/', key, [], 'management', getter([...scopeProfiles.management.scopes]));
+    const result = await verifyRegistration('https://example.com/', key, [], 'management', getter([...frameworkScopes]));
     assert.equal(result.integrationId, 7);
     assert.deepEqual(result.extras, []);
     assert.equal(result.resources.find(r => r.name === 'articles')?.write, true);
 });
 test('verification accepts analytics as optional extra only', async () => {
-    const result = await verifyRegistration('https://example.com/', key, [], 'management', getter([...scopeProfiles.management.scopes, analyticsScope]));
+    const result = await verifyRegistration('https://example.com/', key, [], 'management', getter([...frameworkScopes, analyticsScope]));
     assert.deepEqual(result.extras, [analyticsScope]);
-    await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', getter([...scopeProfiles.management.scopes, 'evil:write'])), (e: RegistrationError) => e.code === 'bad_contract');
+    await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', getter([...frameworkScopes, 'evil:write'])), (e: RegistrationError) => e.code === 'bad_contract');
 });
-test('verification reports missing scopes without exposing the key', async () => {
-    await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', getter(['discovery:read', 'articles:read'])), (e: RegistrationError) => {
+test('a key limited to some permission groups is accepted, one without any permission is not', async () => {
+    const reader = await verifyRegistration('https://example.com/', key, [], 'management', getter(['discovery:read', 'articles:read', 'pages:read']));
+    assert.equal(reader.integrationId, 7);
+    assert.deepEqual(reader.extras, []);
+    const audit = await verifyRegistration('https://example.com/', key, [], 'management', getter(['discovery:read', 'audit:read']));
+    assert.deepEqual(audit.extras, ['audit:read']);
+    await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', getter(['discovery:read'])), (e: RegistrationError) => {
         assert.equal(e.code, 'missing_scope');
-        assert.ok(e.missing.includes('publish:write') && !e.missing.includes('discovery:read'));
         assert.ok(!e.message.includes(key));
         return true;
     });
@@ -51,7 +58,7 @@ test('verification reports missing scopes without exposing the key', async () =>
 });
 test('verification rejects malformed identity', async () => {
     for (const id of [0, -1, 1.5, '7', null])
-        await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', getter([...scopeProfiles.management.scopes], id)), (e: RegistrationError) => e.code === 'bad_contract');
+        await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', getter([...frameworkScopes], id)), (e: RegistrationError) => e.code === 'bad_contract');
 });
 test('remote failures map to a finite catalog and never leak details', async () => {
     const cases: [unknown, string][] = [[new RemoteFailure(401, 'remote_rejected'), 'invalid_key'], [new RemoteFailure(403, 'remote_rejected'), 'forbidden'], [new RemoteFailure(404, 'remote_rejected'), 'api_unavailable'], [new RemoteFailure(503, 'remote_rejected'), 'api_unavailable'], [new RemoteFailure(429, 'remote_rejected'), 'rate_limited'], [new RemoteFailure(500, 'remote_rejected'), 'remote_error'], [Error('API timed out'), 'timeout'], [Error('API connection failed'), 'unreachable'], [Error('DNS address is not allowed'), 'unsafe_target'], [Error('Disallowed site address'), 'invalid_url'], [new TypeError('Invalid URL'), 'invalid_url'], [Error('ECONNREFUSED 10.0.0.5:443 ' + key), 'remote_error']];
@@ -88,7 +95,7 @@ test('dependents of a page list articles, boxes, menu items and child pages', as
         pages: [{ site_id: 5, parent_id: 0, title: 'Sama', link: '/a/' }, { site_id: 10, parent_id: 5, title: 'Pod', link: '/a/b/' }],
     };
     const all: Capabilities = new Proxy({}, { get: () => ({ read: true, write: true }) });
-    const gateway = { role: 'global' as const, scopes: [...scopeProfiles.management.scopes], capabilities: all, list: async (r: string) => ({ data: data[r], pagination: { page: 1, total_pages: 1 } }) } as never;
+    const gateway = { role: 'global' as const, scopes: [...frameworkScopes], capabilities: all, list: async (r: string) => ({ data: data[r], pagination: { page: 1, total_pages: 1 } }) } as never;
     const result = await loadDependents(gateway, 'pages', '5');
     assert.deepEqual(result?.map(g => [g.resource, g.count]), [['articles', 1], ['boxes', 1], ['menu', 1], ['pages', 1]]);
     assert.equal(result?.[0].items[0].label, 'Koncept A');
