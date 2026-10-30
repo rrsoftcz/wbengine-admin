@@ -1,8 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import { listSites, listAccounts, grantSite, inspectSite, registerSite, replaceSiteKey } from '#lib/server/sites.ts';
-import { RegistrationError, registrationMessage, scopeProfiles } from '#lib/server/registration-contract.ts';
+import { RegistrationError, classifyRegistrationError, scopeProfiles } from '#lib/server/registration-contract.ts';
 import { globalAdmin, form, field } from '#lib/server/web.ts';
 import { transaction, rows } from '#lib/server/db.ts';
+import type { MessageKey, Translate } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async (e) => {
     const s = globalAdmin(e);
@@ -14,15 +15,15 @@ export const load: PageServerLoad = async (e) => {
         sites: sites.map(site => ({ ...site, integrationId: integrations.find(i => i.id === site.id)?.integration_id ?? null })),
         accounts: await listAccounts(s),
         grants: grants.map(g => ({ user: g.user_id, site: g.site_id, role: g.role, email: g.email })),
-        profile: scopeProfiles.management.label,
+        profile: e.locals.t('sites.profile.management'),
         scopes: [...scopeProfiles.management.scopes],
         csrf: e.locals.csrf
     };
 };
 /** Never echoes the key: only the catalog message, the missing scope names and non-secret fields come back to the page. */
-function rejected(e: unknown, values: Record<string, string> = {}, action = 'register', site = 0) {
-    const { code, message } = registrationMessage(e);
-    return fail(code === 'rate_limited' ? 429 : 400, { error: message, code, missing: e instanceof RegistrationError ? e.missing : [], values, action, site });
+function rejected(t: Translate, e: unknown, values: Record<string, string> = {}, action = 'register', site = 0) {
+    const code = classifyRegistrationError(e);
+    return fail(code === 'rate_limited' ? 429 : 400, { error: t(`sites.registration.${code}` as MessageKey), code, missing: e instanceof RegistrationError ? e.missing : [], values, action, site });
 }
 async function readForm(e: Parameters<typeof form>[0]) {
     try {
@@ -32,25 +33,25 @@ async function readForm(e: Parameters<typeof form>[0]) {
         return null;
     }
 }
-const stale = (action: string) => fail(403, { error: 'The form is invalid or has expired. Reload the page.', code: 'csrf', missing: [] as string[], values: {} as Record<string, string>, action, site: 0 });
+const stale = (t: Translate, action: string) => fail(403, { error: t('sites.action.csrfStale'), code: 'csrf', missing: [] as string[], values: {} as Record<string, string>, action, site: 0 });
 export const actions: Actions = {
     register: async (e) => {
         const s = globalAdmin(e), f = await readForm(e);
         if (!f)
-            return stale('register');
+            return stale(e.locals.t, 'register');
         const values = { name: field(f, 'name'), url: field(f, 'url') };
         try {
             const result = await registerSite(s, values.name, values.url, field(f, 'key'));
             return { registered: { id: result.id, name: values.name.trim(), url: result.url, integrationId: result.integrationId, version: result.version, resources: result.resources, extras: result.extras } };
         }
         catch (err) {
-            return rejected(err, values, 'register');
+            return rejected(e.locals.t, err, values, 'register');
         }
     },
     rotate: async (e) => {
         const s = globalAdmin(e), f = await readForm(e);
         if (!f)
-            return stale('rotate');
+            return stale(e.locals.t, 'rotate');
         const site = Number(field(f, 'site'));
         try {
             if (!Number.isSafeInteger(site) || site < 1)
@@ -58,34 +59,34 @@ export const actions: Actions = {
             return { rotated: { site, ...await replaceSiteKey(s, site, field(f, 'key')) } };
         }
         catch (err) {
-            return rejected(err, {}, 'rotate', Number.isSafeInteger(site) ? site : 0);
+            return rejected(e.locals.t, err, {}, 'rotate', Number.isSafeInteger(site) ? site : 0);
         }
     },
     grant: async (e) => {
         const s = globalAdmin(e), f = await readForm(e);
         if (!f)
-            return stale('grant');
+            return stale(e.locals.t, 'grant');
         try {
             const user = Number(field(f, 'user')), site = Number(field(f, 'site'));
             if (!Number.isSafeInteger(user) || user < 1 || !Number.isSafeInteger(site) || site < 1)
                 throw Error();
             await grantSite(s, user, site, field(f, 'role') as 'editor' | 'siteadmin');
-            return { success: 'Permission saved', action: 'grant' };
+            return { success: e.locals.t('sites.action.grantSaved'), action: 'grant' };
         }
         catch {
-            return fail(400, { error: 'Could not save the permission', action: 'grant' });
+            return fail(400, { error: e.locals.t('sites.action.grantFailed'), action: 'grant' });
         }
     },
     inspect: async (e) => {
         const s = globalAdmin(e), f = await readForm(e);
         if (!f)
-            return stale('inspect');
+            return stale(e.locals.t, 'inspect');
         const site = Number(field(f, 'site'));
         try {
             return { discovery: await inspectSite(s, site), site };
         }
         catch {
-            return fail(400, { error: 'Discovery failed. Check TLS, DNS and the discovery:read scope.', action: 'inspect', site });
+            return fail(400, { error: e.locals.t('sites.action.inspectFailed'), action: 'inspect', site });
         }
     }
 };

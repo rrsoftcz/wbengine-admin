@@ -12,6 +12,6 @@ export const GET: RequestHandler = async (e) => {
         private: boolean;
     };
     if (v?.private !== true || ![v.title, v.introtext, v.bodytext].every(x => typeof x === 'string'))
-        error(502, 'Invalid preview');
-    return new Response(renderPreviewDocument(v), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff' } });
+        error(502, e.locals.t('content.preview.invalid'));
+    return new Response(renderPreviewDocument(v, e.locals.locale), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff' } });
 };

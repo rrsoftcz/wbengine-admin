@@ -9,7 +9,7 @@ export const actions: Actions = { default: async (e) => {
             setSession(e, await acceptInvitation(field(f, 'token', 128), field(f, 'password', 256)));
         }
         catch {
-            return fail(400, { error: 'The invitation is not valid or the password does not meet the requirements' });
+            return fail(400, { error: e.locals.t('auth.accept.error') });
         }
         redirect(303, '/mfa');
     } };

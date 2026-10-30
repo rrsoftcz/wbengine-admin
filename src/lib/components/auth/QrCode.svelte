@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { t } from '#lib/i18n/client.ts';
     /* Rendered only in the browser from data already present on the page; nothing is sent anywhere. */
     let { value }: { value: string } = $props();
     let svg = $state('');
@@ -14,5 +15,5 @@
 </script>
 
 {#if svg}
-    <div class="mx-auto size-44 shrink-0 rounded-xl bg-white p-3 [&>svg]:size-full" role="img" aria-label="QR code for adding the account to the app">{@html svg}</div>
+    <div class="mx-auto size-44 shrink-0 rounded-xl bg-white p-3 [&>svg]:size-full" role="img" aria-label={t('auth.qr.aria')}>{@html svg}</div>
 {/if}

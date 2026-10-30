@@ -1,6 +1,7 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
     import { page } from '$app/state';
+    import { t } from '#lib/i18n/client.ts';
     import { authEnhance } from '#lib/components/auth/enhance.ts';
     import BackupCodes from '#lib/components/auth/BackupCodes.svelte';
     import CopyButton from '#lib/components/auth/CopyButton.svelte';
@@ -24,52 +25,52 @@
     }
 </script>
 
-<svelte:head><title>Code verification | WBengine</title></svelte:head>
+<svelte:head><title>{t('auth.mfa.pageTitle')}</title></svelte:head>
 
 <div class="card">
     {#if form?.codes}
-        <h1>Done, verification is on</h1>
-        <p class="lead mb-5 mt-2">Last step: save your backup codes. They help you sign in if you lose your phone.</p>
+        <h1>{t('auth.mfa.doneTitle')}</h1>
+        <p class="lead mb-5 mt-2">{t('auth.mfa.doneLead')}</p>
         <BackupCodes codes={form.codes} />
     {:else}
         {#if data.enrollment && !setup}
-            <p class="eyebrow">Account security</p>
-            <h1 class="mt-1">Turn on verification with a phone code</h1>
-            <p class="lead mb-6 mt-2">Each time you sign in, you will enter a six-digit code from the app in addition to your password. Setup takes about a minute.</p>
+            <p class="eyebrow">{t('auth.mfa.eyebrow')}</p>
+            <h1 class="mt-1">{t('auth.mfa.enrollTitle')}</h1>
+            <p class="lead mb-6 mt-2">{t('auth.mfa.enrollLead')}</p>
             <form method="POST" action="?/enroll" use:enhance={authEnhance((v) => (pendingEnroll = v))}>
                 <input type="hidden" name="csrf" value={data.csrf}/>
                 <FormAlert message={form?.error} />
-                <SubmitButton pending={pendingEnroll} label="Start setup" pendingLabel="Preparing..." />
+                <SubmitButton pending={pendingEnroll} label={t('auth.mfa.startSetup')} pendingLabel={t('auth.mfa.preparing')} />
             </form>
         {:else if setup}
-            <p class="eyebrow">Account security</p>
-            <h1 class="mt-1">Set up verification in 3 steps</h1>
+            <p class="eyebrow">{t('auth.mfa.eyebrow')}</p>
+            <h1 class="mt-1">{t('auth.mfa.setupTitle')}</h1>
             <ol class="mb-6 mt-5 grid gap-5">
                 <li class="flex gap-3">
                     <span class="grid size-7 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand" aria-hidden="true">1</span>
-                    <div><h2>Install an app</h2><p class="hint mt-1">Install an authenticator app on your phone, for example Google Authenticator, Microsoft Authenticator or Aegis.</p></div>
+                    <div><h2>{t('auth.mfa.step1Title')}</h2><p class="hint mt-1">{t('auth.mfa.step1Hint')}</p></div>
                 </li>
                 <li class="flex gap-3">
                     <span class="grid size-7 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand" aria-hidden="true">2</span>
                     <div class="min-w-0 grid gap-3">
-                        <div><h2>Add the WBengine account</h2><p class="hint mt-1">In the app, choose to add an account and scan the QR code. On your phone you can also <a href={uri}>open the link directly in the app</a>.</p></div>
+                        <div><h2>{t('auth.mfa.step2Title')}</h2><p class="hint mt-1">{t('auth.mfa.step2HintBefore')} <a href={uri}>{t('auth.mfa.step2HintLink')}</a>.</p></div>
                         <QrCode value={uri} />
                         <div>
-                            <p class="label">Or type the secret key manually</p>
-                            <p class="mt-1 break-words rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono text-base tracking-wider" aria-label="Secret key, groups of four characters">{groups}</p>
-                            <div class="mt-2"><CopyButton text={secret ?? ''} label="Copy key" doneLabel="Key copied" /></div>
-                            <p class="hint mt-2">Account type: time-based (TOTP), 6 digits, 30 seconds. Do not share the key with anyone.</p>
+                            <p class="label">{t('auth.mfa.manualKey')}</p>
+                            <p class="mt-1 break-words rounded-lg border border-line bg-surface-2 px-3 py-2 font-mono text-base tracking-wider" aria-label={t('auth.mfa.secretKeyAria')}>{groups}</p>
+                            <div class="mt-2"><CopyButton text={secret ?? ''} label={t('auth.mfa.copyKey')} doneLabel={t('auth.mfa.keyCopied')} /></div>
+                            <p class="hint mt-2">{t('auth.mfa.accountType')}</p>
                         </div>
                     </div>
                 </li>
                 <li class="flex gap-3">
                     <span class="grid size-7 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand" aria-hidden="true">3</span>
-                    <div><h2>Confirm the code</h2><p class="hint mt-1">Type the six-digit code the app is showing right now.</p></div>
+                    <div><h2>{t('auth.mfa.step3Title')}</h2><p class="hint mt-1">{t('auth.mfa.step3Hint')}</p></div>
                 </li>
             </ol>
         {:else}
-            <h1>Code verification</h1>
-            <p class="lead mb-6 mt-2">{backup ? 'Enter one of your backup codes. Each can be used only once.' : 'Open the authenticator app on your phone and type the six-digit code for WBengine.'}</p>
+            <h1>{t('auth.mfa.title')}</h1>
+            <p class="lead mb-6 mt-2">{backup ? t('auth.mfa.leadBackup') : t('auth.mfa.leadApp')}</p>
         {/if}
 
         {#if !(data.enrollment && !setup)}
@@ -78,7 +79,7 @@
         <form method="POST" action="?/verify" hidden={data.enrollment && !setup} use:enhance={authEnhance((v) => (pendingVerify = v))} class="grid gap-4">
             <input type="hidden" name="csrf" value={data.csrf}/>
             <div class="field">
-                <label for="code" class="text-sm font-semibold">{backup ? 'Backup code' : 'Code from the app'}</label>
+                <label for="code" class="text-sm font-semibold">{backup ? t('auth.mfa.backupCodeLabel') : t('auth.mfa.appCodeLabel')}</label>
                 {#if backup}
                     <input id="code" name="code" required maxlength="128" autocomplete="off" autocapitalize="off" spellcheck="false" data-secret class="font-mono" />
                 {:else}
@@ -86,12 +87,12 @@
                            placeholder="000000" class="text-center font-mono text-3xl tracking-[.5em]" oninput={onCode} />
                 {/if}
             </div>
-            <SubmitButton pending={pendingVerify} label="Verify" pendingLabel="Verifying..." />
+            <SubmitButton pending={pendingVerify} label={t('auth.mfa.verify')} pendingLabel={t('auth.mfa.verifying')} />
         </form>
         {#if !data.enrollment}
             <p class="mt-5 text-center text-sm text-muted">
-                {#if backup}<a href="?" onclick={(e) => { e.preventDefault(); backup = false; }}>Use the app code</a>
-                {:else}Don't have your phone at hand? <a href="?zaloha=1" onclick={(e) => { e.preventDefault(); backup = true; }}>Use a backup code</a>{/if}
+                {#if backup}<a href="?" onclick={(e) => { e.preventDefault(); backup = false; }}>{t('auth.mfa.useAppCode')}</a>
+                {:else}{t('auth.mfa.noPhone')} <a href="?zaloha=1" onclick={(e) => { e.preventDefault(); backup = true; }}>{t('auth.mfa.useBackupCode')}</a>{/if}
             </p>
         {/if}
     {/if}

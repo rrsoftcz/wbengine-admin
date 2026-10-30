@@ -10,6 +10,7 @@ export interface User {
     mfa_counter: number;
     password_hash: string;
     disabled: number;
+    locale: string | null;
 }
 export interface Session {
     user: ReturnType<typeof safeUser>;
@@ -18,7 +19,7 @@ export interface Session {
     hash: string;
 }
 export function safeUser(u: User) {
-    return { id: u.id, email: u.email, globalAdmin: !!u.global_admin, mfaEnabled: !!u.mfa_enabled };
+    return { id: u.id, email: u.email, globalAdmin: !!u.global_admin, mfaEnabled: !!u.mfa_enabled, locale: u.locale ?? null };
 }
 export function normalizeEmail(s: string) {
     const email = s.trim().toLowerCase();

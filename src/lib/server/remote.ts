@@ -34,7 +34,7 @@ export function validateBaseUrl(raw: string, allowed: string[] = []) {
     if (u.protocol !== 'https:' || u.username || u.password || u.search || u.hash || raw.includes('?') || raw.includes('#') || u.pathname.split('/').some(x => decodeURIComponent(x) === '..') || isIP(hostname) && !isPublicAddress(hostname) && !allowed.includes(hostname))
         throw Error('Disallowed site address');
     if (u.port && u.port !== '443')
-        throw Error('Povolen je pouze HTTPS port 443');
+        throw Error('Only HTTPS port 443 is allowed');
     u.pathname = u.pathname.replace(/\/?$/, '/');
     return u;
 }

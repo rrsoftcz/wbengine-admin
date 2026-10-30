@@ -10,6 +10,6 @@ export const actions: Actions = { default: async (e) => {
             return { success: true };
         }
         catch {
-            return fail(400, { error: 'Reset failed' });
+            return fail(400, { error: e.locals.t('auth.recover.error') });
         }
     } };

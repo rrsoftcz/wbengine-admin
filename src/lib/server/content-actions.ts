@@ -2,7 +2,8 @@ import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { connectContent, siteId, resourceName, parseFields, createArticleBox, loadArticleBoxPages, RemoteFailure, ContentConnectionFailure } from './content.ts';
 import { signedIn, form, field } from './web.ts';
 import { idOf, schemas } from '../content-schema.ts';
-import { fieldOfError, type Resource } from './api-contract.ts';
+import { fieldOfError, remoteMessage, type Resource } from './api-contract.ts';
+import { translator, type Translate } from '../i18n/index.ts';
 export function createContentActions(connect: typeof connectContent = connectContent) {
     function dirty(f: FormData) {
         return Object.fromEntries([...f].filter(([name, value]) => typeof value === 'string' && name !== 'csrf').map(([name, value]) => [name, String(value)]));
@@ -15,7 +16,7 @@ export function createContentActions(connect: typeof connectContent = connectCon
         return v;
     }
     const execute = (action: 'save' | 'delete' | 'publish' | 'restore' | 'translationSave' | 'translationDelete' | 'merge') => async (e: RequestEvent) => {
-        const s = signedIn(e);
+        const s = signedIn(e), t: Translate = e.locals.t ?? translator('en');
         let f: FormData | undefined;
         const r = resourceName(e.params.resource!), id = e.params.id!;
         let target = id, query = '';
@@ -36,7 +37,7 @@ export function createContentActions(connect: typeof connectContent = connectCon
                 if (f.get('mergeConsent') !== 'yes')
                     throw Error('Confirm the manual merge');
                 const current = locale ? await gateway.translation(r, id, locale) : await gateway.get(r, id);
-                return { action: locale ? 'translationSave' : 'save', values: dirtyValues(f, r), translationValues: dirtyValues(f, r), etag: current.etag, translationEtag: current.etag, merged: true, message: 'The current version has been loaded. Manually review and merge your changes with the content below, then save them.' };
+                return { action: locale ? 'translationSave' : 'save', values: dirtyValues(f, r), translationValues: dirtyValues(f, r), etag: current.etag, translationEtag: current.etag, merged: true, message: t('content.action.merged') };
             }
             if (action === 'save') {
                 const data = parseFields(r, f, false, boxTypes);
@@ -85,8 +86,8 @@ export function createContentActions(connect: typeof connectContent = connectCon
                 if (local)
                     e.locals.contentFailure = { ...local, resource: r, id, action, fields: dirty(f) };
             }
-            const badField = cause instanceof RemoteFailure ? fieldOfError(cause.code) : undefined, badLabel = badField ? schemas[r].find(x => x.name === badField)?.label : undefined;
-            return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? (badLabel ? `Field “${badLabel}”: ${cause.message}` : cause.message) : 'The operation failed. Check the fields, permissions and site availability.', field: badLabel ? badField : undefined, conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
+            const badField = cause instanceof RemoteFailure ? fieldOfError(cause.code) : undefined, badSpec = badField ? schemas[r].find(x => x.name === badField) : undefined, badLabel = badSpec ? t(badSpec.label) : undefined;
+            return fail(cause instanceof RemoteFailure ? cause.status : unavailable ? 503 : 400, { error: cause instanceof RemoteFailure ? (badLabel ? t('content.action.fieldError', { field: badLabel, message: remoteMessage(t, cause) }) : remoteMessage(t, cause)) : t('content.action.failed'), field: badLabel ? badField : undefined, conflict: cause instanceof RemoteFailure && cause.status === 412, action, values: f ? dirtyValues(f, r) : {}, translationValues: f ? dirtyValues(f, r) : {}, etag: f ? String(f.get('etag') ?? '') : '', translationEtag: f ? String(f.get('etag') ?? '') : '', submitted: f ? dirty(f) : {} });
         }
         redirect(303, `/content/${e.params.site}/${r}/${target}` + (f?.get('locale') ? '?locale=' + encodeURIComponent(String(f.get('locale'))) : query ? '?' + query : ''));
     };

@@ -1,4 +1,5 @@
 import { liveUrl } from '#lib/content-format.ts';
+import { translator, type Translate } from '#lib/i18n/index.ts';
 import { apiCall, RemoteFailure } from './remote.ts';
 import { resources, type Resource, type ApiCall, type ApiReply, type Operation } from './api-contract.ts';
 import { schemas, translationFields, idOf } from '../content-schema.ts';
@@ -49,11 +50,11 @@ export interface ReferenceOption {
     link?: string;
 }
 /** Field holding the numeric ID of another record: which list offers the choice and how it is described. */
-export const referenceFields: Partial<Record<Resource, Record<string, { source: Resource; zero?: string }>>> = {
-    articles: { site_id: { source: 'pages', zero: 'Not selected yet (the article cannot be published)' } },
-    pages: { parent_id: { source: 'pages', zero: 'None (root)' } },
-    menu: { site_id: { source: 'pages', zero: 'Not selected yet' }, parent: { source: 'menu', zero: 'None (root)' } },
-    boxes: { section_id: { source: 'sections', zero: 'Not selected yet' }, sites: { source: 'pages' } }
+export const referenceFields: Partial<Record<Resource, Record<string, { source: Resource }>>> = {
+    articles: { site_id: { source: 'pages' } },
+    pages: { parent_id: { source: 'pages' } },
+    menu: { site_id: { source: 'pages' }, parent: { source: 'menu' } },
+    boxes: { section_id: { source: 'sections' }, sites: { source: 'pages' } }
 };
 function optionLabel(source: Resource, row: Record<string, unknown>): string {
     const text = (v: unknown) => typeof v === 'string' ? v.slice(0, 120) : '';
@@ -200,10 +201,10 @@ export function parseFields(r: Resource, f: FormData, translation = false, boxTy
         if (typeof raw !== 'string')
             continue;
         if (spec.max && Buffer.byteLength(raw) > spec.max)
-            throw Error(`Field ${spec.label} is too long`);
+            throw Error(`Field ${spec.name} is too long`);
         if (spec.kind === 'number' || spec.kind === 'boolean' || spec.kind === 'device') {
             if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)) || (spec.kind === 'device' && Number(raw) > 3))
-                throw Error(`Invalid field ${spec.label}`);
+                throw Error(`Invalid field ${spec.name}`);
             output[spec.name] = Number(raw);
         }
         else if (spec.kind === 'format') {
@@ -415,19 +416,19 @@ export function renderPreviewDocument(value: {
     introtext: string;
     bodytext: string;
     private?: boolean;
-}) {
+}, lang = 'en') {
     const title = value.title.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-    return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; sandbox"><title>${title}</title><style>body{max-width:75ch;margin:2rem auto;font:17px/1.6 system-ui;overflow-wrap:anywhere}pre{white-space:pre-wrap}</style></head><body><h1>${title}</h1>${value.introtext}${value.bodytext}</body></html>`;
+    return `<!doctype html><html lang="${lang.replace(/[^A-Za-z-]/g, '')}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; sandbox"><title>${title}</title><style>body{max-width:75ch;margin:2rem auto;font:17px/1.6 system-ui;overflow-wrap:anywhere}pre{white-space:pre-wrap}</style></head><body><h1>${title}</h1>${value.introtext}${value.bodytext}</body></html>`;
 }
 
 /** Who made the changes: the site stores central_actor as admin:ID, the e-mail is looked up in Admin. A change without an actor was made directly on the site. */
-export async function loadActors(history: Record<string, unknown>[]): Promise<Record<string, string>> {
+export async function loadActors(history: Record<string, unknown>[], t: Translate = translator('en')): Promise<Record<string, string>> {
     const ids = [...new Set(history.map(h => /^admin:([1-9][0-9]{0,18})$/.exec(String(h.central_actor ?? ''))?.[1]).filter((x): x is string => !!x))].slice(0, 50);
     if (!ids.length)
         return {};
     const found = await transaction(c => rows<{ id: number | string; email: string }>(c, `SELECT id,email FROM users WHERE id IN (${ids.map(() => '?').join(',')})`, ids));
     const map = Object.fromEntries(found.map(u => [`admin:${u.id}`, u.email]));
-    return Object.fromEntries(ids.map(id => [`admin:${id}`, map[`admin:${id}`] ?? `deleted user #${id}`]));
+    return Object.fromEntries(ids.map(id => [`admin:${id}`, map[`admin:${id}`] ?? t('content.actor.deletedUser', { id })]));
 }
 
 export type Dependents = { resource: Resource; label: string; count: number; items: { id: string; label: string }[]; truncated: boolean }[];
@@ -435,15 +436,15 @@ export type Dependents = { resource: Resource; label: string; count: number; ite
  * What still depends on a page, section or menu item. The site rejects deleting with dependencies (resource_in_use), Admin shows it up front
  * and offers links to the dependent records. Null: cannot be verified (missing read permission or the site did not respond), the site decides.
  */
-export async function loadDependents(gateway: Pick<ReturnType<typeof createContentGateway>, 'list' | 'role' | 'scopes' | 'capabilities'>, r: Resource, id: string): Promise<Dependents | null> {
+export async function loadDependents(gateway: Pick<ReturnType<typeof createContentGateway>, 'list' | 'role' | 'scopes' | 'capabilities'>, r: Resource, id: string, t: Translate = translator('en')): Promise<Dependents | null> {
     const targets: { resource: Resource; label: string; match: (row: Record<string, unknown>) => boolean }[] = [];
     const num = (v: unknown) => Number(v && typeof v === 'object' ? (v as Record<string, unknown>).site_id ?? (v as Record<string, unknown>).id : v);
     if (r === 'pages')
-        targets.push({ resource: 'articles', label: 'Articles', match: row => String(row.site_id) === id }, { resource: 'boxes', label: 'Boxes', match: row => Array.isArray(row.sites) && row.sites.some(x => String(num(x)) === id) }, { resource: 'menu', label: 'Menu items', match: row => String(row.site_id) === id }, { resource: 'pages', label: 'Subpages', match: row => String(row.parent_id) === id });
+        targets.push({ resource: 'articles', label: t('content.dependents.group.articles'), match: row => String(row.site_id) === id }, { resource: 'boxes', label: t('content.dependents.group.boxes'), match: row => Array.isArray(row.sites) && row.sites.some(x => String(num(x)) === id) }, { resource: 'menu', label: t('content.dependents.group.menuItems'), match: row => String(row.site_id) === id }, { resource: 'pages', label: t('content.dependents.group.subpages'), match: row => String(row.parent_id) === id });
     else if (r === 'sections')
-        targets.push({ resource: 'boxes', label: 'Boxy v sekci', match: row => String(row.section_id) === id });
+        targets.push({ resource: 'boxes', label: t('content.dependents.group.sectionBoxes'), match: row => String(row.section_id) === id });
     else if (r === 'menu')
-        targets.push({ resource: 'menu', label: 'Child menu items', match: row => String(row.parent) === id });
+        targets.push({ resource: 'menu', label: t('content.dependents.group.childMenuItems'), match: row => String(row.parent) === id });
     if (!targets.length)
         return [];
     const out: Dependents = [];
@@ -486,7 +487,7 @@ export type LiveLink = { label: string; url: string; note: string | null };
  * a box has all pages from its list. The note says why the content does not show at the address yet (hidden page, missing article box).
  * Empty list: the record has no address of its own (section, image, box without pages).
  */
-export async function loadLiveLinks(gateway: Pick<ReturnType<typeof createContentGateway>, 'get'>, baseUrl: string | undefined, r: Resource, row: Record<string, unknown>, options: { locale?: string; defaultLocale?: string; articleBoxPages?: number[] | null } = {}): Promise<LiveLink[]> {
+export async function loadLiveLinks(gateway: Pick<ReturnType<typeof createContentGateway>, 'get'>, baseUrl: string | undefined, r: Resource, row: Record<string, unknown>, options: { locale?: string; defaultLocale?: string; articleBoxPages?: number[] | null; t?: Translate } = {}): Promise<LiveLink[]> {
     if (!baseUrl)
         return [];
     const ids = (r === 'pages' ? [] : r === 'boxes'
@@ -500,16 +501,16 @@ export async function loadLiveLinks(gateway: Pick<ReturnType<typeof createConten
             return null;
         }
     }))).filter((x): x is Record<string, unknown> => !!x && typeof x === 'object');
-    const links: LiveLink[] = [];
+    const links: LiveLink[] = [], t = options.t ?? translator('en');
     for (const page of pages) {
         const url = liveUrl(baseUrl, page.link, options.locale, options.defaultLocale);
         if (!url)
             continue;
         const id = Number(page.site_id ?? page.id);
         const notes = [
-            Number(page.visible) === 0 ? 'the page is hidden, the site will not show it' : '',
-            r === 'articles' && options.articleBoxPages && !options.articleBoxPages.includes(id) ? 'the page has no article box, the article will not be shown' : '',
-            r === 'articles' && row.draft ? 'only the published version is publicly visible' : ''
+            Number(page.visible) === 0 ? t('content.live.hidden') : '',
+            r === 'articles' && options.articleBoxPages && !options.articleBoxPages.includes(id) ? t('content.live.noArticleBox') : '',
+            r === 'articles' && row.draft ? t('content.live.draftOnly') : ''
         ].filter(Boolean);
         links.push({ label: String(page.title ?? page.link), url, note: notes.length ? notes.join('; ') : null });
     }

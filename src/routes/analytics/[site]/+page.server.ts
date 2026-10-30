@@ -11,7 +11,7 @@ export const load: PageServerLoad = async (e) => {
         const id = siteId(e.params.site);
         let range;
         try { range = parseAnalyticsRange(e.url.searchParams); }
-        catch { error(400, 'Choose a valid period of up to 62 days.'); }
+        catch { error(400, e.locals.t('analytics.period.invalid')); }
         const connection = await connectContent(session, id);
         const blockers = connection.analytics?.blockers() ?? ['disabled'];
         if (!connection.analytics || blockers.length) return { site: connection.site, available: false, blockers, range };

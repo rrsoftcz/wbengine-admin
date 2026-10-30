@@ -15,7 +15,7 @@ test('CSRF requires exact session token and same origin', () => {
     assert.throws(() => checkCsrf(new Request('https://admin.example', { method: 'POST', headers: { origin: 'https://admin.example' } }), 'https://admin.example', 'abc', 'bad'));
 });
 test('public user projection never serializes credentials', () => {
-    assert.deepEqual(safeUser({ id: 1, email: 'a@example.com', global_admin: 1, mfa_enabled: 1, password_hash: 'SECRET', mfa_secret: 'SECRET' } as never), { id: 1, email: 'a@example.com', globalAdmin: true, mfaEnabled: true });
+    assert.deepEqual(safeUser({ id: 1, email: 'a@example.com', global_admin: 1, mfa_enabled: 1, password_hash: 'SECRET', mfa_secret: 'SECRET' } as never), { id: 1, email: 'a@example.com', globalAdmin: true, mfaEnabled: true, locale: null });
     assert.equal(normalizeEmail(' A@Example.COM '), 'a@example.com');
     assert.throws(() => normalizeEmail('bad'));
 });

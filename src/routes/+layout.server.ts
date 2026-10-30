@@ -3,5 +3,5 @@ import type { LayoutServerLoad } from './$types';
 export const load: LayoutServerLoad = ({ locals }) => {
     const s = locals.session;
     const ready = !!s && s.mfaVerified && s.user.mfaEnabled;
-    return { shell: ready ? { email: s.user.email, globalAdmin: s.user.globalAdmin } : null, shellCsrf: locals.csrf };
+    return { shell: ready ? { email: s.user.email, globalAdmin: s.user.globalAdmin } : null, shellCsrf: locals.csrf, uiLocale: locals.locale, uiMessages: locals.messages };
 };

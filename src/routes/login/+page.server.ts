@@ -7,11 +7,11 @@ export const actions: Actions = { default: async (e) => {
         try {
             const f = await form(e), email = field(f, 'email', 254), raw = await login(email, field(f, 'password', 256));
             if (!raw)
-                return fail(400, { error: 'Sign-in failed or is temporarily restricted', email });
+                return fail(400, { error: e.locals.t('auth.login.errorRestricted'), email });
             setSession(e, raw);
         }
         catch {
-            return fail(400, { error: 'Sign-in failed' });
+            return fail(400, { error: e.locals.t('auth.login.errorFailed') });
         }
         redirect(303, '/mfa');
     } };

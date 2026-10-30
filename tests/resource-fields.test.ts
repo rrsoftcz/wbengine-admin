@@ -13,9 +13,12 @@ const directory=await mkdtemp(join(process.cwd(),'.svelte-kit','tmp-resource-fie
 after(()=>rm(directory,{recursive:true,force:true}));
 const source=await readFile(new URL('../src/lib/components/ResourceFields.svelte',import.meta.url),'utf8');
 const compiled=compile(source,{generate:'server',filename:'ResourceFields.svelte'});
+const indexUrl=pathToFileURL(join(process.cwd(),'src/lib/i18n/index.ts')).href;
+await writeFile(join(directory,'i18n-client.mjs'),`import {translate,messagesFor,intlLocale} from '${indexUrl}';const messages=messagesFor('en');export const t=(key,params)=>translate('en',messages,key,params);export const intl=()=>intlLocale('en');`);
+const patch=(code:string)=>code.replaceAll('#lib/i18n/client.ts','./i18n-client.mjs');
 const pickerSource=await readFile(new URL('../src/lib/components/PagePicker.svelte',import.meta.url),'utf8');
-await writeFile(join(directory,'PagePicker.mjs'),compile(pickerSource,{generate:'server',filename:'PagePicker.svelte'}).js.code);
-const modulePath=join(directory,'ResourceFields.mjs');await writeFile(modulePath,compiled.js.code.replace("./PagePicker.svelte","./PagePicker.mjs"));
+await writeFile(join(directory,'PagePicker.mjs'),patch(compile(pickerSource,{generate:'server',filename:'PagePicker.svelte'}).js.code));
+const modulePath=join(directory,'ResourceFields.mjs');await writeFile(modulePath,patch(compiled.js.code).replace("./PagePicker.svelte","./PagePicker.mjs"));
 const {default:Component}=await import(pathToFileURL(modulePath).href);
 function controls(resource:Resource,values:Record<string,unknown>,translation=false){const html=render(Component,{props:{resource,values,translation}}).body;return [...html.matchAll(/<(?:input|textarea|select)\b[^>]*>/g)].map(m=>m[0]);}
 function byName(nodes:string[],name:string){const node=nodes.find(s=>s.includes(`name="${name}"`));assert.ok(node,`Control ${name} must be rendered`);return node;}

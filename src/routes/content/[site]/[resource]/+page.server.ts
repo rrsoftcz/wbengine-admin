@@ -14,19 +14,19 @@ export const load: PageServerLoad = async (e) => contentLoad(async()=>{
     return { langs, site, resource: r, items, pagination: list.pagination, csrf: e.locals.csrf, canCreate: canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'save', r) };
 });
 export const actions: Actions = { upload: async (e) => {
-        const s = signedIn(e);
+        const s = signedIn(e), t = e.locals.t;
         try {
             if (e.params.resource !== 'images')
                 throw Error();
             const f = await form(e), image = f.get('image');
             if (!(image instanceof File) || !image.size || image.size > 524288 || !['image/png', 'image/jpeg', 'image/webp'].includes(image.type))
-                return fail(400, { error: 'Choose a PNG, JPEG or WebP file up to 512 KiB.' });
+                return fail(400, { error: t('content.upload.invalidFile') });
             if (f.get('publicConsent') !== 'yes')
-                return fail(400, { error: 'Confirm that the image is public.' });
+                return fail(400, { error: t('content.upload.confirmPublic') });
             const { gateway } = await connectContent(s, siteId(e.params.site)), result = await gateway.upload({ base64: Buffer.from(await image.arrayBuffer()).toString('base64'), mime: image.type });
             return { uploaded: result.data as Record<string, unknown> };
         }
         catch {
-            return fail(400, { error: 'The image could not be uploaded. Check permissions, format and the available site storage.' });
+            return fail(400, { error: t('content.upload.failed') });
         }
     } };
