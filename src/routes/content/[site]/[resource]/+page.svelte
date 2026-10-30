@@ -27,7 +27,7 @@
     {#snippet actions()}{#if data.canCreate&&data.resource!=='images'}<a class="btn btn-primary" href={base+'/new'}>{t(newKey(data.resource))}<span class="sr-only">{t('content.list.createRecordSr')}</span></a>{/if}{/snippet}
 </PageHeader>
 
-<div id="vysledek" tabindex="-1" class="outline-none">
+<div id="result" tabindex="-1" class="outline-none">
     {#if form?.error}<p class="alert alert-error mb-4" role="alert">{form.error}</p>{/if}
     {#if form?.uploaded}<p class="alert alert-ok mb-4" role="status">{t('content.list.uploaded')} <code>{String(form.uploaded.url)}</code></p>{/if}
 </div>
@@ -85,8 +85,8 @@
 {#if data.pagination}<Pager page={data.pagination.page} totalPages={data.pagination.total_pages} href={(p)=>base+'?page='+p}/>{/if}
 
 {#if !['articles','images'].includes(data.resource)}
-    <section class="card-flat mt-8" aria-labelledby="obnova">
-        <h2 id="obnova" class="mb-1 text-base">{t('content.recover.title')}</h2>
+    <section class="card-flat mt-8" aria-labelledby="restore">
+        <h2 id="restore" class="mb-1 text-base">{t('content.recover.title')}</h2>
         <p class="hint mb-3">{t('content.recover.hint')}</p>
         <form method="GET" action={base+'/recover'} class="flex flex-wrap items-end gap-3">
             <label class="field w-48"><span>{t('content.recover.label')}</span><input name="recoverId" type="number" min="1" required/></label>

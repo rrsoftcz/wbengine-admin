@@ -29,7 +29,7 @@
         </p>
     </div>
     {#if data.user.globalAdmin}
-        <a class="btn btn-primary" href="/sites#pridat-web">{t('app.home.addSite')}</a>
+        <a class="btn btn-primary" href="/sites#add-site">{t('app.home.addSite')}</a>
     {/if}
 </header>
 
@@ -61,7 +61,7 @@
                 </li>
             {/each}
         </ol>
-        <a class="btn btn-primary mt-6" href="/sites#pridat-web">{t('app.home.start.connect')}</a>
+        <a class="btn btn-primary mt-6" href="/sites#add-site">{t('app.home.start.connect')}</a>
     </section>
 {:else}
     <section class="card" aria-labelledby="wait" role="status">
