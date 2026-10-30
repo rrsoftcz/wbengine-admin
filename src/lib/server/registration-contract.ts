@@ -5,12 +5,14 @@ export const frameworkScopes = ['discovery:read', 'articles:read', 'articles:wri
 export const analyticsScope = 'analytics:read';
 /** Reading the change log. Part of the key profile of newer sites, so older keys without it stay registrable. */
 export const auditScope = 'audit:read';
+/** Site users, cache flush and settings view: newer scopes of the profile, optional so older keys stay registrable. */
+export const siteAdminScopes = ['users:read', 'users:write', 'cache:write', 'config:read'];
 /** Single source of truth for the key purpose. canOperate() in content.ts must never require a scope outside it. */
 export const scopeProfiles = {
     management: {
         label: 'Site management in WBengine Admin',
         scopes: [...frameworkScopes] as string[],
-        optional: [analyticsScope, auditScope] as string[]
+        optional: [analyticsScope, auditScope, ...siteAdminScopes] as string[]
     }
 } as const;
 export type ScopeProfile = keyof typeof scopeProfiles;

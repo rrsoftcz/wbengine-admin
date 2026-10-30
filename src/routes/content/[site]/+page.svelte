@@ -17,7 +17,7 @@
 
 <Breadcrumbs items={[{label:t('content.breadcrumb.sites'),href:'/'},{label:data.site.name}]}/>
 <PageHeader title={data.site.name} description={t('content.overview.description')}>
-    {#snippet actions()}{#if data.activity}<a class="btn btn-secondary" href={'/content/'+data.site.id+'/activity'}>{t('content.overview.activity')}</a>{/if}{#if data.analytics}<a class="btn btn-secondary" href={'/analytics/'+data.site.id}>{t('content.overview.analytics')}</a>{/if}{/snippet}
+    {#snippet actions()}{#if data.siteUsers}<a class="btn btn-secondary" href={'/content/'+data.site.id+'/users'}>{t('content.overview.users')}</a>{/if}{#if data.siteSettings}<a class="btn btn-secondary" href={'/content/'+data.site.id+'/settings'}>{t('content.overview.settings')}</a>{/if}{#if data.activity}<a class="btn btn-secondary" href={'/content/'+data.site.id+'/activity'}>{t('content.overview.activity')}</a>{/if}{#if data.analytics}<a class="btn btn-secondary" href={'/analytics/'+data.site.id}>{t('content.overview.analytics')}</a>{/if}{/snippet}
 </PageHeader>
 
 <h2 class="sr-only">{t('content.overview.typesHeading')}</h2>

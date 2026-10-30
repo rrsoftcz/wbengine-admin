@@ -7,6 +7,7 @@ import { transaction, rows } from './db.ts';
 import { requireSite, vault, type Session } from './auth.ts';
 import { createAnalyticsGateway } from './analytics.ts';
 import { createActivityGateway } from './activity.ts';
+import { createSiteAdminGateway } from './siteadmin.ts';
 export { resources, RemoteFailure };
 export type { Resource };
 export type Role = 'editor' | 'siteadmin' | 'global';
@@ -347,6 +348,7 @@ export async function connectContent(s: Session, id: number): Promise<{
     gateway: ReturnType<typeof createContentGateway>;
     analytics?: ReturnType<typeof createAnalyticsGateway>;
     activity?: ReturnType<typeof createActivityGateway>;
+    admin?: ReturnType<typeof createSiteAdminGateway>;
 }> {
     const site = await transaction(async (c) => {
         try {
@@ -386,7 +388,7 @@ export async function connectContent(s: Session, id: number): Promise<{
         if (!scopes.includes('discovery:read'))
             throw new RemoteFailure(403, 'forbidden');
         const gatewayOptions = { role, scopes, capabilities: caps.capabilities, call };
-        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), locales: projectLocales(caps.i18n), baseUrl: site.base_url, gateway: createContentGateway(gatewayOptions), analytics: createAnalyticsGateway(gatewayOptions), activity: createActivityGateway(gatewayOptions) };
+        return { site: { id, name: site.name }, boxTypes: projectBoxTypes(caps.box_types), locales: projectLocales(caps.i18n), baseUrl: site.base_url, gateway: createContentGateway(gatewayOptions), analytics: createAnalyticsGateway(gatewayOptions), activity: createActivityGateway(gatewayOptions), admin: createSiteAdminGateway(gatewayOptions) };
     }
     catch (cause) {
         throw new ContentConnectionFailure({ id, name: site.name }, role, cause);

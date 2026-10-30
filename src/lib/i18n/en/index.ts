@@ -8,7 +8,8 @@ import analytics from './analytics.ts';
 import profile from './profile.ts';
 import activity from './activity.ts';
 import users from './users.ts';
+import siteadmin from './siteadmin.ts';
 
 /** English source catalog. Each area owns one file; the key prefix is the area name. */
-const en = { ...app, ...auth, ...sites, ...content, ...fields, ...errors, ...analytics, ...profile, ...activity, ...users } satisfies Record<string, string>;
+const en = { ...app, ...auth, ...sites, ...content, ...fields, ...errors, ...analytics, ...profile, ...activity, ...users, ...siteadmin } satisfies Record<string, string>;
 export default en;

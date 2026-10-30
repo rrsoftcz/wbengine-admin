@@ -40,4 +40,12 @@ export default {
     'errors.unavailable': 'The site API is temporarily unavailable. Try again later.',
     'errors.status_conflict': 'The operation conflicts with the current state or dependencies.',
     'errors.remote_rejected': 'The remote API rejected the request.',
+    'errors.duplicate_email': 'An account with this email address already exists on the site.',
+    'errors.invalid_email': 'Enter a valid email address of at most 100 characters.',
+    'errors.invalid_role': 'The role is not valid.',
+    'errors.last_admin': 'The last active administrator of the site cannot be demoted or disabled.',
+    'errors.account_disabled': 'A disabled account cannot be reset. Enable it first.',
+    'errors.unsupported': 'The site database does not support this yet. Apply the framework database updates on the site.',
+    'errors.duplicate_user': 'An account with this address already exists.',
+    'errors.invalid_filter': 'The filter is not valid.',
 } satisfies Record<string, string>;

@@ -2,7 +2,7 @@ import errorCatalog from '../i18n/en/errors.ts';
 import type { MessageKey, Translate } from '../i18n/index.ts';
 export const resources = ['articles', 'pages', 'menu', 'sections', 'boxes', 'images'] as const;
 export type Resource = typeof resources[number];
-export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'activity' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
+export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'activity' | 'usersList' | 'userGet' | 'userCreate' | 'userUpdate' | 'userReset' | 'cacheFlush' | 'siteConfig' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
 export interface ApiCall {
     operation: Operation;
     resource?: Resource;
@@ -17,6 +17,8 @@ export interface ApiCall {
     granularity?: 'day' | 'week' | 'month';
     /** Filters of the change feed (operation 'activity'). */
     feed?: { outcome?: 'applied' | 'rejected'; resource?: string; source?: string; actor?: string };
+    /** Filters of the user list (operation 'usersList'). */
+    users?: { search?: string; role?: string };
 }
 export interface ApiReply {
     data: unknown;
@@ -82,6 +84,43 @@ export function planApiCall(call: ApiCall): {
             throw Error('Invalid analytics period');
         return { path: `analytics/overview?from=${encodeURIComponent(call.from)}&to=${encodeURIComponent(call.to)}&granularity=${encodeURIComponent(call.granularity!)}`, method: 'GET' };
     }
+    if (op === 'usersList') {
+        const page = call.page ?? 1, perPage = call.perPage ?? 25, filter = call.users ?? {};
+        if (!Number.isInteger(page) || page < 1 || page > 1000000 || !Number.isInteger(perPage) || perPage < 1 || perPage > 100)
+            throw Error('Invalid page');
+        const query = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+        if (filter.search) {
+            if (filter.search.length > 100 || /[\u0000-\u001f\u007f]/.test(filter.search))
+                throw Error('Invalid search');
+            query.set('search', filter.search);
+        }
+        if (filter.role) {
+            if (!['user', 'editor', 'admin'].includes(filter.role))
+                throw Error('Invalid role');
+            query.set('role', filter.role);
+        }
+        return { path: `users?${query}`, method: 'GET' };
+    }
+    if (op === 'userGet' || op === 'userUpdate' || op === 'userReset') {
+        if (!/^[1-9][0-9]{0,9}$/.test(call.id ?? ''))
+            throw Error('Invalid user id');
+        if (op === 'userGet')
+            return { path: `users/${call.id}`, method: 'GET' };
+        if (op === 'userReset')
+            return { path: `users/${call.id}/password-reset`, method: 'POST' };
+        if (!call.data || Array.isArray(call.data) || Object.keys(call.data).some(k => !['role', 'disabled', 'firstname', 'lastname'].includes(k)))
+            throw Error('Invalid user update');
+        return { path: `users/${call.id}`, method: 'PATCH', data: call.data };
+    }
+    if (op === 'userCreate') {
+        if (!call.data || Array.isArray(call.data) || Object.keys(call.data).some(k => !['email', 'username', 'firstname', 'lastname', 'role'].includes(k)))
+            throw Error('Invalid user data');
+        return { path: 'users', method: 'POST', data: call.data };
+    }
+    if (op === 'cacheFlush')
+        return { path: 'cache/flush', method: 'POST', data: {} };
+    if (op === 'siteConfig')
+        return { path: 'config', method: 'GET' };
     if (op === 'activity') {
         const page = call.page ?? 1, perPage = call.perPage ?? 25, feed = call.feed ?? {};
         if (!Number.isInteger(page) || page < 1 || page > 1000000 || !Number.isInteger(perPage) || perPage < 1 || perPage > 100)

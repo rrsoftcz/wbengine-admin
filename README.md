@@ -45,6 +45,19 @@ The application does not run DDL on every request. Run the migration before star
 
 Site administrators see an Activity page per site (button on the site overview): the change log of the site with who made each change, when, and through what (Admin or API, site login, command line), filterable by record type and source, plus the writes the site rejected (error code only). It needs a site running the change feed (`GET /api/v2/changes`) and an integration key with the `audit:read` scope; a key issued before that scope existed shows a notice asking for a new key.
 
+## Users and settings of a connected site
+
+Site administrators (and global admins) get two more pages per site when the site runs the remote administration API and the integration key carries the scopes `users:read`, `users:write`, `cache:write` and `config:read`:
+
+- **Site users** (`/content/<site>/users`): list and search the accounts that sign in on the site itself, create an account (the response carries a one-time password link, shown once, that works on `/login/?reset=TOKEN` of the site), change the role (user, editor, administrator), disable and enable. Passwords are never set, read or stored by the Admin; the last active administrator of a site cannot be demoted or disabled.
+- **Site settings** (`/content/<site>/settings`): the effective settings of the site, read only, with secret values shown only as "set", and a button that flushes the site cache.
+
+A key issued before these scopes existed still registers; the pages then ask for a new key. Every action is recorded in the site's change log with the Admin user as actor and in the Admin audit.
+
+## Central users
+
+Global admins manage the accounts of the Admin itself at `/users`: search, invite (one-time code), disable and enable, promote and demote global admins, one-time recovery codes, MFA reset and revoking site access. Nobody can change their own role or status there and the last global admin is kept.
+
 ## Interface language and profile
 
 The interface is available in English, Czech, German and Polish. The language is chosen per request: the signed-in user's saved language (Profile, Language), then the `wb_locale` cookie, then the browser's `Accept-Language`, then English. Every user-visible string lives in the catalog `src/lib/i18n/<language>/` (English is the source and the fallback); components use `t('key')`, server code uses `locals.t('key')`. A test fails when a translation has an unknown key, an empty text or different placeholders, or when a finished language lacks a key.
