@@ -23,6 +23,8 @@ export default {
     'content.overview.description': 'Content and revisions are stored on the site. Availability depends on your account permissions, the key scopes and the capabilities of the remote API.',
     'content.overview.analytics': 'Site analytics',
     'content.overview.activity': 'Activity',
+    'content.overview.users': 'Site users',
+    'content.overview.settings': 'Site settings',
     'content.overview.typesHeading': 'Content types',
     'content.overview.unavailable': 'Unavailable',
     'content.overview.editing': 'Editing',

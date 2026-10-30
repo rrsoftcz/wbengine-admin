@@ -234,6 +234,35 @@ test('actual central forms across two independent HTTPS PHP APIs: editing, grant
     assert.equal((await get(base + '/activity?outcome=rejected')).status, 200);
     assert.equal((await get(base + '/activity?resource=pages&source=v2&page=1')).status, 200);
     assert.equal((await get(base + '/activity?resource=%27%3B--&page=-1')).status, 200);
+    // Site users: create an account, receive the one-time link, change the role, disable and enable.
+    html = await (await get(base + '/users')).text();
+    assert.ok(html.includes('Create an account'));
+    const newEmail = 'pilot-' + suffix + '@example.test';
+    response = await post(base + '/users?/create', { ...hidden(html, 'create'), email: newEmail, firstname: 'Pilot', lastname: '', role: 'editor' });
+    assert.equal(response.status, 200);
+    html = await response.text();
+    assert.ok(html.includes('Password link for') && html.includes('/login/?reset='), 'The one-time link is shown once');
+    const linkToken = /\/login\/\?reset=([a-f0-9]{64})/.exec(html)?.[1];
+    assert.ok(linkToken);
+    html = await (await get(base + '/users?q=' + encodeURIComponent(newEmail))).text();
+    assert.ok(html.includes(newEmail));
+    assert.ok(!html.includes(linkToken!), 'The link is not shown again');
+    const newUser = /name="user" value="(\d+)"/.exec(html)?.[1];
+    assert.ok(newUser);
+    response = await post(base + '/users?/role', { ...hidden(html, 'role'), user: newUser!, role: 'admin' });
+    assert.equal(response.status, 200);
+    response = await post(base + '/users?/disable', { ...hidden(html, 'disable'), user: newUser! });
+    assert.equal(response.status, 200);
+    html = await (await get(base + '/users?q=' + encodeURIComponent(newEmail))).text();
+    assert.ok(html.includes('Disabled'));
+    response = await post(base + '/users?/enable', { ...hidden(html, 'enable'), user: newUser! });
+    assert.equal(response.status, 200);
+    // Site settings: secrets stay hidden, the cache can be flushed.
+    html = await (await get(base + '/settings')).text();
+    assert.ok(html.includes('Effective settings') && html.includes('Flush cache'));
+    response = await post(base + '/settings?/flush', { ...hidden(html, 'flush') });
+    assert.equal(response.status, 200);
+    assert.ok((await response.text()).includes('The cache was flushed.'));
     html = await (await get(base + '/pages/' + recoverable + '?history=1')).text();
     response = await post(base + '/pages/' + recoverable + '?/restore', { ...hidden(html, 'restore'), confirm: 'yes' });
     assert.equal(response.status, 303);
