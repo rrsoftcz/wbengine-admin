@@ -145,7 +145,7 @@ Recovery: `docker compose run --rm app npm run admin -- recover vy@vase-domena.c
 
 1. Sign in to Admin and open the Site registry (`/sites`, the link on the start page).
 2. In the Add site section enter the name and the HTTPS address (for example `https://www.vase-domena.cz/`), and paste the key.
-3. Choose Verify and add site. Before saving, Admin verifies the address (DNS, certificate), calls `capabilities` and `identity`, and checks that the key has all 17 permissions of the Site management profile.
+3. Choose Verify and add site. Before saving, Admin verifies the address (DNS, certificate), calls `capabilities` and `identity`, and checks that the key allows at least one permission group. The Admin then offers only what the key allows.
 4. On success a verified integration is shown with a Manage content link. On failure an instruction is shown and no record is saved.
 
 What the messages mean:
@@ -153,7 +153,7 @@ What the messages mean:
 | Message | What to do |
 |---------|------------|
 | The integration key is not valid or has been revoked | issue a new key on the site |
-| The key does not have all permissions of the Site management profile | issue a key with the full profile |
+| The key does not allow anything the Admin can manage | issue a key with at least one permission group |
 | API v2 is not available on the site | enable `apiV2`, apply the migrations (step 3) |
 | The site could not be contacted | check the address, DNS and a valid HTTPS certificate |
 | The site address points to a disallowed network | the site must be at a public address, private and loopback addresses are blocked by SSRF protection. For a site on the same server see Troubleshooting, Admin and the site on one server |
@@ -241,6 +241,6 @@ Repeat the verification, it must return the public IP. A connection from the con
 
 ## Key scopes and rotation
 
-A key issued by a current site has every scope the Admin uses. A key issued before the newer scopes existed still registers, because only the 17 core scopes are required, but the pages that need `audit:read` (Activity), `users:read` and `users:write` (Site users) or `cache:write` and `config:read` (Site settings) show a notice. Issue a new key on the Integrations page of the site and replace it in the site registry; the scopes of a key never change afterwards.
+When issuing a key the site administrator chooses permission groups (Content, Publishing, Structure, Images, Site administration, History and optionally Analytics); the default grants all of them. The Admin registers any key that allows at least one group and shows only what it covers: a page that needs `audit:read` (Activity), `users:read` and `users:write` (Site users) or `cache:write` and `config:read` (Site settings) shows a notice when the key lacks them. Issue a new key on the Integrations page of the site with the missing group and replace it in the site registry; the scopes of a key never change afterwards.
 
 Related documentation: the Admin README (operations, CLI, security boundaries), the README and `docs/deploy-vps-docker.md` of the skeleton, `ref-api-v2.md` and the framework README (API v2, user management from the command line), and the Getting started and Central administration pages at `https://www.wbengine.org/docs/`.

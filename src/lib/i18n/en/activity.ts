@@ -1,7 +1,7 @@
 export default {
     'activity.title': 'Activity',
     'activity.description': 'Who changed what on this site, newest first. The content of the changes is not shown here.',
-    'activity.needsNewKey': 'The integration key of this site was issued before the activity log was available. Issue a new key on the Integrations page of the site and replace it in the site registry to see the activity here.',
+    'activity.needsNewKey': 'The integration key of this site does not allow reading the change log (permission group History). On the Integrations page of the site issue a new key with that group and replace it in the site registry to see the activity here.',
     'activity.tabs.label': 'Type of activity',
     'activity.tabs.applied': 'Changes',
     'activity.tabs.rejected': 'Rejected writes',

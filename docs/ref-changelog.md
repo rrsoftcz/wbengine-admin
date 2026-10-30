@@ -17,7 +17,7 @@ Target: **0.2.0**.
 - Per-site Activity page (change feed of the site, rejected writes), Site users (create with a one-time
   password link, role, disable and enable) and Site settings (redacted configuration, cache flush).
   These need the scopes `audit:read`, `users:read`, `users:write`, `cache:write` and `config:read`;
-  older keys still register and the pages ask for a new key.
+  keys with fewer permission groups still register and the pages ask for a new key.
 - Device names and a page picker in the box form, live URL of a record, an article-box notice that follows
   the site's `renders_articles` flag.
 - Per-site analytics dashboard with daily, weekly and monthly trends, top pages,

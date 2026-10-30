@@ -1,7 +1,7 @@
 export default {
     'siteusers.title': 'Site users',
     'siteusers.description': 'Accounts that sign in on this site itself. Create accounts, change roles, disable accounts and issue password links.',
-    'siteusers.needsNewKey': 'The integration key of this site was issued before user and settings management was available. Issue a new key on the Integrations page of the site and replace it in the site registry.',
+    'siteusers.needsNewKey': 'The integration key of this site does not allow this part of site administration (permission group Site administration). On the Integrations page of the site issue a new key with that group and replace it in the site registry.',
     'siteusers.create.heading': 'Create an account',
     'siteusers.create.hint': 'The account cannot sign in until its owner opens the password link shown after creation. Passwords are never set or shown here.',
     'siteusers.create.submit': 'Create account',

@@ -43,7 +43,7 @@ export default {
     'app.home.start.lead': 'There are no sites yet. Connecting takes about two minutes and has three steps.',
     'app.home.start.connect': 'Connect first site',
     'app.home.step1.title': 'Issue a key on the site',
-    'app.home.step1.text': 'On the target site, open the Integrations page and issue a key with the Site management profile.',
+    'app.home.step1.text': 'On the target site, open the Integrations page and issue a key. Choose the permission groups the Admin may use; the default grants all of them.',
     'app.home.step2.title': 'Paste the key into Admin',
     'app.home.step2.text': 'Enter the name, address and key. The key is verified and stored encrypted.',
     'app.home.step3.title': 'Manage content',
