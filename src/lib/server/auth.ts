@@ -163,14 +163,14 @@ export async function requireSite(c: Connection, s: Session, site: number, level
     if (!permitted(s.user.globalAdmin, g?.role ?? null, level))
         throw Error('Missing site permission');
 }
-export async function invite(email: string, globalAdmin: boolean, siteId: number | null = null, role: 'editor' | 'siteadmin' | null = null) {
+export async function invite(email: string, globalAdmin: boolean, siteId: number | null = null, role: 'editor' | 'siteadmin' | null = null, actorId: number | null = null) {
     email = normalizeEmail(email);
     if (siteId === null && role !== null || siteId !== null && role === null)
         throw Error('Invalid invitation permission');
     const raw = token();
     await transaction(async (c) => {
         await c.execute('INSERT INTO invitations (token_hash,email,global_admin,site_id,role,expires_at) VALUES (?,?,?,?,?,?)', [tokenHash(raw), email, globalAdmin, siteId, role, new Date(Date.now() + 48 * 3600000)]);
-        await audit(c, null, 'invite.created', siteId);
+        await audit(c, actorId, 'invite.created', siteId);
     });
     return raw;
 }
