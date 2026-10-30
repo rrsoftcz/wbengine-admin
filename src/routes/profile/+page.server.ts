@@ -1,14 +1,24 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { form, field, signedIn, sessionCookie } from '#lib/server/web.ts';
-import { changePassword, regenerateBackupCodes, resetMfa, setLocale, profileInfo, ProfileError } from '#lib/server/profile.ts';
+import { changePassword, regenerateBackupCodes, resetMfa, setLocale, profileInfo, accountActivity, activityPageSize, ProfileError } from '#lib/server/profile.ts';
+import { activityCategories, type ActivityCategory } from '#lib/activity.ts';
 import { isLocale, localeCookie, locales, localeNames } from '#lib/i18n/index.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (e) => {
     const s = signedIn(e);
+    const requested = e.url.searchParams.get('activity');
+    const category = (activityCategories as readonly string[]).includes(requested ?? '') ? requested as ActivityCategory : null;
+    const requestedPage = Number(e.url.searchParams.get('activityPage'));
+    const page = Number.isInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, 100000) : 1;
+    let activity = await accountActivity(s.user.id, category, page);
+    // A page past the end (for example after the filter changed) shows the last page instead of nothing.
+    if (!activity.items.length && page > 1)
+        activity = await accountActivity(s.user.id, category, activity.totalPages);
     return {
         csrf: e.locals.csrf,
         info: await profileInfo(s.user.id),
+        activity: { ...activity, category, page: Math.min(page, activity.totalPages), perPage: activityPageSize },
         locale: s.user.locale,
         languages: locales.map((value) => ({ value, name: localeNames[value] }))
     };
