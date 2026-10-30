@@ -39,6 +39,9 @@ export const errorMessages: Record<string, string> = Object.fromEntries(Object.e
 /** Catalog key of the message for a remote failure: by HTTP status first, then by error code, then a generic one. */
 export function remoteMessageKey(status: number, code: string): MessageKey {
     const byStatus: Record<number, string> = { 412: 'precondition_failed', 428: 'precondition_required', 403: 'forbidden', 404: 'not_found' };
+    // A key bound to other addresses answers 403 with its own code: that is not a missing permission.
+    if (code === 'ip_not_allowed')
+        return 'errors.ip_not_allowed' as MessageKey;
     if (byStatus[status])
         return `errors.${byStatus[status]}` as MessageKey;
     if (Object.hasOwn(errorMessages, code))

@@ -25,6 +25,7 @@ export const registrationErrors = {
     timeout: 'The site did not respond within the time limit. Try again later.',
     api_unavailable: 'API v2 is not available on the site. Enable API v2 and install the framework SQL migrations.',
     invalid_key: 'The integration key is not valid or has been revoked. Issue a new key on the site.',
+    ip_not_allowed: 'The key may not be used from the address of this Admin server. On the site, add that address to the key or issue a key without address restriction.',
     forbidden: 'The site rejected the request. Check that the key has the required permission and the site accepts HTTPS.',
     missing_scope: 'The key does not have all permissions of the Site management profile. Issue a new key with the full profile.',
     rate_limited: 'The site has temporarily limited failed attempts. Try again in a few minutes.',
@@ -51,7 +52,7 @@ export function classifyRegistrationError(e: unknown): RegistrationErrorCode {
         if (e.status === 401)
             return 'invalid_key';
         if (e.status === 403)
-            return 'forbidden';
+            return e.code === 'ip_not_allowed' ? 'ip_not_allowed' : 'forbidden';
         if (e.status === 404 || e.status === 503)
             return 'api_unavailable';
         if (e.status === 429)

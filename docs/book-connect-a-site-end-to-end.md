@@ -154,6 +154,7 @@ What the messages mean:
 |---------|------------|
 | The integration key is not valid or has been revoked | issue a new key on the site |
 | The key does not allow anything the Admin can manage | issue a key with at least one permission group |
+| The key may not be used from the address of the Admin server | on the site's `/integrations/` page add the address to the key (the card shows the address the key was last used from) or issue a key without address restriction; needs the site to know the real caller address (`http.trustedProxies`) |
 | API v2 is not available on the site | enable `apiV2`, apply the migrations (step 3) |
 | The site could not be contacted | check the address, DNS and a valid HTTPS certificate |
 | The site address points to a disallowed network | the site must be at a public address, private and loopback addresses are blocked by SSRF protection. For a site on the same server see Troubleshooting, Admin and the site on one server |

@@ -9,6 +9,8 @@ Target: **0.2.0**.
 
 ### Added
 
+- A key bound to other addresses (site setting) is reported with its own message when registering and when the site rejects a call (`ip_not_allowed`), instead of a generic missing permission.
+- Keys with any permission groups are accepted (only `discovery:read` plus one more permission is required); the Admin shows only what the key allows.
 - Interface languages English, Czech, German and Polish (catalog under `src/lib/i18n`, per-user setting,
   cookie and browser fallback, parity test). User profile with password change, backup codes, MFA reset,
   language and a paged, filterable activity list.

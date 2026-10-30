@@ -34,6 +34,7 @@ export default {
     'sites.registration.api_unavailable': 'API v2 is not available on the site. Enable API v2 and install the framework SQL migrations.',
     'sites.registration.invalid_key': 'The integration key is not valid or has been revoked. Issue a new key on the site.',
     'sites.registration.forbidden': 'The site rejected the request. Check that the key has the required permission and the site accepts HTTPS.',
+    'sites.registration.ip_not_allowed': 'The key may not be used from the address of this Admin server. On the site, add that address to the key or issue a key without address restriction.',
     'sites.registration.missing_scope': 'The key does not allow anything the Admin can manage. Issue a new key with at least one permission group.',
     'sites.registration.rate_limited': 'The site has temporarily limited failed attempts. Try again in a few minutes.',
     'sites.registration.bad_contract': 'The site returned an unexpected response. Check that WBengine with API v2 is running.',
