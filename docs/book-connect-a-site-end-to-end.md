@@ -34,7 +34,7 @@ docker compose up --build
 
 The site runs at `http://localhost:8080`. A clean production server with Docker, Nginx and HTTPS is described in `docs/deploy-vps-docker.md` in the skeleton. The installer is run with the public address of the site: `./bin/setup-production.sh https://www.vase-domena.cz`. It sets `i18n.baseUrl` and the trusted proxy (`http.trustedProxies`) itself, so that the framework behind Nginx recognises HTTPS. Without it, the `/integrations/` page refuses to issue a key with a message that the page was not recognised as HTTPS.
 
-To connect to Admin, the site needs **HTTPS** and **WBengine 4.2 or newer**. To check the version: `docker compose exec web grep -A2 '"name": "wbengine/wbengine"' vendor/composer/installed.json`.
+To connect to Admin, the site needs **HTTPS** and **WBengine 4.2 or newer** (the current release is recommended: the Activity page needs 4.9, site users and settings 4.10 and the permission groups of a key 5.1). To check the version: `docker compose exec web grep -A2 '"name": "wbengine/wbengine"' vendor/composer/installed.json`.
 
 ## 2. Create the first site administrator
 

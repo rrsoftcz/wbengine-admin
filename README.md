@@ -107,7 +107,7 @@ The default period contains 30 calendar dates ending on the previous UTC day. Th
 
 ## Connecting a new site
 
-Requirements on the target site: WBengine 4.2.0 or newer, `apiV2` enabled in `Settings.json`, HTTPS and the applied framework migrations `4.0.0/002` and `4.0.0/007` (`doctor` reports them as `migration.002` and `migration.007`).
+Requirements on the target site: WBengine 4.2.0 or newer (the current release is recommended: activity needs 4.9, site users and settings 4.10, permission groups of the key 5.1), `apiV2` enabled in `Settings.json`, HTTPS and the applied framework migrations `4.0.0/002` and `4.0.0/007` (`doctor` reports them as `migration.002` and `migration.007`).
 
 1. On the target site sign in as ADMIN, open the Integrations page, confirm your password and issue a key. It is shown once: the site address, a recommended name and the key.
 2. In the central Admin open Sites, choose Add site and enter the name, the HTTPS address and the key. Before saving, `capabilities` and `identity` are verified, and the key must allow at least one permission group (always `discovery:read` plus something to manage). The site administrator chooses the groups when issuing the key: Content, Publishing, Structure, Images, Site administration, History and optionally Analytics. The Admin shows and enables only what the key allows; for a page the key does not cover it asks for a new key.
