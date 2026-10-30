@@ -1,10 +1,12 @@
 <script lang="ts">
     import type { AnalyticsSeriesPoint } from '#lib/server/analytics.ts';
+    import { t, intl } from '#lib/i18n/client.ts';
     type Metric = 'page_views' | 'article_views' | 'box_appearances';
-    let { series, metric = 'page_views', label = 'Page views' }: { series: AnalyticsSeriesPoint[]; metric?: Metric; label?: string } = $props();
+    let { series, metric = 'page_views', label = '' }: { series: AnalyticsSeriesPoint[]; metric?: Metric; label?: string } = $props();
 
     const width = 640, height = 240, left = 48, right = 16, top = 16, bottom = 32;
-    const nf = new Intl.NumberFormat('en-GB');
+    const nf = $derived(new Intl.NumberFormat(intl()));
+    const heading = $derived(label || t('analytics.metric.pageViews'));
     const values = $derived(series.map(point => point[metric]));
     // Upper axis limit rounded to a round number (1, 2, 5 times a power of ten).
     const maximum = $derived.by(() => {
@@ -26,14 +28,14 @@
     const total = $derived(values.reduce((sum, value) => sum + value, 0));
     const peakIndex = $derived(values.indexOf(Math.max(...values, 0)));
     const summary = $derived(series.length
-        ? `Chart: ${label}. ${series.length} periods from ${series[0].period_start} to ${series[series.length - 1].period_start}, total ${nf.format(total)}. Highest value ${nf.format(values[peakIndex] ?? 0)} in the period starting ${series[peakIndex]?.period_start}. Exact values are in the table below the chart.`
-        : 'No data.');
+        ? t('analytics.chart.summary', { label: heading, periods: series.length, from: series[0].period_start, to: series[series.length - 1].period_start, total: nf.format(total), peak: nf.format(values[peakIndex] ?? 0), peakStart: series[peakIndex]?.period_start ?? '' })
+        : t('analytics.chart.noData'));
     const uid = $props.id();
 </script>
 
 <figure class="m-0">
     <svg viewBox="0 0 {width} {height}" class="block h-auto w-full overflow-visible" role="img" aria-labelledby="{uid}-t {uid}-d" focusable="false">
-        <title id="{uid}-t">{label}</title>
+        <title id="{uid}-t">{heading}</title>
         <desc id="{uid}-d">{summary}</desc>
         {#each ticks as tick}
             <line x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} class="stroke-line" stroke-width="1" stroke-dasharray={tick === 0 ? undefined : '3 4'} />
@@ -48,5 +50,5 @@
             <circle cx={x(index)} cy={y(point[metric])} r={series.length > 45 ? 2 : 3.5} class="fill-surface stroke-brand" stroke-width="2"><title>{point.period_start}: {nf.format(point[metric])}</title></circle>
         {/each}
     </svg>
-    <figcaption class="mt-2 text-sm text-muted">{label}. Exact values are given in the table below the chart.</figcaption>
+    <figcaption class="mt-2 text-sm text-muted">{t('analytics.chart.caption', { label: heading })}</figcaption>
 </figure>

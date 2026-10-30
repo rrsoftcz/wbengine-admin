@@ -79,8 +79,22 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     assert.ok(/<input\b(?=[^>]*\bname="key")(?=[^>]*\btype="password")(?=[^>]*\bautocomplete="off")/.test(registryHtml));
     assert.ok(!/name="key"[^>]*value=/.test(registryHtml));
     assert.ok(!registryHtml.includes('key_cipher'));
-    assert.ok(!registryHtml.includes('wbv2_'));
+    // The message catalog mentions the key prefix; only an actual key (prefix plus secret body) is a leak.
+    assert.ok(!/wbv2_[A-Za-z0-9_-]{20,}/.test(registryHtml));
     csrf = csrfFrom(await (await get('/')).text())!;
     assert.equal((await post('/?/logout', { csrf })).status, 303);
     assert.equal((await get('/sites')).headers.get('location'), '/login');
+});
+test('interface language follows the cookie, then Accept-Language, and falls back to English', async () => {
+    const page = async (headers: Record<string, string>) => (await fetch(transport + '/login', { headers: { accept: 'text/html', ...headers } })).text();
+    const english = await page({});
+    assert.match(english, /<html lang="en">/);
+    assert.ok(english.includes('Sign in'));
+    const czech = await page({ 'accept-language': 'cs-CZ,cs;q=0.9,en;q=0.5' });
+    assert.match(czech, /<html lang="cs">/);
+    assert.ok(czech.includes('Přihlášení'));
+    const german = await page({ 'accept-language': 'cs', cookie: 'wb_locale=de' });
+    assert.match(german, /<html lang="de">/);
+    assert.ok(german.includes('Anmelden'));
+    assert.match(await page({ 'accept-language': 'fr', cookie: 'wb_locale=xx' }), /<html lang="en">/);
 });

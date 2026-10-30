@@ -15,14 +15,14 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
     if (id === 'recover') {
         const recovered = e.url.searchParams.get('recoverId');
         if (!/^[1-9][0-9]*$/.test(recovered ?? ''))
-            error(400, 'Invalid ID');
+            error(400, e.locals.t('content.record.invalidId'));
         redirect(303, root + '/' + recovered + '?history=1');
     }
     const { site, gateway, boxTypes, locales, baseUrl } = await connectContent(s, siteId(e.params.site)), locale = e.url.searchParams.get('locale') ?? '';
     if (locale && locales && !locales.list.includes(locale))
-        throw error(400, 'This site does not support that language');
+        throw error(400, e.locals.t('content.record.localeUnsupported'));
     if (locale && !/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(locale))
-        error(400, 'Invalid language');
+        error(400, e.locals.t('content.record.invalidLanguage'));
     let row: Record<string, unknown> = {}, etag: string | null = null, deleted = false;
     if (id !== 'new') {
         try {
@@ -50,7 +50,7 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
         translationEtag = result.etag;
     }
     const versions = locales && id !== 'new' && !deleted && translationFields[r] && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'translationGet', r) ? languageVersions(locales, row.translation_locales) : null;
-    const dependents = id !== 'new' && !deleted && ['pages', 'sections', 'menu'].includes(r) && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'delete', r) ? await loadDependents(gateway, r, id) : null;
+    const dependents = id !== 'new' && !deleted && ['pages', 'sections', 'menu'].includes(r) && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'delete', r) ? await loadDependents(gateway, r, id, e.locals.t) : null;
     let history: Record<string, unknown>[] = [], historyEtag: string | null = null, pagination;
     const historyPage = Number(e.url.searchParams.get('historyPage') ?? 1), historyOpen = e.url.searchParams.get('history') === '1' || e.url.searchParams.has('historyPage') || deleted;
     if (id !== 'new' && r !== 'images') {
@@ -65,10 +65,10 @@ export const load: PageServerLoad = async (e) => contentLoad(async () => {
         values = { ...values, site_id: defaultPageOption(refs.site_id) };
     const boxCoverage = r === 'articles' && canOperate(gateway.role, gateway.scopes, gateway.capabilities, 'read', 'boxes') ? await loadBoxCoverage(gateway, boxTypes) : null, articleBoxPages = boxCoverage?.sharedArticles ? null : boxCoverage?.story ?? null, otherBoxPages = boxCoverage?.shared ? null : boxCoverage?.other ?? null;
     const canAddBox = offersArticleBox(gateway, boxTypes), offerArticleBox = r === 'pages' && id === 'new' && canAddBox, canAddArticleBox = r === 'articles' && canAddBox;
-    const liveLinks = id !== 'new' && !deleted && r !== 'images' && r !== 'sections' ? await loadLiveLinks(gateway, baseUrl, r, row, { locale, defaultLocale: locales?.default, articleBoxPages }) : [];
+    const liveLinks = id !== 'new' && !deleted && r !== 'images' && r !== 'sections' ? await loadLiveLinks(gateway, baseUrl, r, row, { locale, defaultLocale: locales?.default, articleBoxPages, t: e.locals.t }) : [];
     let image: string | null = null;
     if (r === 'images' && ['image/png', 'image/jpeg', 'image/webp'].includes(String(row.mime)) && typeof row.base64 === 'string' && row.base64.length <= 699052 && /^[A-Za-z0-9+/]*={0,2}$/.test(row.base64))
         image = `data:${row.mime};base64,${row.base64}`;
-    return { liveLinks, dependents, actors: await loadActors(history), historyOpen, versions, locales: locales ?? null, offerArticleBox, canAddArticleBox, articleBoxPages, otherBoxPages, boxWarning: r === 'pages' && e.url.searchParams.get('boxWarning') === '1', refs, unavailable: false, offlineFields: {} as Record<string, string>, offlineAction: 'save' as const, offlineEditable: false, site, resource: r, id, row: { ...row, base64: undefined } as Record<string, unknown>, values, etag, deleted, boxTypes, csrf: e.locals.csrf, locale, translation, translationEtag, history, historyEtag, pagination, image, permissions: Object.fromEntries(['save', 'delete', 'publish', 'restore', 'structureRestore', 'preview', 'translationGet', 'translationSave', 'translationDelete'].map(action => [action, canOperate(gateway.role, gateway.scopes, gateway.capabilities, action, r)])) };
+    return { liveLinks, dependents, actors: await loadActors(history, e.locals.t), historyOpen, versions, locales: locales ?? null, offerArticleBox, canAddArticleBox, articleBoxPages, otherBoxPages, boxWarning: r === 'pages' && e.url.searchParams.get('boxWarning') === '1', refs, unavailable: false, offlineFields: {} as Record<string, string>, offlineAction: 'save' as const, offlineEditable: false, site, resource: r, id, row: { ...row, base64: undefined } as Record<string, unknown>, values, etag, deleted, boxTypes, csrf: e.locals.csrf, locale, translation, translationEtag, history, historyEtag, pagination, image, permissions: Object.fromEntries(['save', 'delete', 'publish', 'restore', 'structureRestore', 'preview', 'translationGet', 'translationSave', 'translationDelete'].map(action => [action, canOperate(gateway.role, gateway.scopes, gateway.capabilities, action, r)])) };
 });
 export { contentActions as actions } from '#lib/server/content-actions.ts';

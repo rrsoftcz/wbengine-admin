@@ -20,7 +20,7 @@ try {
     docker(['exec', '-T', '-e', 'MYSQL_PWD', 'db', 'mysql', '-uroot', '-e', 'CREATE DATABASE wbengine_admin_test; GRANT ALL PRIVILEGES ON wbengine_admin_test.* TO "wbadmin"@"%"; GRANT SELECT ON performance_schema.* TO "wbadmin"@"%";'], { MYSQL_PWD: rootPassword });
     const address = docker(['port', 'db', '3306']).trim(), port = address.slice(address.lastIndexOf(':') + 1);
     const env = { ...process.env, DATABASE_URL: `mysql://wbadmin:${password}@127.0.0.1:${port}/wbengine_admin_test`, MASTER_KEY: master };
-    for (const file of ['tests/mysql.integration.ts', 'tests/http.smoke.ts']) {
+    for (const file of ['tests/mysql.integration.ts', 'tests/profile.integration.ts', 'tests/http.smoke.ts']) {
         const r = spawnSync(process.execPath, ['--experimental-strip-types', '--test', file], { stdio: 'inherit', env });
         if (r.status !== 0)
             throw Error('The integration test failed');

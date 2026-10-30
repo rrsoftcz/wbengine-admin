@@ -1,3 +1,5 @@
+import errorCatalog from '../i18n/en/errors.ts';
+import type { MessageKey, Translate } from '../i18n/index.ts';
 export const resources = ['articles', 'pages', 'menu', 'sections', 'boxes', 'images'] as const;
 export type Resource = typeof resources[number];
 export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
@@ -24,47 +26,25 @@ export interface ApiReply {
         total_pages: number;
     };
 }
-/** Closed catalog of API v2 error codes with English messages. Any other code is never shown. */
-export const errorMessages: Record<string, string> = {
-    missing_site: 'Select the page the article is shown on and try again.',
-    article_site_conflict: 'Another article is already shown on the selected page. Select a different page.',
-    missing_field: 'A required field is missing. Fill in all required fields and try again.',
-    invalid_field: 'The form contains a field the site does not support.',
-    invalid_body: 'The site did not accept the submitted data. Reload the page and try again.',
-    invalid_format: 'New content must be in Markdown format.',
-    format_replacement_required: 'The original text is in the old HTML format. To publish, replace it with Markdown (both the intro and the full text).',
-    invalid_link: 'The page link must be a local address starting with a slash, for example /about/.',
-    duplicate_link: 'A page with this link already exists. Choose a different link.',
-    invalid_key: 'The section key may contain lowercase letters, digits and underscores and must start with a letter.',
-    duplicate_key: 'A section with this key already exists. Choose a different key.',
-    invalid_name: 'The name has an invalid length or content.',
-    invalid_status: 'The section error status must be 0 or an HTTP error from 400.',
-    invalid_parent: 'The parent item is invalid. An item cannot be its own parent.',
-    invalid_source: 'The source must not contain control characters or line breaks.',
-    invalid_box_type: 'This box type is not registered on the site.',
-    invalid_box_section: 'This box type cannot be used in the selected section.',
-    invalid_box_settings: 'The box settings contain an unsupported value.',
-    invalid_locale: 'The translation language is invalid.',
-    invalid_id: 'The record identifier is invalid.',
-    invalid_resource: 'This kind of content does not support the requested operation.',
-    invalid_recovery: 'This kind of content does not support translation restore.',
-    invalid_pagination: 'The list pagination is invalid.',
-    invalid_image: 'The image is corrupted or has an invalid format.',
-    unsupported_image: 'Only PNG, JPEG and WebP images are supported.',
-    image_too_large: 'The image is too large. Maximum 512 KiB.',
-    image_storage_unconfigured: 'Image storage is not configured on the site.',
-    image_storage_unavailable: 'Image storage on the site is currently unavailable.',
-    no_draft: 'The article has no draft to publish.',
-    draft_too_large: 'The draft is too large.',
-    body_too_large: 'The submitted data is too large.',
-    resource_in_use: 'The record cannot be removed because other records refer to it. Remove the dependent items first.',
-    precondition_failed: 'The content has changed in the meantime. Your edits have been kept.',
-    precondition_required: 'The content version is missing. Reload it.',
-    not_found: 'The record was not found.',
-    forbidden: 'Missing permission or scope.',
-    rate_limited: 'Too many requests. Try again in a moment.',
-    unavailable: 'The site API is temporarily unavailable. Try again later.'
-};
+/**
+ * Closed catalog of API v2 error codes. The texts live in the message catalog (`errors.<code>`); this is the English
+ * source, used for the (never displayed) Error message. The UI translates through remoteMessageKey.
+ */
+const statusKeys = ['errors.remote_rejected', 'errors.status_conflict'];
+export const errorMessages: Record<string, string> = Object.fromEntries(Object.entries(errorCatalog).filter(([key]) => !statusKeys.includes(key)).map(([key, text]) => [key.slice('errors.'.length), text]));
+/** Catalog key of the message for a remote failure: by HTTP status first, then by error code, then a generic one. */
+export function remoteMessageKey(status: number, code: string): MessageKey {
+    const byStatus: Record<number, string> = { 412: 'precondition_failed', 428: 'precondition_required', 403: 'forbidden', 404: 'not_found' };
+    if (byStatus[status])
+        return `errors.${byStatus[status]}` as MessageKey;
+    if (Object.hasOwn(errorMessages, code))
+        return `errors.${code}` as MessageKey;
+    return status === 409 ? 'errors.status_conflict' : 'errors.remote_rejected';
+}
+/** The user-facing, translated message of a remote failure (by status first, then by the closed error code). */
+export function remoteMessage(t: Translate, failure: { status: number; code: string }): string {
+    return t(remoteMessageKey(failure.status, failure.code));
+}
 /** The form field a given error code relates to (schema field name), so the editor can mark it. */
 export const errorFields: Record<string, string> = {
     missing_site: 'site_id', article_site_conflict: 'site_id', invalid_link: 'link', duplicate_link: 'link', invalid_key: 'key', duplicate_key: 'key',
@@ -80,7 +60,7 @@ export class RemoteFailure extends Error {
     status: number;
     code: string;
     constructor(status: number, code: string) {
-        super(status === 412 ? 'The content has changed in the meantime. Your edits have been kept.' : status === 428 ? 'The content version is missing. Reload it.' : status === 403 ? 'Missing permission or scope.' : status === 404 ? 'The record was not found.' : Object.hasOwn(errorMessages, code) ? errorMessages[code] : status === 409 ? 'The operation conflicts with the current state or dependencies.' : 'The remote API rejected the request.');
+        super((errorCatalog as Record<string, string>)[remoteMessageKey(status, code)]);
         this.status = status;
         this.code = code;
     }

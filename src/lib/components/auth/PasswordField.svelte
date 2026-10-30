@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { t } from '#lib/i18n/client.ts';
     let { name = 'password', label, autocomplete, minlength, hint, showMeter = false, id }: {
         name?: string; label: string; autocomplete: 'current-password' | 'new-password'; minlength?: number; hint?: string; showMeter?: boolean; id: string;
     } = $props();
@@ -17,7 +18,7 @@
                oninput={(e) => (length = e.currentTarget.value.length)} />
         {#if mounted}
             <button type="button" class="btn btn-ghost btn-sm absolute right-1.5 top-1/2 -translate-y-1/2" aria-pressed={visible} aria-controls={id} onclick={() => (visible = !visible)}>
-                {visible ? 'Hide' : 'Show'}
+                {visible ? t('auth.password.hide') : t('auth.password.show')}
             </button>
         {/if}
     </div>
@@ -28,7 +29,7 @@
                 <span class="block h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
                     <span class="block h-full rounded-full transition-all {ok ? 'bg-ok' : 'bg-warn'}" style="width: {Math.min(100, (length / need) * 100)}%"></span>
                 </span>
-                <span class="mt-1 block {ok ? 'text-ok' : ''}">{ok ? 'Password length is fine.' : `${length} of ${need} characters entered, ${need - length} more to go.`}</span>
+                <span class="mt-1 block {ok ? 'text-ok' : ''}">{ok ? t('auth.password.lengthOk') : t('auth.password.progress', { length, need, remaining: need - length })}</span>
             </span>
         {/if}
     </p>
