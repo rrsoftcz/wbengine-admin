@@ -40,6 +40,7 @@ export default {
     'errors.precondition_required': 'The content version is missing. Reload it.',
     'errors.not_found': 'The record was not found.',
     'errors.forbidden': 'Missing permission or scope.',
+    'errors.ip_not_allowed': 'This integration key may not be used from the address of the Admin server. On the site\'s Integrations page add that address to the key (or issue a new key without address restriction) and replace the key in the site registry.',
     'errors.rate_limited': 'Too many requests. Try again in a moment.',
     'errors.unavailable': 'The site API is temporarily unavailable. Try again later.',
     'errors.status_conflict': 'The operation conflicts with the current state or dependencies.',

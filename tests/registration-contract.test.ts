@@ -122,3 +122,11 @@ test('liveUrl and loadLiveLinks build the public address of a record', async () 
     assert.match(box[1].note ?? '', /hidden/);
     assert.deepEqual(await loadLiveLinks(gateway, base, 'sections', { section_id: 1 }), []);
 });
+test('a key bound to other addresses is reported as such, not as a missing permission', async () => {
+    const error = new RemoteFailure(403, 'ip_not_allowed');
+    assert.equal(classifyRegistrationError(error), 'ip_not_allowed');
+    await assert.rejects(verifyRegistration('https://example.com/', key, [], 'management', async () => { throw error; }), (e: RegistrationError) => e.code === 'ip_not_allowed' && e.message === registrationErrors.ip_not_allowed);
+    const { remoteMessageKey } = await import('../src/lib/server/api-contract.ts');
+    assert.equal(remoteMessageKey(403, 'ip_not_allowed'), 'errors.ip_not_allowed');
+    assert.equal(remoteMessageKey(403, 'remote_rejected'), 'errors.forbidden');
+});
