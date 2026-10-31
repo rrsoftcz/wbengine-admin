@@ -15,7 +15,7 @@ export function createContentActions(connect: typeof connectContent = connectCon
         }
         return v;
     }
-    const execute = (action: 'save' | 'delete' | 'publish' | 'restore' | 'translationSave' | 'translationDelete' | 'merge') => async (e: RequestEvent) => {
+    const execute = (action: 'save' | 'delete' | 'publish' | 'hide' | 'unhide' | 'restore' | 'translationSave' | 'translationDelete' | 'merge') => async (e: RequestEvent) => {
         const s = signedIn(e), t: Translate = e.locals.t ?? translator('en');
         let f: FormData | undefined;
         const r = resourceName(e.params.resource!), id = e.params.id!;
@@ -65,6 +65,11 @@ export function createContentActions(connect: typeof connectContent = connectCon
                     throw Error('Confirm the publication');
                 await gateway.publish(id, etag);
             }
+            else if (action === 'hide' || action === 'unhide') {
+                if (f.get('confirm') !== 'yes')
+                    throw Error('Confirm the change of visibility');
+                await gateway.setHidden(id, action === 'hide', etag);
+            }
             else if (action === 'restore') {
                 if (f.get('confirm') !== 'yes')
                     throw Error('Confirm the restore');
@@ -91,6 +96,6 @@ export function createContentActions(connect: typeof connectContent = connectCon
         }
         redirect(303, `/content/${e.params.site}/${r}/${target}` + (f?.get('locale') ? '?locale=' + encodeURIComponent(String(f.get('locale'))) : query ? '?' + query : ''));
     };
-    return { save: execute('save'), delete: execute('delete'), publish: execute('publish'), restore: execute('restore'), translationSave: execute('translationSave'), translationDelete: execute('translationDelete'), merge: execute('merge') };
+    return { save: execute('save'), delete: execute('delete'), publish: execute('publish'), hide: execute('hide'), unhide: execute('unhide'), restore: execute('restore'), translationSave: execute('translationSave'), translationDelete: execute('translationDelete'), merge: execute('merge') };
 }
 export const contentActions = createContentActions();

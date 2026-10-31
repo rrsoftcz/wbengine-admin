@@ -14,7 +14,7 @@
  import type {MessageKey} from '#lib/i18n/index.ts';
  let {data,form}=$props();
  const base=$derived('/content/'+data.site.id+'/'+data.resource),here=$derived(base+'/'+data.id);
- let previewVisible=$state(false),dirty=$state(false),publishOpen=$state(false),deleteOpen=$state(false);
+ let previewVisible=$state(false),dirty=$state(false),publishOpen=$state(false),deleteOpen=$state(false),visibilityOpen=$state(false);
  const pending=createPending({onResult:(r)=>{if(r.type==='redirect')dirty=false;}});
  const editingTranslation=$derived(form?.action?.startsWith('translation')??false);
  const values=$derived(form?.values&&form?.action==='save'&&Object.keys(form.values).length?form.values:data.values);
@@ -26,7 +26,7 @@
  const resourceLabel=$derived(t(labels[data.resource as keyof typeof labels]));
  const dn=$derived(deleteName(data.resource,t));
  const title=$derived(data.id==='new'?t('content.status.new'):String(data.values.title??data.values.name??data.id));
- const badge=$derived(data.deleted?'deleted':data.id==='new'?'new':data.resource==='articles'?(data.row.draft?'draft':'published'):null);
+ const badge=$derived(data.deleted?'deleted':data.id==='new'?'new':data.resource==='articles'?(data.row.hidden===true?'hidden':data.row.draft?'draft':'published'):null);
  const localeQuery=$derived(data.locale?'?locale='+encodeURIComponent(data.locale):'');
  const articles=$derived(data.resource==='articles');
  const translating=$derived(data.id!=='new'&&!data.deleted&&!data.unavailable&&!!translationFields[data.resource]&&!!data.permissions.translationGet&&!!data.locale);
@@ -77,6 +77,7 @@
   <div class="flex flex-wrap items-center gap-2">
    {#if articles&&data.id!=='new'&&data.permissions.preview}<a class="btn btn-secondary btn-sm" href={here+'/preview'+localeQuery} target="_blank" rel="noopener noreferrer" onclick={(e)=>{e.preventDefault();previewVisible=!previewVisible;}}>{previewVisible?t('content.toolbar.hidePreview'):t('content.toolbar.preview')}</a>{/if}
    {#if articles&&data.row.draft&&data.permissions.publish}<a class="btn btn-secondary btn-sm" href="#publikace" onclick={()=>open('publish')}>{t('content.toolbar.publish')}</a>{/if}
+   {#if articles&&data.id!=='new'&&typeof data.row.hidden==='boolean'&&(data.row.hidden?data.permissions.unhide:data.permissions.hide)}<a class="btn btn-secondary btn-sm" href="#visibility" onclick={()=>{visibilityOpen=true;}}>{data.row.hidden?t('content.toolbar.unhide'):t('content.toolbar.hide')}</a>{/if}
    {#if data.id!=='new'&&data.permissions.delete}<a class="btn btn-ghost btn-sm text-danger" href={data.dependents?.length?'#dependents':'#delete'} onclick={()=>{if(!data.dependents?.length)open('delete');}}>{data.dependents?.length?t('content.toolbar.blocked',{button:dn.button}):dn.button}</a>{/if}
    {#if canEdit}<SubmitButton form="save-form" busy={pending.is(translating?'?/translationSave':'?/save')} small>{translating?t('content.toolbar.saveTranslation'):articles?t('content.toolbar.saveDraft'):t('content.toolbar.saveChanges')}</SubmitButton>{/if}
   </div>
@@ -184,7 +185,7 @@
   <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
    <dt class="text-muted">{t('content.aside.id')}</dt><dd>{data.id}</dd>
    <dt class="text-muted">{t('content.aside.type')}</dt><dd>{resourceLabel}</dd>
-   {#if articles}<dt class="text-muted">{t('content.aside.status')}</dt><dd>{data.row.draft?t('content.status.draft'):t('content.status.published')}</dd>{/if}
+   {#if articles}<dt class="text-muted">{t('content.aside.status')}</dt><dd>{data.row.hidden===true?t('content.status.hidden'):data.row.draft?t('content.status.draft'):t('content.status.published')}</dd>{/if}
   </dl>
   {#if articles}<details class="mt-1"><summary class="font-semibold">{t('content.aside.publishedContent')}</summary>
 <pre class="mt-2 whitespace-pre-wrap break-words">{JSON.stringify({title:data.row.title,introtext:data.row.introtext,bodytext:data.row.bodytext},null,2)}</pre>
@@ -217,6 +218,19 @@
 <input name="confirm" value="yes" type="checkbox" required/> {t('content.aside.publishConfirm')}</label>
 <div><SubmitButton busy={pending.is('?/publish')}>{t('content.aside.publish')}</SubmitButton></div>
 </form>
+  </details>
+ {/if}
+
+ {#if articles&&data.id!=='new'&&typeof data.row.hidden==='boolean'&&(data.row.hidden?data.permissions.unhide:data.permissions.hide)}
+  <details id="visibility" bind:open={visibilityOpen} class="card-flat">
+   <summary class="font-semibold">{data.row.hidden?t('content.aside.unhideTitle'):t('content.aside.hideTitle')}</summary>
+   <form method="POST" action={data.row.hidden?'?/unhide':'?/hide'} use:enhance={pending.submit} class="mt-3 grid gap-3">
+    <p class="hint">{data.row.hidden?t('content.aside.unhideHint'):t('content.aside.hideHint')}</p>
+    <input type="hidden" name="csrf" value={data.csrf}/>
+    <input type="hidden" name="etag" value={tag??''}/>
+    <label class="flex items-start gap-2 text-sm"><input name="confirm" value="yes" type="checkbox" required/> {data.row.hidden?t('content.aside.unhideConfirm'):t('content.aside.hideConfirm')}</label>
+    <div><SubmitButton busy={pending.is(data.row.hidden?'?/unhide':'?/hide')}>{data.row.hidden?t('content.aside.unhide'):t('content.aside.hide')}</SubmitButton></div>
+   </form>
   </details>
  {/if}
 

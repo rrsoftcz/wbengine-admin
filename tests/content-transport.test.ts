@@ -61,3 +61,21 @@ test('API cannot echo an integration key with JSON Unicode escapes into browser 
         await new Promise<void>(r => server.close(() => r()));
     }
 });
+test('hiding and showing an article is a POST without a body to its own path', async () => {
+    const { planApiCall } = await import('../src/lib/server/api-contract.ts');
+    const etag = '"' + 'a'.repeat(64) + '"';
+    for (const operation of ['hide', 'unhide'] as const) {
+        const plan = planApiCall({ operation, resource: 'articles', id: '7', etag, data: {} });
+        assert.equal(plan.method, 'POST');
+        assert.equal(plan.path, `articles/7/${operation}`);
+    }
+});
+test('hiding needs the publishing permission and is not offered to editors', async () => {
+    const { canOperate } = await import('../src/lib/server/content.ts');
+    const caps = new Proxy({}, { get: () => ({ read: true, write: true }) }) as never;
+    const writer = ['discovery:read', 'articles:read', 'articles:write'];
+    assert.equal(canOperate('siteadmin', writer, caps, 'hide', 'articles'), false);
+    assert.equal(canOperate('siteadmin', [...writer, 'publish:write'], caps, 'hide', 'articles'), true);
+    assert.equal(canOperate('siteadmin', [...writer, 'publish:write'], caps, 'unhide', 'articles'), true);
+    assert.equal(canOperate('editor', [...writer, 'publish:write'], caps, 'hide', 'articles'), false);
+});

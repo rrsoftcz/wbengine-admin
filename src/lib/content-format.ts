@@ -15,7 +15,7 @@ export function changeActor(change: Record<string, unknown>, actors: Record<stri
 /** Description of a change type from the site (action: create, update, delete, restore:N, draft.save, publish ...). */
 export function changeLabel(action: unknown, t: Translate = translator('en')): string {
     const a = String(action ?? '');
-    const known: Record<string, MessageKey> = { create: 'content.change.create', update: 'content.change.update', delete: 'content.change.delete', publish: 'content.change.publish', 'draft.create': 'content.change.draftCreate', 'draft.save': 'content.change.draftSave', 'draft.restore': 'content.change.draftRestore', save: 'content.change.save', restore: 'content.change.restore' };
+    const known: Record<string, MessageKey> = { create: 'content.change.create', update: 'content.change.update', delete: 'content.change.delete', publish: 'content.change.publish', hide: 'content.change.hide', unhide: 'content.change.unhide', 'draft.create': 'content.change.draftCreate', 'draft.save': 'content.change.draftSave', 'draft.restore': 'content.change.draftRestore', save: 'content.change.save', restore: 'content.change.restore' };
     if (Object.hasOwn(known, a))
         return t(known[a]);
     return a.startsWith('restore:') ? t('content.change.restoreState') : a || t('content.change.generic');
