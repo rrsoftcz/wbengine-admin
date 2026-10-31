@@ -60,7 +60,7 @@
                 {#each rows as row}
                     <tr>
                         <td class="max-w-xs font-semibold"><a class="block truncate" href={base+'/'+idOf(data.resource,row)}>{title(row)}</a></td>
-                        {#if data.resource==='articles'}<td>{#if row.has_draft}<StatusBadge state="draft"/>{:else}<StatusBadge state="published"/>{/if}</td>{/if}
+                        {#if data.resource==='articles'}<td>{#if row.hidden===true}<StatusBadge state="hidden"/>{:else if row.has_draft}<StatusBadge state="draft"/>{:else}<StatusBadge state="published"/>{/if}</td>{/if}
                         {#if hasLangs}{@const vs=data.langs[idOf(data.resource,row)]??[]}{@const lack=vs.filter((v:{exists:boolean|null})=>v.exists===false)}<td class="text-sm"><details><summary class="cursor-pointer font-semibold {lack.length?'text-warn':'text-ok'}">{t('content.list.languagesOf',{done:vs.length-lack.length,total:vs.length})}</summary><p class="mt-1 text-xs text-muted">{#if lack.length}{t('content.list.missing')} {#each lack as v, n}<a href={base+'/'+idOf(data.resource,row)+'?locale='+encodeURIComponent(v.locale)} title={t('content.list.addTranslation')}>{v.locale}</a>{n<lack.length-1?', ':''}{/each}{:else}{t('content.list.allTranslated')}{/if}</p></details></td>{/if}
                         {#if data.resource==='images'}<td class="text-muted"><span class="block">{t('content.list.imageRow',{mime:String(row.mime),size:size(row.size)})}</span><code class="break-all">{String(row.url)}</code></td>
                         {:else}<td class="hidden text-muted sm:table-cell">{#if row.link}<code>{String(row.link)}</code>{/if}</td>{/if}

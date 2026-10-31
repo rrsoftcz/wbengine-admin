@@ -31,13 +31,13 @@ export function siteId(value: string) {
     return Number(value);
 }
 export function canOperate(role: Role, scopes: string[], caps: Capabilities, action: string, r: Resource) {
-    const writing = ['save', 'delete', 'publish', 'restore', 'structureRestore', 'translationSave', 'translationDelete', 'upload'].includes(action), access = writing ? 'write' : 'read';
-    if (role === 'editor' && (action === 'publish' || action === 'delete' || action === 'structureRestore' || writing && !['articles', 'images'].includes(r)))
+    const writing = ['save', 'delete', 'publish', 'hide', 'unhide', 'restore', 'structureRestore', 'translationSave', 'translationDelete', 'upload'].includes(action), access = writing ? 'write' : 'read';
+    if (role === 'editor' && (action === 'publish' || action === 'hide' || action === 'unhide' || action === 'delete' || action === 'structureRestore' || writing && !['articles', 'images'].includes(r)))
         return false;
     const required = [`${r}:${access}`];
     if (action.startsWith('translation'))
         required.push(`translations:${access}`);
-    if (action === 'publish')
+    if (action === 'publish' || action === 'hide' || action === 'unhide')
         required.push('publish:write');
     if (action === 'preview')
         required.push('preview:read');
@@ -290,6 +290,11 @@ export function createContentGateway(options: GatewayOptions) {
         publish(id: string, etag: string) {
             check('publish', 'articles');
             return options.call({ operation: 'publish', resource: 'articles', id, etag, data: {} });
+        },
+        /** Hide a published article (its page answers 404 and its menu item disappears) or show it again. */
+        setHidden(id: string, hidden: boolean, etag: string) {
+            check(hidden ? 'hide' : 'unhide', 'articles');
+            return options.call({ operation: hidden ? 'hide' : 'unhide', resource: 'articles', id, etag, data: {} });
         },
         preview(id: string, locale?: string) {
             check('preview', 'articles');

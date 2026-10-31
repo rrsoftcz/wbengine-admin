@@ -2,7 +2,7 @@ import errorCatalog from '../i18n/en/errors.ts';
 import type { MessageKey, Translate } from '../i18n/index.ts';
 export const resources = ['articles', 'pages', 'menu', 'sections', 'boxes', 'images'] as const;
 export type Resource = typeof resources[number];
-export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'preview' | 'changes' | 'activity' | 'usersList' | 'userGet' | 'userCreate' | 'userUpdate' | 'userReset' | 'cacheFlush' | 'siteConfig' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
+export type Operation = 'capabilities' | 'identity' | 'list' | 'get' | 'create' | 'update' | 'delete' | 'revisions' | 'restore' | 'publish' | 'hide' | 'unhide' | 'preview' | 'changes' | 'activity' | 'usersList' | 'userGet' | 'userCreate' | 'userUpdate' | 'userReset' | 'cacheFlush' | 'siteConfig' | 'structureRestore' | 'translationGet' | 'translationSave' | 'translationDelete' | 'imageContent' | 'analyticsOverview';
 export interface ApiCall {
     operation: Operation;
     resource?: Resource;
@@ -190,7 +190,7 @@ export function planApiCall(call: ApiCall): {
             throw Error('Invalid language');
         return { path: path + '/preview' + (call.locale ? '?locale=' + encodeURIComponent(call.locale) : ''), method };
     }
-    else if ((op === 'publish' || op === 'restore') && r === 'articles') {
+    else if ((op === 'publish' || op === 'restore' || op === 'hide' || op === 'unhide') && r === 'articles') {
         path += '/' + op;
         method = 'POST';
     }
