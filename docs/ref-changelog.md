@@ -9,6 +9,7 @@ Target: **0.2.0**.
 
 ### Added
 
+- Documentation names the preset "Editor with structure and statistics" (WBengine 6.4) for keys of AI agents: pages, menu, boxes, images, statistics and the change log, no users and no settings.
 - Documentation of keys for AI agents (MCP server of WBengine 6.3): a separate key with the preset "Agent for content", never the key registered in the Admin; changes of an agent appear in Activity with the actor `mcp:<client name>`.
 
 - Hiding and showing a published article (needs WBengine 6.2 on the site and the permission group Publishing): a status badge, a button in the article editor and a visibility panel. A hidden article's page answers 404 on the website and its menu item disappears; the article list shows the state.
