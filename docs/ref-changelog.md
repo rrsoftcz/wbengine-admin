@@ -9,6 +9,7 @@ Target: **0.2.0**.
 
 ### Added
 
+- Hiding and showing a published article (needs WBengine 6.2 on the site and the permission group Publishing): a status badge, a button in the article editor and a visibility panel. A hidden article's page answers 404 on the website and its menu item disappears; the article list shows the state.
 - A key bound to other addresses (site setting) is reported with its own message when registering and when the site rejects a call (`ip_not_allowed`), instead of a generic missing permission.
 - Keys with any permission groups are accepted (only `discovery:read` plus one more permission is required); the Admin shows only what the key allows.
 - Interface languages English, Czech, German and Polish (catalog under `src/lib/i18n`, per-user setting,
