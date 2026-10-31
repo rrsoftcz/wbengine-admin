@@ -240,6 +240,16 @@ sudo resolvectl flush-caches
 
 Repeat the verification, it must return the public IP. A connection from the container to the public address of the same server then usually works. Do not allow the loopback address via `REMOTE_IP_ALLOWLIST`: inside the container it would point to the container itself, not to the site, and it would weaken the protection. The allowlist is intended only for specific approved intranet addresses. If you do not have access to the host, you can give the Admin container public DNS servers via `compose.override.yaml` (`services: app: dns: [1.1.1.1, 9.9.9.9]`), but that does not change the host resolver.
 
+## Optional: let an AI agent manage content
+
+This is separate from the Admin. WBengine 6.3 and newer ship an MCP server that lets an AI client such as Claude write, preview, publish and hide articles of a site.
+
+1. On the site open `/integrations/` again and issue a second key. Choose the preset "Agent for content" (or "Agent, drafts only" if the agent must never publish), give it a name such as `MCP agent` and confirm your password. Do not reuse the key of the Admin, and do not enter this key in the Admin.
+2. The page shows, once, a client configuration (JSON) and a `claude mcp add` command with the site address and the key already filled in. Copy one of them into the client and replace `/path/to/wbengine-mcp.phar` with the place where you saved the file `wbengine-mcp.phar` from the WBengine release.
+3. Changes made by the agent appear on the Activity page of the Admin with the actor `mcp:<client name>`.
+
+If the agent runs on a laptop, leave the allowed addresses of the key empty: its address changes. Revoke the key on the Integrations page when the agent is no longer needed.
+
 ## Key scopes and rotation
 
 When issuing a key the site administrator chooses permission groups (Content, Publishing, Structure, Images, Site administration, History and optionally Analytics); the default grants all of them. The Admin registers any key that allows at least one group and shows only what it covers: a page that needs `audit:read` (Activity), `users:read` and `users:write` (Site users) or `cache:write` and `config:read` (Site settings) shows a notice when the key lacks them. Issue a new key on the Integrations page of the site with the missing group and replace it in the site registry; the scopes of a key never change afterwards.
