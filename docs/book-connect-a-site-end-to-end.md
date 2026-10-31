@@ -244,7 +244,7 @@ Repeat the verification, it must return the public IP. A connection from the con
 
 This is separate from the Admin. WBengine 6.3 and newer ship an MCP server that lets an AI client such as Claude write, preview, publish and hide articles of a site.
 
-1. On the site open `/integrations/` again and issue a second key. Choose the preset "Agent for content" (or "Agent, drafts only" if the agent must never publish), give it a name such as `MCP agent` and confirm your password. Do not reuse the key of the Admin, and do not enter this key in the Admin.
+1. On the site open `/integrations/` again and issue a second key. Choose the preset "Editor with structure and statistics" for an editor who is not technical (WBengine 6.4 and newer), "Agent for content" for a narrower key, or "Agent, drafts only" if the agent must never publish, give it a name such as `MCP agent` and confirm your password. Do not reuse the key of the Admin, and do not enter this key in the Admin.
 2. The page shows, once, a client configuration (JSON) and a `claude mcp add` command with the site address and the key already filled in. Copy one of them into the client and replace `/path/to/wbengine-mcp.phar` with the place where you saved the file `wbengine-mcp.phar` from the WBengine release.
 3. Changes made by the agent appear on the Activity page of the Admin with the actor `mcp:<client name>`.
 
