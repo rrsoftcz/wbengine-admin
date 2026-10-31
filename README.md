@@ -114,6 +114,10 @@ Requirements on the target site: WBengine 4.2.0 or newer (the current release is
 3. Errors are shown as a concrete instruction: missing API or migration, invalid key, missing scope, unreachable site, duplicate address, attempt limit (HTTP 429, try again in a few minutes).
 4. Replacing the key: issue a new key on the site (the option for the integration being replaced), enter it in Admin for the site under Replace integration key, and only after verification revoke the old key on the target site. A lost key cannot be displayed again, the procedure is the same as for replacing.
 
+### Keys for AI agents (MCP)
+
+WBengine 6.3 and newer can also be managed by an AI client such as Claude through its MCP server (`wbengine-mcp.phar`, see `ref-mcp.md` of the framework). That connection does not go through this Admin: the MCP server talks to the site with its own integration key. Issue a separate key for it on the site's Integrations page with the preset "Agent for content" (or "Agent, drafts only", which cannot publish), and do not reuse the key registered here. One key per client means each can be revoked on its own and the Activity page shows who changed what: changes made by an agent carry the actor `mcp:<client name>`. Do not bind an agent key to an IP address when the agent runs on a laptop with a changing address.
+
 On the target site, before enabling, you need to apply `migrations/4.0.0/006-analytics.sql` from WBengine manually and add to `Settings.json`, for example:
 
 ```json
