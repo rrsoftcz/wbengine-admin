@@ -152,3 +152,7 @@ sh /path/to/wbengine/tests/pilot/pilot.sh reset
 ```
 
 Preparing images and permissions is described in the core tests/pilot/ref-pilot.md. The finite test control of outage/revocation adds neither the Docker socket nor a public control endpoint to the control centre. When the connection is unavailable or rejected, the submitted form and ETag are preserved in the same request; the next attempt is manual and re-checks all permissions.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The framework this administration manages sites of is MIT licensed as well.
