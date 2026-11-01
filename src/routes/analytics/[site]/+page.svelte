@@ -41,6 +41,12 @@
         return series.map((p, i) => `${series.length < 2 ? 50 : (i * 100 / (series.length - 1)).toFixed(1)},${(22 - p[key] * 20 / max).toFixed(1)}`).join(' ');
     };
     const granularityLabel = $derived({ day: t('analytics.granularity.day'), week: t('analytics.granularity.week'), month: t('analytics.granularity.month') });
+    const languageName = (code: string | null) => {
+        if (code === null) return t('analytics.locale.none');
+        try { return new Intl.DisplayNames([intl()], { type: 'language' }).of(code.replace('_', '-')) ?? code; } catch { return code; }
+    };
+    const languages = $derived(data.overview?.per_locale ? (data.overview.by_locale ?? []).map((row, i) => ({ id: i + 1, label: languageName(row.locale), value: row.page_views })) : []);
+    const hasUnrecorded = $derived((data.overview?.by_locale ?? []).some(row => row.locale === null));
     const empty = $derived(!!data.overview && data.overview.totals.page_views + data.overview.totals.article_views + data.overview.totals.box_appearances === 0);
 </script>
 
@@ -165,6 +171,14 @@
             {:else}<p class="hint">{emptyText}</p>{/if}
         </section>
     {/snippet}
+    {#if languages.length}
+        <div class="mb-4">
+            {@render ranking(t('analytics.locale.heading'), languages, t('analytics.top.noViews'))}
+            {#if hasUnrecorded}<p class="hint mt-2">{t('analytics.locale.noneHint')}</p>{/if}
+        </div>
+    {:else if data.overview.per_locale === false}
+        <p class="hint mb-4">{t('analytics.locale.unavailable')}</p>
+    {/if}
     <div class="grid gap-4 lg:grid-cols-3">
         {@render ranking(t('analytics.top.pages'), data.overview.top_pages.map(i => ({ id: i.id, label: i.title, value: i.views })), t('analytics.top.noViews'))}
         {@render ranking(t('analytics.top.articles'), data.overview.top_articles.map(i => ({ id: i.id, label: i.title, value: i.views })), t('analytics.top.noViews'))}

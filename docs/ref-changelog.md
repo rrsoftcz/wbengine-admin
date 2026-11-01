@@ -9,6 +9,7 @@ Target: **0.2.0**.
 
 ### Added
 
+- The analytics page shows the page views by language for a site on WBengine 6.7 or newer, with the language name in the language of the interface, and says that views counted before the site recorded languages belong to no language. A site that does not record languages yet gets a hint about the framework database update 6.7.0/013. The totals are unchanged: they are the sum of all languages. A malformed split is dropped and never fails the overview.
 - Documentation names the preset "Editor with structure and statistics" (WBengine 6.4) for keys of AI agents: pages, menu, boxes, images, statistics and the change log, no users and no settings.
 - Documentation of keys for AI agents (MCP server of WBengine 6.3): a separate key with the preset "Agent for content", never the key registered in the Admin; changes of an agent appear in Activity with the actor `mcp:<client name>`.
 
