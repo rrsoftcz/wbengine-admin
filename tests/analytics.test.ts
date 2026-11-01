@@ -82,3 +82,26 @@ test('analytics blockers distinguish disabled site capability from missing key s
     assert.deepEqual(analyticsBlockers('editor', ['articles:read'], { analytics: { read: true } }), ['scope']);
     assert.deepEqual(analyticsBlockers('siteadmin', [], {}), ['disabled', 'scope']);
 });
+
+test('overview keeps the split by language of WBengine 6.7 and never fails on a malformed split', () => {
+    const split = [
+        { locale: 'en', page_views: 3, article_views: 2, box_appearances: 0 },
+        { locale: 'cs', page_views: 2, article_views: 1, box_appearances: 0 },
+        { locale: null, page_views: 10, article_views: 0, box_appearances: 0 },
+    ];
+    const valid = validateAnalyticsOverview({ ...validOverview, per_locale: true, by_locale: split }, validRange);
+    assert.equal(valid.per_locale, true);
+    assert.deepEqual(valid.by_locale, split);
+    // Anything unexpected drops the split, the rest of the overview is still shown.
+    for (const bad of [[{ locale: 'x"><script>', page_views: 1, article_views: 0, box_appearances: 0 }], [{ locale: 'en', page_views: -1, article_views: 0, box_appearances: 0 }], 'not a list', Array.from({ length: 51 }, () => split[0]), [{ locale: 5, page_views: 1, article_views: 0, box_appearances: 0 }]]) {
+        const dropped = validateAnalyticsOverview({ ...validOverview, per_locale: true, by_locale: bad }, validRange);
+        assert.deepEqual(dropped.by_locale, []);
+        assert.deepEqual(dropped.totals, validOverview.totals);
+    }
+    // A site that does not record languages says so and has no split.
+    const none = validateAnalyticsOverview({ ...validOverview, per_locale: false, by_locale: split }, validRange);
+    assert.equal(none.per_locale, false);
+    assert.deepEqual(none.by_locale, []);
+    // A site older than 6.7 sends neither field: the result has neither.
+    assert.equal('per_locale' in validateAnalyticsOverview(validOverview, validRange), false);
+});

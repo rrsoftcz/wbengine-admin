@@ -5,6 +5,8 @@ export type AnalyticsGranularity = 'day' | 'week' | 'month';
 export interface AnalyticsRange { from: string; to: string; granularity: AnalyticsGranularity }
 export interface AnalyticsCounts { page_views: number; article_views: number; box_appearances: number }
 export interface AnalyticsSeriesPoint extends AnalyticsCounts { period_start: string }
+/** The period of one language. A null locale is the views counted before the site recorded languages. */
+export interface AnalyticsLocaleRow extends AnalyticsCounts { locale: string | null }
 export interface AnalyticsOverview {
     timezone: string;
     period: AnalyticsRange & { complete: boolean };
@@ -14,6 +16,9 @@ export interface AnalyticsOverview {
     top_pages: { id: number; title: string; views: number }[];
     top_articles: { id: number; title: string; views: number }[];
     top_boxes: { id: number; name: string; appearances: number }[];
+    /** Present when the site is WBengine 6.7 or newer: whether it records views per language, and the split. */
+    per_locale?: boolean;
+    by_locale?: AnalyticsLocaleRow[];
 }
 interface AnalyticsOptions {
     role: Role;
@@ -51,6 +56,17 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function count(value: unknown): value is number { return Number.isSafeInteger(value) && (value as number) >= 0; }
 function counts(value: unknown): value is AnalyticsCounts {
     return isObject(value) && count(value.page_views) && count(value.article_views) && count(value.box_appearances);
+}
+/** The split by language is optional detail: anything unexpected in it drops the split, it never fails the overview. */
+function localeRows(value: unknown): AnalyticsLocaleRow[] {
+    if (!Array.isArray(value) || value.length > 50) return [];
+    const rows: AnalyticsLocaleRow[] = [];
+    for (const item of value) {
+        if (!isObject(item) || !counts(item)) return [];
+        if (item.locale !== null && (typeof item.locale !== 'string' || !/^[A-Za-z]{2,3}([_-][A-Za-z0-9]{2,5})?$/.test(item.locale))) return [];
+        rows.push({ locale: item.locale as string | null, page_views: item.page_views, article_views: item.article_views, box_appearances: item.box_appearances });
+    }
+    return rows;
 }
 function validTimezone(value: unknown): value is string {
     if (typeof value !== 'string' || value.length > 100) return false;
@@ -109,6 +125,7 @@ export function validateAnalyticsOverview(value: unknown, expected: AnalyticsRan
         top_pages: safe.top_pages.map(item => ({ id: item.id, title: item.title, views: item.views })),
         top_articles: safe.top_articles.map(item => ({ id: item.id, title: item.title, views: item.views })),
         top_boxes: safe.top_boxes.map(item => ({ id: item.id, name: item.name, appearances: item.appearances })),
+        ...(typeof value.per_locale === 'boolean' ? { per_locale: value.per_locale, by_locale: value.per_locale ? localeRows(value.by_locale) : [] } : {}),
     } as AnalyticsOverview;
 }
 export function canReadAnalytics(role: Role, scopes: string[], capabilities: Capabilities): boolean {
