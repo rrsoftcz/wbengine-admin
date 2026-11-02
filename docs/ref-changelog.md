@@ -37,6 +37,7 @@ Target: **0.2.0**.
 
 ### Changed
 
+- The administration stores its data in one SQLite file (the built-in `node:sqlite`) instead of MySQL: no database server, no database account or password, one container and one volume (`admin-data`). Transactions run one at a time with `BEGIN IMMEDIATE`, session loading uses a separate read-only connection, and the file, its journal and every backup are readable only by their owner. The runtime dependency `mysql2` is gone. `npm run test:integration` replaces `npm run test:mysql` and needs no Docker. The command `admin backup FILE` makes a consistent online backup. Site keys and MFA secrets keep their encryption and `MASTER_KEY`.
 - Page links are normalized on save to the `/o-nas/` form (leading and trailing slash).
 - New pages can automatically get a `story` box in the `central` section so the
   published article shows; the article editor warns when the chosen page has no such box.
@@ -49,6 +50,7 @@ Target: **0.2.0**.
 
 ### Upgrade notes
 
+- Moving from the MySQL version: the environment variables `DATABASE_URL`, `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD` and `MYSQL_PORT` are no longer used; the database is `/app/data/admin.sqlite` in the `admin-data` volume. A fresh install starts empty and needs `migrate`. An existing MySQL database was moved once with an import script that kept the row ids and checked that every site key and MFA secret still decrypts with the current `MASTER_KEY`; the script was removed afterwards, so use the Git history (release with `scripts/import-mysql.ts`, commit 66fffda) if you still have a MySQL database to move. Run only one application instance.
 - The connected WBengine installation must provide `analytics:read` and
   `capabilities.analytics.read`.
 - Apply WBengine migration `migrations/4.0.0/006-analytics.sql` and enable

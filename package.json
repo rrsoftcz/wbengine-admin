@@ -16,7 +16,6 @@
     "test:integration": "npm run build && node --experimental-strip-types scripts/test-integration.ts"
   },
   "dependencies": {
-    "mysql2": "3.24.6",
     "nodemailer": "10.3.1",
     "qrcode-generator": "2.0.4"
   },
