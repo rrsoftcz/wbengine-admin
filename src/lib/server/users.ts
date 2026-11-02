@@ -20,12 +20,12 @@ async function audit(c: Connection, actor: number, event: string, siteId: number
 
 /** Counts the enabled global administrators, locking them so two concurrent changes cannot remove the last one. */
 async function lockedAdminCount(c: Connection) {
-    const admins = await rows<{ id: number }>(c, 'SELECT id FROM users WHERE global_admin=TRUE AND disabled=FALSE FOR UPDATE');
+    const admins = await rows<{ id: number }>(c, 'SELECT id FROM users WHERE global_admin=TRUE AND disabled=FALSE');
     return admins.length;
 }
 
 async function target(c: Connection, id: number) {
-    const [u] = await rows<{ id: number; email: string; global_admin: number; disabled: number; mfa_enabled: number }>(c, 'SELECT id,email,global_admin,disabled,mfa_enabled FROM users WHERE id=? FOR UPDATE', [id]);
+    const [u] = await rows<{ id: number; email: string; global_admin: number; disabled: number; mfa_enabled: number }>(c, 'SELECT id,email,global_admin,disabled,mfa_enabled FROM users WHERE id=?', [id]);
     if (!u)
         throw new UserError('notFound');
     return u;
@@ -44,7 +44,7 @@ export interface UserRow {
 
 export async function listUsers(s: Session, page: number, search: string | null) {
     requireGlobal(s);
-    const where = search ? "WHERE u.email LIKE ? ESCAPE '\\\\'" : '';
+    const where = search ? "WHERE u.email LIKE ? ESCAPE '\\'" : '';
     const args = search ? [`%${search.replace(/[\\%_]/g, '\\$&')}%`] : [];
     const offset = (Math.max(1, Math.floor(page)) - 1) * PAGE_SIZE_USERS;
     return transaction(async (c) => {

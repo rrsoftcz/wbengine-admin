@@ -90,16 +90,13 @@ Fill in `.env`:
 
 | Variable | What to enter |
 |----------|---------------|
-| `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD` | random passwords (`openssl rand -hex 24`) |
-| `DATABASE_URL` | the same password as `MYSQL_PASSWORD`, host `db` |
 | `MASTER_KEY` | 64 hex characters (`openssl rand -hex 32`); store it off the server too, without it the stored site keys cannot be decrypted |
 | `ORIGIN` | the exact HTTPS address of Admin without a trailing slash, for example `https://admin.vase-domena.cz` |
 
 Start it (migrations run in the container, you do not need Node):
 
 ```sh
-docker compose up -d db
-docker compose run --rm app npm run admin -- migrate
+docker compose run --rm app node --experimental-strip-types scripts/admin.ts migrate
 docker compose up -d --build app
 ```
 

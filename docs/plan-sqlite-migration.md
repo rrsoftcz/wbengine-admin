@@ -1,6 +1,6 @@
 # Plan: replace MySQL with SQLite in WBengine Admin
 
-Status: approved by the owner, implementation is the next stage. Nothing in this plan is implemented yet.
+Status: approved by the owner. PR 1 is implemented (SQL-00 to SQL-07, SEC-01 to SEC-06); SQL-08 (pilot CI) and SQL-09 (review) are open, the cutover and PR 2 are not done yet.
 
 ## Decision and reasons
 
@@ -67,12 +67,12 @@ What improves: no database server process, no network listener, no database acco
 
 What needs care (new tasks in PR 1):
 
-- [ ] SEC-01: the database file and its `-wal` and `-shm` files are created mode 0600 owned by `node` in a directory mode 0700 (set the process umask to 077 in the entrypoint). Test: assert the mode after creation.
-- [ ] SEC-02: `PRAGMA secure_delete=ON` so a replaced or deleted ciphertext (key rotation, user removal) is overwritten instead of lingering in free pages.
-- [ ] SEC-03: backups made by `admin backup` are created mode 0600 and the command refuses a world readable target directory. Documentation: a backup contains ciphertext and password hashes, so it must never be stored together with `MASTER_KEY`, and `MASTER_KEY` needs its own separate backup in a password manager.
-- [ ] SEC-04: SQLite specific injection hardening. All statements stay parameterized (this is already the rule: `execute` with arguments, `multipleStatements:false`). Additionally `PRAGMA trusted_schema=OFF`, extension loading stays disabled (the `node:sqlite` default), and a test that a statement containing a second statement is rejected by `prepare`. `ATTACH DATABASE` is the only way an injection could reach outside the file, so grep proves no SQL is built from user input (a lint style test over `src/lib/server`).
-- [ ] SEC-05: the import test decrypts every `key_cipher` and `mfa_secret` after the import (proves ids and `MASTER_KEY` still match, because the associated data contains the row id) and never prints a key or a cipher.
-- [ ] SEC-06: the volume is a local named volume, not a bind mount of a shared or world readable host directory; documented in the README.
+- [x] SEC-01: the database file and its `-wal` and `-shm` files are created mode 0600 owned by `node` in a directory mode 0700 (set the process umask to 077 in the entrypoint). Test: assert the mode after creation.
+- [x] SEC-02: `PRAGMA secure_delete=ON` so a replaced or deleted ciphertext (key rotation, user removal) is overwritten instead of lingering in free pages.
+- [x] SEC-03: backups made by `admin backup` are created mode 0600 and the command refuses a world readable target directory. Documentation: a backup contains ciphertext and password hashes, so it must never be stored together with `MASTER_KEY`, and `MASTER_KEY` needs its own separate backup in a password manager.
+- [x] SEC-04: SQLite specific injection hardening. All statements stay parameterized (this is already the rule: `execute` with arguments, `multipleStatements:false`). Additionally `PRAGMA trusted_schema=OFF`, extension loading stays disabled (the `node:sqlite` default), and a test that a statement containing a second statement is rejected by `prepare`. `ATTACH DATABASE` is the only way an injection could reach outside the file, so grep proves no SQL is built from user input (a lint style test over `src/lib/server`).
+- [x] SEC-05: the import test decrypts every `key_cipher` and `mfa_secret` after the import (proves ids and `MASTER_KEY` still match, because the associated data contains the row id) and never prints a key or a cipher.
+- [x] SEC-06: the volume is a local named volume, not a bind mount of a shared or world readable host directory; documented in the README.
 
 Out of scope, recommended as a separate later change: read `MASTER_KEY` from a Docker secret file instead of an environment variable (visible in `docker inspect`), and a documented `MASTER_KEY` rotation command that re-encrypts all ciphers. Neither is made worse or better by SQLite.
 
@@ -84,14 +84,14 @@ Two pull requests, each with green CI and a squash merge as usual. Both on branc
 
 ### PR 1: port to SQLite plus cutover tooling
 
-- [ ] SQL-00: spike on `node:24-alpine` (the production image): `node:sqlite` loads, `strftime('%f')` gives three decimals, `lastInsertRowid` handling, WAL on a named volume, the experimental warning (status in Node 24). Result decides go or switch to `better-sqlite3`. Expected: go.
-- [ ] SQL-01: `db.ts` as designed above, with unit tests for argument conversion, the lock (two interleaved transactions with an await inside must not interleave), rollback on error, `insertId` and `affectedRows`.
-- [ ] SQL-02: baseline migration and `migrate.ts`; adapt `tests/migrate.test.ts`.
-- [ ] SQL-03: port the call sites file by file, running the tests after each: `auth.ts`, `sites.ts`, `profile.ts`, `users.ts`, `activity.ts`, `siteadmin.ts`, `scripts/admin.ts`. Only SQL strings and the awaits audit from the constraints change. No behavior change.
-- [ ] SQL-04: integration tests (`mysql.integration.ts`, `profile.integration.ts`, `users.integration.ts`, `http.smoke.ts`) run against a temporary SQLite file, so no Docker is needed. Rename the script `test:mysql` to `test:integration`, and delete `scripts/test-mysql.ts` (replaced by a small runner). The race tests (login against password change, last global admin, invitation reuse) must stay and pass; they are the main proof that the lock replaces `FOR UPDATE`.
-- [ ] SQL-05: `compose.yaml`: service `app` with volume `admin-data:/app/data` and `DATABASE_PATH=/app/data/admin.sqlite`; the `db` service moves under `profiles: [legacy]` (still present for the import, not started by default). `Dockerfile`: create `/app/data` owned by `node`. `.env.example` and README: remove `MYSQL_*` and `DATABASE_URL`, add `DATABASE_PATH`. The CI step `npm run test:mysql` becomes `npm run test:integration`.
-- [ ] SQL-06: CLI command `npm run admin backup <file>` (uses `VACUUM INTO`), and the README section: backup, restore (stop app, replace the file), single instance rule.
-- [ ] SQL-07: `scripts/import-mysql.ts`, a one-off import (keeps `mysql2` as a temporary dependency in this PR only). Copies users, sites, grants, backup_codes, invitations, audit with their ids preserved, computes `url_hash` as SHA-256 of the normalized base URL where it is null, skips sessions and login_attempts and expired tokens (users sign in again once). Runs in one transaction, refuses to run against a non-empty target, prints per-table counts for source and target and exits non-zero on any mismatch. Test: load a MySQL fixture (via the existing `wbdb` style container), import, compare.
+- [x] SQL-00: spike on `node:24-alpine` (the production image): `node:sqlite` loads, `strftime('%f')` gives three decimals, `lastInsertRowid` handling, WAL on a named volume, the experimental warning (status in Node 24). Result decides go or switch to `better-sqlite3`. Expected: go.
+- [x] SQL-01: `db.ts` as designed above, with unit tests for argument conversion, the lock (two interleaved transactions with an await inside must not interleave), rollback on error, `insertId` and `affectedRows`.
+- [x] SQL-02: baseline migration and `migrate.ts`; adapt `tests/migrate.test.ts`.
+- [x] SQL-03: port the call sites file by file, running the tests after each: `auth.ts`, `sites.ts`, `profile.ts`, `users.ts`, `activity.ts`, `siteadmin.ts`, `scripts/admin.ts`. Only SQL strings and the awaits audit from the constraints change. No behavior change.
+- [x] SQL-04: integration tests (`mysql.integration.ts`, `profile.integration.ts`, `users.integration.ts`, `http.smoke.ts`) run against a temporary SQLite file, so no Docker is needed. Rename the script `test:mysql` to `test:integration`, and delete `scripts/test-mysql.ts` (replaced by a small runner). The race tests (login against password change, last global admin, invitation reuse) must stay and pass; they are the main proof that the lock replaces `FOR UPDATE`.
+- [x] SQL-05: `compose.yaml`: service `app` with volume `admin-data:/app/data` and `DATABASE_PATH=/app/data/admin.sqlite`; the `db` service moves under `profiles: [legacy]` (still present for the import, not started by default). `Dockerfile`: create `/app/data` owned by `node`. `.env.example` and README: remove `MYSQL_*` and `DATABASE_URL`, add `DATABASE_PATH`. The CI step `npm run test:mysql` becomes `npm run test:integration`.
+- [x] SQL-06: CLI command `npm run admin backup <file>` (uses `VACUUM INTO`), and the README section: backup, restore (stop app, replace the file), single instance rule.
+- [x] SQL-07: `scripts/import-mysql.ts`, a one-off import (keeps `mysql2` as a temporary dependency in this PR only). Copies users, sites, grants, backup_codes, invitations, audit with their ids preserved, computes `url_hash` as SHA-256 of the normalized base URL where it is null, skips sessions and login_attempts and expired tokens (users sign in again once). Runs in one transaction, refuses to run against a non-empty target, prints per-table counts for source and target and exits non-zero on any mismatch. Test: load a MySQL fixture (via the existing `wbdb` style container), import, compare.
 - [ ] SQL-08: check the framework `api-pilot` CI job (pinned framework ref) does not start the admin MySQL; it only builds the image and runs `tests/api-pilot.ts`. If it does depend on the admin database, adapt it in this PR.
 - [ ] SQL-09: independent review of the diff (`/code-review`) with focus on the lock, transaction boundaries and every converted `FOR UPDATE` site.
 

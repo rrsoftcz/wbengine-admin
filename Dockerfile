@@ -17,5 +17,7 @@ COPY --from=build --chown=node:node /app/src/lib/content-schema.ts ./src/lib/con
 COPY --from=build --chown=node:node /app/src/lib/content-format.ts ./src/lib/content-format.ts
 COPY --from=build --chown=node:node /app/src/lib/activity.ts ./src/lib/activity.ts
 COPY --from=build --chown=node:node /app/src/lib/i18n ./src/lib/i18n
+RUN mkdir -p /app/data && chown node:node /app/data
 USER node
+VOLUME /app/data
 CMD ["node","build"]

@@ -18,7 +18,7 @@ jobs:
       - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run check
-      - run: npm run test:mysql
+      - run: npm run test:integration
 
   api-pilot:
     name: Two-site PHP API pilot

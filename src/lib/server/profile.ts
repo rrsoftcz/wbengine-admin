@@ -1,4 +1,4 @@
-import { transaction, rows, type Connection } from './db.ts';
+import { transaction, rows, NOW, minutesAgo, type Connection } from './db.ts';
 import { token, tokenHash, hashPassword, verifyPassword } from './security.ts';
 import { isLocale } from '../i18n/index.ts';
 import type { Session } from './auth.ts';
@@ -22,13 +22,13 @@ async function audit(c: Connection, userId: number, event: string) {
 /** Locks the account and verifies the current password, with a failure counter per account. */
 async function confirmPassword(c: Connection, userId: number, password: string) {
     const subject = tokenHash(`pw:${userId}`);
-    await c.execute('INSERT IGNORE INTO login_attempts(subject_hash,window_start) VALUES (?,NOW(3))', [subject]);
-    const [rate] = await rows<{ failures: number; old: number }>(c, 'SELECT failures,(window_start<DATE_SUB(NOW(3),INTERVAL ? MINUTE)) AS old FROM login_attempts WHERE subject_hash=? FOR UPDATE', [attemptWindowMinutes, subject]);
+    await c.execute(`INSERT OR IGNORE INTO login_attempts(subject_hash,window_start) VALUES (?,${NOW})`, [subject]);
+    const [rate] = await rows<{ failures: number; old: number }>(c, `SELECT failures,(window_start<${minutesAgo(attemptWindowMinutes)}) AS old FROM login_attempts WHERE subject_hash=?`, [subject]);
     if (rate.old)
-        await c.execute('UPDATE login_attempts SET failures=0,window_start=NOW(3) WHERE subject_hash=?', [subject]);
+        await c.execute(`UPDATE login_attempts SET failures=0,window_start=${NOW} WHERE subject_hash=?`, [subject]);
     else if (rate.failures >= attemptLimit)
         throw new ProfileError('restricted');
-    const [u] = await rows<{ id: number; password_hash: string; mfa_enabled: number }>(c, 'SELECT id,password_hash,mfa_enabled FROM users WHERE id=? AND disabled=FALSE FOR UPDATE', [userId]);
+    const [u] = await rows<{ id: number; password_hash: string; mfa_enabled: number }>(c, 'SELECT id,password_hash,mfa_enabled FROM users WHERE id=? AND disabled=FALSE', [userId]);
     if (!u)
         throw new ProfileError('unavailable');
     if (!await verifyPassword(password, u.password_hash)) {
@@ -50,7 +50,7 @@ export async function changePassword(s: Session, current: string, next: string) 
     const hash = await hashPassword(next);
     await transaction(async (c) => {
         await confirmPassword(c, s.user.id, current);
-        await c.execute('UPDATE users SET password_hash=?,password_changed_at=NOW(3) WHERE id=?', [hash, s.user.id]);
+        await c.execute(`UPDATE users SET password_hash=?,password_changed_at=${NOW} WHERE id=?`, [hash, s.user.id]);
         await c.execute('DELETE FROM sessions WHERE user_id=? AND token_hash<>?', [s.user.id, s.hash]);
         await audit(c, s.user.id, 'password.changed');
     });
