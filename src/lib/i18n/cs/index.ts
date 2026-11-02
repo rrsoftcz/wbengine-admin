@@ -1058,5 +1058,22 @@ const messages: Messages = {
     'profile.event.site.user.enabled': 'Účet na webu povolen',
     'profile.event.site.user.reset': 'Odkaz pro heslo na webu vytvořen',
     'profile.event.site.cache.flushed': 'Cache webu vyprázdněna',
+    'users.invite.mailSubmit': 'Vytvořit a odeslat emailem',
+    'users.invite.mailSent': 'Poštovní server přijal zprávu pro {email}. Doručení do schránky není zaručeno, proto kód níže mějte po ruce.',
+    'users.invite.mailFailed': 'Email se nepodařilo odeslat ({reason}). Předejte kód níže ručně.',
+    'users.invite.mailReason.auth': 'poštovní server odmítl přihlášení',
+    'users.invite.mailReason.recipient': 'adresa byla odmítnuta',
+    'users.invite.mailReason.connection': 'nelze se připojit k poštovnímu serveru',
+    'users.invite.mailReason.timeout': 'poštovní server neodpověděl včas',
+    'users.invite.mailReason.unknown': 'neznámá chyba, viz log serveru',
+    'profile.event.invite.mailed': 'Pozvánka odeslána emailem',
+    'profile.event.invite.mail_failed': 'Odeslání pozvánky emailem selhalo',
+    'mail.invite.subject': 'Pozvánka do WBengine Admin',
+    'mail.invite.hello': 'Dobrý den,',
+    'mail.invite.intro': 'byl(a) jste pozván(a) do centrální správy webů WBengine. Otevřete stránku pozvánky, zadejte níže uvedený kód a zvolte si heslo.',
+    'mail.invite.link': 'Stránka pozvánky: {link}',
+    'mail.invite.code': 'Váš kód pozvánky (zkopírujte ho celý):',
+    'mail.invite.expires': 'Kód lze použít jen jednou a platí 48 hodin.',
+    'mail.invite.ignore': 'Pokud jste tuto zprávu nečekal(a), ignorujte ji. Dokud se kód nepoužije, nic se neděje.'
 };
 export default messages;

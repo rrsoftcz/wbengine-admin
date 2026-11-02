@@ -1052,5 +1052,22 @@ const messages: Messages = {
     'profile.event.site.user.enabled': 'Website-Konto aktiviert',
     'profile.event.site.user.reset': 'Passwort-Link der Website erstellt',
     'profile.event.site.cache.flushed': 'Website-Cache geleert',
+    'users.invite.mailSubmit': 'Erstellen und per E-Mail senden',
+    'users.invite.mailSent': 'Der Mailserver hat die Nachricht für {email} angenommen. Die Zustellung ins Postfach ist nicht garantiert, halten Sie den Code unten bereit.',
+    'users.invite.mailFailed': 'Die E-Mail wurde nicht gesendet ({reason}). Geben Sie den Code unten manuell weiter.',
+    'users.invite.mailReason.auth': 'der Mailserver hat die Anmeldung abgelehnt',
+    'users.invite.mailReason.recipient': 'die Adresse wurde abgelehnt',
+    'users.invite.mailReason.connection': 'keine Verbindung zum Mailserver',
+    'users.invite.mailReason.timeout': 'der Mailserver hat nicht rechtzeitig geantwortet',
+    'users.invite.mailReason.unknown': 'unbekannter Fehler, siehe Serverprotokoll',
+    'profile.event.invite.mailed': 'Einladung per E-Mail gesendet',
+    'profile.event.invite.mail_failed': 'Einladung per E-Mail fehlgeschlagen',
+    'mail.invite.subject': 'Einladung zu WBengine Admin',
+    'mail.invite.hello': 'Guten Tag,',
+    'mail.invite.intro': 'Sie wurden zur zentralen Verwaltung der WBengine-Websites eingeladen. Öffnen Sie die Einladungsseite, geben Sie den untenstehenden Code ein und wählen Sie ein Passwort.',
+    'mail.invite.link': 'Einladungsseite: {link}',
+    'mail.invite.code': 'Ihr Einladungscode (bitte vollständig kopieren):',
+    'mail.invite.expires': 'Der Code kann nur einmal verwendet werden und läuft nach 48 Stunden ab.',
+    'mail.invite.ignore': 'Wenn Sie diese Nachricht nicht erwartet haben, ignorieren Sie sie. Solange der Code nicht verwendet wird, passiert nichts.'
 };
 export default messages;

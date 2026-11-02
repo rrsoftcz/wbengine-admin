@@ -85,5 +85,13 @@ export default {
     'users.error.noSite': 'The selected site does not exist.',
     'users.error.noGrant': 'The user has no access to that site.',
     'users.error.disabled': 'A disabled account cannot be recovered. Enable it first.',
-    'users.error.invalid': 'The submitted values are not valid.'
+    'users.error.invalid': 'The submitted values are not valid.',
+    'users.invite.mailSubmit': 'Create and send by email',
+    'users.invite.mailSent': 'The mail server accepted the message for {email}. Delivery to the inbox is not guaranteed, so keep the code below at hand.',
+    'users.invite.mailFailed': 'The email was not sent ({reason}). Pass the code below on manually.',
+    'users.invite.mailReason.auth': 'the mail server rejected the login',
+    'users.invite.mailReason.recipient': 'the address was rejected',
+    'users.invite.mailReason.connection': 'no connection to the mail server',
+    'users.invite.mailReason.timeout': 'the mail server did not answer in time',
+    'users.invite.mailReason.unknown': 'unknown error, see the server log'
 } satisfies Record<string, string>;

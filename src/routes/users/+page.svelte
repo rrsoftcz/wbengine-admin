@@ -23,6 +23,11 @@
     {#if form && 'invited' in form && form.invited}
         <div class="alert alert-ok mb-4" role="status">
             <p class="m-0 font-semibold">{t('users.invite.created', { email: form.invited.email })}</p>
+            {#if form.invited.mail === 'sent'}
+                <p class="my-2 text-sm">{t('users.invite.mailSent', { email: form.invited.email })}</p>
+            {:else if form.invited.mail === 'failed'}
+                <p class="my-2 text-sm" role="alert">{t('users.invite.mailFailed', { reason: t(`users.invite.mailReason.${form.invited.reason ?? 'unknown'}` as 'users.invite.mailReason.unknown') })}</p>
+            {/if}
             <p class="my-2 text-sm">{t('users.invite.tokenHint')}</p>
             <code class="block break-all rounded-lg bg-surface-2 p-3 text-sm text-text" data-secret>{form.invited.token}</code>
             <div class="mt-3"><CopyButton text={form.invited.token} /></div>
@@ -59,7 +64,12 @@
         {:else}
             <input type="hidden" name="site" value="" /><input type="hidden" name="role" value="" />
         {/if}
-        <div class="sm:col-span-2"><SubmitButton {pending} label={t('users.invite.submit')} pendingLabel={t('users.invite.pending')} block={false} /></div>
+        <div class="flex flex-wrap gap-3 sm:col-span-2">
+            <SubmitButton {pending} label={t('users.invite.submit')} pendingLabel={t('users.invite.pending')} block={false} />
+            {#if data.mailEnabled}
+                <button type="submit" name="mail" value="1" class="btn btn-secondary" disabled={pending} aria-busy={pending}>{pending ? t('users.invite.pending') : t('users.invite.mailSubmit')}</button>
+            {/if}
+        </div>
     </form>
 </section>
 

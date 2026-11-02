@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "mysql2": "3.24.6",
+    "nodemailer": "10.3.1",
     "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
@@ -25,6 +26,7 @@
     "@sveltejs/kit": "3.1.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "26.6.5",
+    "@types/nodemailer": "8.0.2",
     "svelte": "5.57.2",
     "svelte-check": "4.7.7",
     "tailwindcss": "4.3.3",
