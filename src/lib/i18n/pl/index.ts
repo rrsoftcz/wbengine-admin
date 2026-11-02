@@ -128,6 +128,8 @@ const messages: Messages = {
     'auth.accept.haveAccount': 'Masz już konto?',
     'auth.accept.signIn': 'Zaloguj',
     'auth.accept.error': 'Zaproszenie jest nieprawidłowe lub hasło nie spełnia wymagań',
+    'auth.accept.errorPassword': 'Hasło musi mieć od 14 do 256 znaków.',
+    'auth.accept.errorInvitation': 'Kod zaproszenia jest nieprawidłowy. Mógł wygasnąć, zostać już użyty lub nie został skopiowany w całości. W razie potrzeby poproś administratora o nowe zaproszenie.',
 
     'auth.backup.warnStrong': 'Te kody są wyświetlane tylko raz.',
     'auth.backup.warnRest': 'Zapisz je teraz, na przykład w menedżerze haseł. Każdego kodu można użyć jednorazowo, gdy nie masz pod ręką telefonu.',
