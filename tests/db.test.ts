@@ -116,3 +116,14 @@ test('a backup creates its private target directory', async () => {
 test('the data directory is private even when it existed with wider rights', async () => {
     assert.equal((await stat(join(directory, 'data'))).mode & 0o777, 0o700);
 });
+test('an existing directory that others can enter is refused, never changed', async () => {
+    const { mkdir, chmod } = await import('node:fs/promises');
+    const { spawnSync } = await import('node:child_process');
+    const shared = join(directory, 'shared');
+    await mkdir(shared);
+    await chmod(shared, 0o755);
+    const r = spawnSync(process.execPath, ['--experimental-strip-types', '--input-type=module', '-e', "const { database } = await import('./src/lib/server/db.ts'); database();"], { env: { ...process.env, DATABASE_PATH: join(shared, 'x.sqlite') }, encoding: 'utf8' });
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /accessible to others/);
+    assert.equal((await stat(shared)).mode & 0o777, 0o755);
+});

@@ -95,8 +95,12 @@ function open() {
     const previous = process.umask(0o077);
     let db: DatabaseSync;
     try {
-        mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-        chmodSync(dirname(path), 0o700);
+        // Only a directory created here is made private; an existing one must already be, so a shared directory is never changed.
+        const created = mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+        if (created)
+            chmodSync(dirname(path), 0o700);
+        else if (statSync(dirname(path)).mode & 0o077)
+            throw Error('The database directory is accessible to others, use mode 0700');
         db = new DatabaseSync(path);
     }
     finally {

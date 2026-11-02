@@ -69,7 +69,9 @@ export async function loadSession(raw: string | undefined): Promise<Session | nu
 }
 export async function login(email: string, password: string) {
     const subject = tokenHash(normalizeEmail(email));
-    return transaction(async (c) => {
+    // The attempt is counted in a short transaction before the slow hash, so parallel guesses cannot exceed the limit
+    // and the hash does not hold the process-wide write lock.
+    const attempt = await transaction(async (c) => {
         await c.execute(`INSERT OR IGNORE INTO login_attempts(subject_hash,window_start) VALUES (?,${NOW})`, [subject]);
         const [rate] = await rows<{
             failures: number;
@@ -81,17 +83,24 @@ export async function login(email: string, password: string) {
         }
         if (rate.failures >= 8)
             return null;
-        // Lock the current account state through password verification and session creation.
-        // Recovery/deactivation must serialize with this operation.
+        await c.execute('UPDATE login_attempts SET failures=failures+1 WHERE subject_hash=?', [subject]);
         const [u] = await rows<User>(c, 'SELECT * FROM users WHERE email=? AND disabled=FALSE', [normalizeEmail(email)]);
-        const valid = await verifyPassword(password, u?.password_hash ?? 'scrypt:00000000000000000000000000000000:' + '00'.repeat(64));
-        if (!u || !valid) {
-            await c.execute('UPDATE login_attempts SET failures=failures+1 WHERE subject_hash=?', [subject]);
+        return { u };
+    });
+    if (!attempt)
+        return null;
+    const { u } = attempt;
+    const valid = await verifyPassword(password, u?.password_hash ?? 'scrypt:00000000000000000000000000000000:' + '00'.repeat(64));
+    if (!u || !valid)
+        return null;
+    return transaction(async (c) => {
+        // Recovery, deactivation or a password change may have happened while the hash was computed.
+        const [fresh] = await rows<User>(c, 'SELECT * FROM users WHERE id=? AND disabled=FALSE', [u.id]);
+        if (!fresh || fresh.password_hash !== u.password_hash)
             return null;
-        }
         await c.execute('DELETE FROM login_attempts WHERE subject_hash=?', [subject]);
-        await audit(c, u.id, 'login.password');
-        return newSession(c, u.id);
+        await audit(c, fresh.id, 'login.password');
+        return newSession(c, fresh.id);
     });
 }
 export async function logout(s: Session) {
