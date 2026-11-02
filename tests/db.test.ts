@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const directory = await mkdtemp(join(tmpdir(), 'wbengine-admin-db-'));
 process.env.DATABASE_PATH = join(directory, 'data', 'admin.sqlite');
-const { transaction, rows, closeDatabase, database, timestamp, isUniqueViolation, minutesAgo } = await import('../src/lib/server/db.ts');
+const { transaction, read, rows, closeDatabase, database, timestamp, isUniqueViolation, minutesAgo } = await import('../src/lib/server/db.ts');
 await transaction(async (c) => {
     await c.exec('CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT UNIQUE, flag INTEGER, at TEXT)');
 });
@@ -83,4 +83,36 @@ test('files are private and a backup is a consistent private copy', async () => 
     const copy = new DatabaseSync(target, { readOnly: true });
     assert.ok(Number((copy.prepare('SELECT COUNT(*) AS n FROM t').get() as { n: number }).n) >= 3);
     copy.close();
+});
+test('a read does not queue behind a running transaction and sees only committed data', async () => {
+    let release!: () => void, entered!: () => void;
+    const gate = new Promise<void>(r => release = r), inside = new Promise<void>(r => entered = r);
+    const writing = transaction(async (c) => {
+        await c.execute('INSERT INTO t(v) VALUES (?)', ['uncommitted']);
+        entered();
+        await gate;
+    });
+    await inside;
+    const seen = await Promise.race([read(c => rows(c, "SELECT id FROM t WHERE v='uncommitted'")), new Promise<'blocked'>(r => setTimeout(() => r('blocked'), 1000))]);
+    assert.deepEqual(seen, []);
+    release();
+    await writing;
+    assert.equal((await read(c => rows(c, "SELECT id FROM t WHERE v='uncommitted'"))).length, 1);
+    await assert.rejects(read(c => c.execute('INSERT INTO t(v) VALUES (?)', ['x'])));
+});
+test('an early commit followed by a normal return does not fail', async () => {
+    assert.equal(await transaction(async (c) => {
+        await c.execute('INSERT INTO t(v) VALUES (?)', ['early']);
+        await c.commit();
+        return 'done';
+    }), 'done');
+});
+test('a backup creates its private target directory', async () => {
+    const target = join(directory, 'new-backups', 'x.sqlite');
+    database().backup(target);
+    assert.equal((await stat(join(directory, 'new-backups'))).mode & 0o777, 0o700);
+    assert.equal((await stat(target)).mode & 0o777, 0o600);
+});
+test('the data directory is private even when it existed with wider rights', async () => {
+    assert.equal((await stat(join(directory, 'data'))).mode & 0o777, 0o700);
 });

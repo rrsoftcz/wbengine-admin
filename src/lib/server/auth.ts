@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { transaction, rows, NOW, minutesAgo, type Connection } from './db.ts';
+import { transaction, read, rows, NOW, minutesAgo, type Connection } from './db.ts';
 import { SecretVault, token, tokenHash, hashPassword, verifyPassword, newTotpSecret, verifyTotp, permitted } from './security.ts';
 export interface User {
     id: number;
@@ -59,7 +59,7 @@ async function lockedUser(c: Connection, id: number) {
 export async function loadSession(raw: string | undefined): Promise<Session | null> {
     if (!raw || raw.length > 128)
         return null;
-    return transaction(async (c) => {
+    return read(async (c) => {
         const [r] = await rows<User & {
             csrf: string;
             mfa_verified: number;

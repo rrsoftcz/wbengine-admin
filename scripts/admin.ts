@@ -58,7 +58,7 @@ try {
         throw Error('Commands: migrate, invite, recover, users, revoke, site-add, backup');
 }
 catch (e) {
-    console.error(e instanceof Error && e.message.startsWith('Commands:') ? e.message : 'The operation failed. Check the parameters and the connection; sensitive data is not printed.');
+    console.error(e instanceof Error && (e.message.startsWith('Commands:') || e.message.startsWith('Backup:')) ? e.message : 'The operation failed. Check the parameters and the connection; sensitive data is not printed.');
     process.exitCode = 1;
 }
 finally {

@@ -52,6 +52,8 @@ export class Connection {
     private statement(sql: string) {
         let s = this.cache.get(sql);
         if (!s) {
+            if (this.cache.size >= 200)
+                this.cache.clear();
             s = this.db.prepare(sql);
             this.cache.set(sql, s);
         }
@@ -67,7 +69,8 @@ export class Connection {
     }
     /** Commits early so a change survives an error thrown afterwards (a failed-attempt counter). The transaction helper then has nothing left to roll back. */
     async commit() {
-        this.db.exec('COMMIT');
+        if (this.db.isTransaction)
+            this.db.exec('COMMIT');
     }
     /** Runs one or more statements without parameters (migrations). */
     async exec(sql: string) {
@@ -76,6 +79,8 @@ export class Connection {
 }
 let handle: DatabaseSync | undefined;
 let connection: Connection | undefined;
+let reader: DatabaseSync | undefined;
+let readConnection: Connection | undefined;
 export function databasePath() {
     const path = process.env.DATABASE_PATH;
     if (!path)
@@ -86,13 +91,23 @@ function open() {
     if (handle)
         return handle;
     const path = databasePath();
-    // The file, its journal and every backup are private to this user.
-    process.umask(0o077);
-    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-    const db = new DatabaseSync(path);
+    // The file, its journal and every backup are private to this user. The umask is changed only while the files are created.
+    const previous = process.umask(0o077);
+    let db: DatabaseSync;
+    try {
+        mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+        chmodSync(dirname(path), 0o700);
+        db = new DatabaseSync(path);
+    }
+    finally {
+        process.umask(previous);
+    }
     db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON; PRAGMA trusted_schema=OFF;');
     chmodSync(path, 0o600);
     connection = new Connection(db);
+    reader = new DatabaseSync(path, { readOnly: true });
+    reader.exec('PRAGMA busy_timeout=5000; PRAGMA query_only=ON;');
+    readConnection = new Connection(reader);
     return handle = db;
 }
 /** Opens the database on first use. */
@@ -102,8 +117,9 @@ export function database() {
         /** Consistent online copy of the database, created private (mode 0600). */
         backup(target: string) {
             const path = resolve(target);
+            mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
             if (statSync(dirname(path)).mode & 0o007)
-                throw Error('The backup directory is readable by everyone');
+                throw Error('Backup: the target directory is readable by everyone, use mode 0700');
             db.prepare('VACUUM INTO ?').run(path);
             chmodSync(path, 0o600);
         },
@@ -111,6 +127,9 @@ export function database() {
             if (handle === db) {
                 handle = undefined;
                 connection = undefined;
+                readConnection = undefined;
+                reader?.close();
+                reader = undefined;
                 tail = Promise.resolve();
                 db.close();
             }
@@ -138,7 +157,8 @@ export function transaction<T>(action: (c: Connection) => Promise<T>): Promise<T
         db.exec('BEGIN IMMEDIATE');
         try {
             const r = await inside.run(true, () => action(c));
-            db.exec('COMMIT');
+            if (db.isTransaction)
+                db.exec('COMMIT');
             return r;
         }
         catch (e) {
@@ -150,4 +170,9 @@ export function transaction<T>(action: (c: Connection) => Promise<T>): Promise<T
     const result = tail.then(run, run);
     tail = result.catch(() => undefined);
     return result;
+}
+/** Runs a read-only action on a separate connection: it never waits for a writer and sees only committed data (WAL). Use it for hot read paths such as session loading. */
+export async function read<T>(action: (c: Connection) => Promise<T>): Promise<T> {
+    open();
+    return action(readConnection!);
 }

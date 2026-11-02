@@ -26,7 +26,7 @@ try {
     const counts: Record<string, [number, number]> = {};
     await transaction(async (c) => {
         await migrate(c);
-        for (const t of ['users', 'sites', 'audit'])
+        for (const t of Object.keys(tables))
             if (Number((await rows<{ n: number }>(c, `SELECT COUNT(*) AS n FROM ${t}`))[0].n) > 0)
                 throw Error(`The target is not empty (${t}); the import runs only into a fresh database`);
         for (const [table, columns] of Object.entries(tables)) {
