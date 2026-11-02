@@ -131,6 +131,14 @@ The command prints a one-time token (valid for 48 hours). Then:
 
 Recovery: `docker compose run --rm app npm run admin -- recover vy@vase-domena.cz` issues a token for `/recover` (30 minutes). A lost TOTP is replaced by a backup code. List of accounts: `npm run admin -- users`.
 
+Back up the database of Admin regularly. It is one SQLite file in the `admin-data` volume, and this command writes a consistent copy while Admin keeps running:
+
+```sh
+docker compose run --rm app npm run admin -- backup /app/data/backups/admin.sqlite
+```
+
+The copy is readable only by its owner and holds encrypted site keys and password hashes, so store it away from `MASTER_KEY`. To restore, stop the app, put the copy in place of `admin.sqlite` in the volume and start the app again. Run only one instance of Admin.
+
 ## 6. Issue an integration key on the site
 
 1. Sign in to the site as an administrator (step 2) and open `/integrations/`.
