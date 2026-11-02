@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mailConfig, sendMail, sendInvitationMail, invitationMessage, mailReason, assertSingleLine, type MailConfig, type MailTransport } from '../src/lib/server/mail.ts';
 import { messagesFor, translate, type Translate } from '../src/lib/i18n/index.ts';
 
-const full = { MAIL_SMTP_HOST: 'smtp.gmail.com', MAIL_SMTP_USER: 'admin@example.com', MAIL_SMTP_PASSWORD: 'app password secret', MAIL_FROM: 'WBengine Admin <admin@example.com>' };
+const full = { MAIL_SMTP_HOST: 'smtp.gmail.com', MAIL_SMTP_USER: 'admin@example.com', MAIL_SMTP_PASSWORD: 'app-password-secret', MAIL_FROM: 'WBengine Admin <admin@example.com>' };
 const config: MailConfig = { host: 'smtp.gmail.com', port: 587, user: 'admin@example.com', password: 'app password secret', from: 'admin@example.com' };
 const t = (locale: 'en' | 'cs'): Translate => (key, params) => translate(locale, messagesFor(locale), key, params);
 const fake = (outcome?: unknown) => {
@@ -20,8 +20,14 @@ test('configuration: off when empty, off with a warning when partial, on when co
     assert.equal(mailConfig({ MAIL_SMTP_HOST: 'smtp.gmail.com' }, (m) => warnings.push(m)), null);
     assert.equal(warnings.length, 1);
     assert.equal(mailConfig({ ...full, MAIL_SMTP_PORT: 'abc' }, () => {}), null);
-    assert.deepEqual(mailConfig(full), { host: 'smtp.gmail.com', port: 587, user: 'admin@example.com', password: 'app password secret', from: 'WBengine Admin <admin@example.com>' });
+    assert.deepEqual(mailConfig(full), { host: 'smtp.gmail.com', port: 587, user: 'admin@example.com', password: 'app-password-secret', from: 'WBengine Admin <admin@example.com>' });
     assert.equal(mailConfig({ ...full, MAIL_SMTP_PORT: '465' })?.port, 465);
+});
+
+test('spaces of a Google app password are dropped, other hosts keep the password as it is', () => {
+    assert.equal(mailConfig({ ...full, MAIL_SMTP_PASSWORD: 'abcd efgh ijkl mnop' })?.password, 'abcdefghijklmnop');
+    assert.equal(mailConfig({ ...full, MAIL_SMTP_PASSWORD: ' abcd\tefgh ijkl mnop ' })?.password, 'abcdefghijklmnop');
+    assert.equal(mailConfig({ ...full, MAIL_SMTP_HOST: 'mail.example.com', MAIL_SMTP_PASSWORD: 'a pass phrase' })?.password, 'a pass phrase');
 });
 
 test('header injection is rejected before anything is sent', async () => {
