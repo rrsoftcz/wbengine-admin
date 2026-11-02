@@ -178,7 +178,19 @@ export async function invite(email: string, globalAdmin: boolean, siteId: number
     });
     return raw;
 }
+/** Why accepting an invitation failed in a way the person can fix: the password policy or the code. */
+export class AcceptError extends Error {
+    code: 'password' | 'invitation';
+    constructor(code: 'password' | 'invitation') {
+        super(code === 'password' ? 'Password must be 14 to 256 characters' : 'Invitation is not valid');
+        this.code = code;
+    }
+}
 export async function acceptInvitation(raw: string, password: string) {
+    // A code copied from an email often carries spaces or line breaks around it; the code itself never contains any.
+    raw = raw.replace(/\s+/g, '');
+    if (password.length < 14 || password.length > 256)
+        throw new AcceptError('password');
     const hash = await hashPassword(password);
     return transaction(async (c) => {
         const [i] = await rows<{
@@ -188,7 +200,7 @@ export async function acceptInvitation(raw: string, password: string) {
             role: string | null;
         }>(c, 'SELECT * FROM invitations WHERE token_hash=? AND used_at IS NULL AND expires_at>NOW(3) FOR UPDATE', [tokenHash(raw)]);
         if (!i)
-            throw Error('Invitation is not valid');
+            throw new AcceptError('invitation');
         const [r] = await c.execute('INSERT INTO users(email,password_hash,global_admin) VALUES (?,?,?)', [i.email, hash, i.global_admin]);
         const id = (r as {
             insertId: number;

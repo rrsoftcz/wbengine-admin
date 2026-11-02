@@ -1,7 +1,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { database, transaction, rows } from '../src/lib/server/db.ts';
-import { invite, acceptInvitation, loadSession, login, setupMfa, completeMfa, acceptInvitation as accept } from '../src/lib/server/auth.ts';
+import { invite, acceptInvitation, AcceptError, loadSession, login, setupMfa, completeMfa, acceptInvitation as accept } from '../src/lib/server/auth.ts';
 import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
 import { listUsers, userDetail, inviteUser, issueRecoveryFor, setDisabled, setGlobalAdmin, revokeGrant, resetUserMfa, mailInvitation, UserError } from '../src/lib/server/users.ts';
@@ -126,4 +126,12 @@ test('mailing an invitation records the audit event, and a failed send leaves th
     await acceptInvitation(second.token, password);
 
     assert.equal(await mailInvitation(admin.session, first, null, 'https://admin.example.test', t, null), null);
+});
+
+test('accepting an invitation tolerates copy whitespace and tells a bad password from a bad code', async () => {
+    const raw = await invite(`copy-${tag}@example.test`, false);
+    await assert.rejects(acceptInvitation(raw, 'short'), (e) => e instanceof AcceptError && e.code === 'password');
+    await assert.rejects(acceptInvitation('not-a-real-code', password), (e) => e instanceof AcceptError && e.code === 'invitation');
+    assert.ok(await acceptInvitation(` \n${raw}\r\n `, password));
+    await assert.rejects(acceptInvitation(raw, password), (e) => e instanceof AcceptError && e.code === 'invitation');
 });

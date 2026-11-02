@@ -73,6 +73,8 @@ export default {
     'auth.accept.haveAccount': 'Already have an account?',
     'auth.accept.signIn': 'Sign in',
     'auth.accept.error': 'The invitation is not valid or the password does not meet the requirements',
+    'auth.accept.errorPassword': 'The password must be 14 to 256 characters long.',
+    'auth.accept.errorInvitation': 'The invitation code is not valid. It may have expired or been used already, or it was not copied completely. Ask the administrator for a new invitation if needed.',
 
     'auth.backup.warnStrong': 'These codes are shown only once.',
     'auth.backup.warnRest': 'Save them now, for example in a password manager. Each code can be used once if you do not have your phone at hand.',

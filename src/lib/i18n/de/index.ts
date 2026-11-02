@@ -128,6 +128,8 @@ const messages: Messages = {
     'auth.accept.haveAccount': 'Sie haben bereits ein Konto?',
     'auth.accept.signIn': 'Anmelden',
     'auth.accept.error': 'Die Einladung ist ungültig oder das Passwort erfüllt die Anforderungen nicht',
+    'auth.accept.errorPassword': 'Das Passwort muss 14 bis 256 Zeichen lang sein.',
+    'auth.accept.errorInvitation': 'Der Einladungscode ist ungültig. Er kann abgelaufen oder bereits verwendet worden sein oder wurde nicht vollständig kopiert. Bitten Sie bei Bedarf den Administrator um eine neue Einladung.',
 
     'auth.backup.warnStrong': 'Diese Codes werden nur einmal angezeigt.',
     'auth.backup.warnRest': 'Speichern Sie sie jetzt, zum Beispiel in einem Passwort-Manager. Jeder Code kann einmal verwendet werden, wenn Sie Ihr Telefon nicht zur Hand haben.',

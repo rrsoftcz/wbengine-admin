@@ -130,6 +130,8 @@ const messages: Messages = {
     'auth.accept.haveAccount': 'Už máte účet?',
     'auth.accept.signIn': 'Přihlásit se',
     'auth.accept.error': 'Pozvánka není platná nebo heslo nesplňuje požadavky',
+    'auth.accept.errorPassword': 'Heslo musí mít 14 až 256 znaků.',
+    'auth.accept.errorInvitation': 'Kód pozvánky není platný. Mohl vypršet, být už použitý, nebo se nezkopíroval celý. V případě potřeby požádejte správce o novou pozvánku.',
 
     'auth.backup.warnStrong': 'Tyto kódy se zobrazují jen jednou.',
     'auth.backup.warnRest': 'Uložte si je hned, například do správce hesel. Každý kód lze použít jednou, pokud nemáte telefon po ruce.',
