@@ -1,6 +1,6 @@
 # Plan: replace MySQL with SQLite in WBengine Admin
 
-Status: approved by the owner. PR 1 is implemented (SQL-00 to SQL-07, SEC-01 to SEC-06); SQL-08 (pilot CI) and SQL-09 (review) are open, the cutover and PR 2 are not done yet.
+Status: approved by the owner. PR 1 is implemented (SQL-00 to SQL-07, SEC-01 to SEC-06); SQL-09 (independent review) is open; SQL-08 is verified by a green pilot job, the cutover and PR 2 are not done yet.
 
 ## Decision and reasons
 
@@ -92,7 +92,7 @@ Two pull requests, each with green CI and a squash merge as usual. Both on branc
 - [x] SQL-05: `compose.yaml`: service `app` with volume `admin-data:/app/data` and `DATABASE_PATH=/app/data/admin.sqlite`; the `db` service moves under `profiles: [legacy]` (still present for the import, not started by default). `Dockerfile`: create `/app/data` owned by `node`. `.env.example` and README: remove `MYSQL_*` and `DATABASE_URL`, add `DATABASE_PATH`. The CI step `npm run test:mysql` becomes `npm run test:integration`.
 - [x] SQL-06: CLI command `npm run admin backup <file>` (uses `VACUUM INTO`), and the README section: backup, restore (stop app, replace the file), single instance rule.
 - [x] SQL-07: `scripts/import-mysql.ts`, a one-off import (keeps `mysql2` as a temporary dependency in this PR only). Copies users, sites, grants, backup_codes, invitations, audit with their ids preserved, computes `url_hash` as SHA-256 of the normalized base URL where it is null, skips sessions and login_attempts and expired tokens (users sign in again once). Runs in one transaction, refuses to run against a non-empty target, prints per-table counts for source and target and exits non-zero on any mismatch. Test: load a MySQL fixture (via the existing `wbdb` style container), import, compare.
-- [ ] SQL-08: check the framework `api-pilot` CI job (pinned framework ref) does not start the admin MySQL; it only builds the image and runs `tests/api-pilot.ts`. If it does depend on the admin database, adapt it in this PR.
+- [x] SQL-08: check the framework `api-pilot` CI job (pinned framework ref) does not start the admin MySQL; it only builds the image and runs `tests/api-pilot.ts`. If it does depend on the admin database, adapt it in this PR.
 - [ ] SQL-09: independent review of the diff (`/code-review`) with focus on the lock, transaction boundaries and every converted `FOR UPDATE` site.
 
 ### Cutover on contabo (after PR 1 is merged)
