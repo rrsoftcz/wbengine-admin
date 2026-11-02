@@ -1,25 +1,9 @@
 name: wbengine-admin
 services:
-  db:
-    image: mysql:8.4
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
-      MYSQL_DATABASE: wbengine_admin
-      MYSQL_USER: wbadmin
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
-    volumes:
-      - admin-db:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
-      interval: 3s
-      timeout: 3s
-      retries: 40
-    ports:
-      - "127.0.0.1:${MYSQL_PORT:-13384}:3306"
   app:
     build: .
     environment:
-      DATABASE_URL: ${DATABASE_URL:?}
+      DATABASE_PATH: /app/data/admin.sqlite
       MASTER_KEY: ${MASTER_KEY:?}
       ORIGIN: ${ORIGIN:?}
       HOST: 0.0.0.0
@@ -31,10 +15,28 @@ services:
       MAIL_SMTP_USER: ${MAIL_SMTP_USER:-}
       MAIL_SMTP_PASSWORD: ${MAIL_SMTP_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # Only for the one-off import from the old MySQL database, see docs/plan-sqlite-migration.md.
+      LEGACY_DATABASE_URL: ${LEGACY_DATABASE_URL:-}
     ports:
       - "127.0.0.1:13000:3000"
-    depends_on:
-      db:
-        condition: service_healthy
+    volumes:
+      - admin-data:/app/data
+  # The previous MySQL database. Not started by default; kept only for the one-off import and removed in a later release.
+  db:
+    profiles: [legacy]
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-unused}
+      MYSQL_DATABASE: wbengine_admin
+      MYSQL_USER: wbadmin
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-unused}
+    volumes:
+      - admin-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
 volumes:
+  admin-data:
   admin-db:

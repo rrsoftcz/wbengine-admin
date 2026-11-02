@@ -1,0 +1,12 @@
+-- Baseline schema of the SQLite database. Times are UTC text 'YYYY-MM-DD HH:MM:SS.mmm' (see db.ts).
+CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,global_admin INTEGER NOT NULL DEFAULT 0 CHECK (global_admin IN (0,1)),mfa_secret TEXT NULL,mfa_enabled INTEGER NOT NULL DEFAULT 0 CHECK (mfa_enabled IN (0,1)),mfa_counter INTEGER NOT NULL DEFAULT -1,disabled INTEGER NOT NULL DEFAULT 0 CHECK (disabled IN (0,1)),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,locale TEXT NULL,password_changed_at TEXT NULL);
+-- key_cipher is AES-256-GCM ciphertext bound to the row id; url_hash is the SHA-256 of the normalized base URL; integration_id is the non-secret remote integration id.
+CREATE TABLE sites (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,base_url TEXT NOT NULL,key_cipher TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,url_hash TEXT NULL UNIQUE,integration_id INTEGER NULL);
+CREATE TABLE grants (user_id INTEGER NOT NULL,site_id INTEGER NOT NULL,role TEXT NOT NULL CHECK (role IN ('editor','siteadmin')),PRIMARY KEY(user_id,site_id),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(site_id) REFERENCES sites(id) ON DELETE CASCADE);
+CREATE TABLE sessions (token_hash TEXT PRIMARY KEY,user_id INTEGER NOT NULL,csrf TEXT NOT NULL,mfa_verified INTEGER NOT NULL DEFAULT 0 CHECK (mfa_verified IN (0,1)),expires_at TEXT NOT NULL,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE INDEX sessions_expires_at ON sessions(expires_at);
+CREATE TABLE invitations (token_hash TEXT PRIMARY KEY,email TEXT NOT NULL,global_admin INTEGER NOT NULL DEFAULT 0 CHECK (global_admin IN (0,1)),site_id INTEGER NULL,role TEXT NULL CHECK (role IS NULL OR role IN ('editor','siteadmin')),expires_at TEXT NOT NULL,used_at TEXT NULL,FOREIGN KEY(site_id) REFERENCES sites(id));
+CREATE TABLE recovery (token_hash TEXT PRIMARY KEY,user_id INTEGER NOT NULL,expires_at TEXT NOT NULL,used_at TEXT NULL,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE backup_codes (user_id INTEGER NOT NULL,code_hash TEXT NOT NULL,PRIMARY KEY(user_id,code_hash),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE login_attempts (subject_hash TEXT PRIMARY KEY,failures INTEGER NOT NULL DEFAULT 0,window_start TEXT NOT NULL);
+CREATE TABLE audit (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NULL,site_id INTEGER NULL,event TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);

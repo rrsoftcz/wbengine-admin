@@ -1,4 +1,4 @@
-import { transaction, rows } from './db.ts';
+import { transaction, rows, NOW, minutesAgo, isUniqueViolation } from './db.ts';
 import { createHash } from 'node:crypto';
 import { requireGlobal, requireSite, vault, type Session } from './auth.ts';
 import { tokenHash } from './security.ts';
@@ -27,13 +27,13 @@ interface RegistrationDeps {
 async function consumeAttempt(subject: string) {
     return transaction(async (c) => {
         const hash = tokenHash(subject);
-        await c.execute('INSERT IGNORE INTO login_attempts(subject_hash,window_start) VALUES (?,NOW(3))', [hash]);
+        await c.execute(`INSERT OR IGNORE INTO login_attempts(subject_hash,window_start) VALUES (?,${NOW})`, [hash]);
         const [r] = await rows<{
             failures: number;
             old: number;
-        }>(c, 'SELECT failures,(window_start<DATE_SUB(NOW(3),INTERVAL 15 MINUTE)) AS old FROM login_attempts WHERE subject_hash=? FOR UPDATE', [hash]);
+        }>(c, `SELECT failures,(window_start<${minutesAgo(15)}) AS old FROM login_attempts WHERE subject_hash=?`, [hash]);
         if (r.old) {
-            await c.execute('UPDATE login_attempts SET failures=1,window_start=NOW(3) WHERE subject_hash=?', [hash]);
+            await c.execute(`UPDATE login_attempts SET failures=1,window_start=${NOW} WHERE subject_hash=?`, [hash]);
             return true;
         }
         if (r.failures >= 8)
@@ -71,9 +71,7 @@ export async function registerSite(s: Session, name: string, base: string, key: 
             await c.execute('INSERT INTO audit(user_id,site_id,event) VALUES (?,?,?)', [s.user.id, siteId, 'site.registered']);
             return siteId;
         }).catch(e => {
-            throw (e as {
-                errno?: number;
-            }).errno === 1062 ? new RegistrationError('duplicate_url') : e;
+            throw isUniqueViolation(e) ? new RegistrationError('duplicate_url') : e;
         });
         await clearAttempts(subject);
         return { id, url: target.url.href, ...verified };
@@ -140,7 +138,7 @@ export async function grantSite(s: Session, userId: number, siteId: number, role
     if (!['editor', 'siteadmin'].includes(role))
         throw Error('Invalid role');
     await transaction(async (c) => {
-        await c.execute('INSERT INTO grants(user_id,site_id,role) VALUES (?,?,?) ON DUPLICATE KEY UPDATE role=VALUES(role)', [userId, siteId, role]);
+        await c.execute('INSERT INTO grants(user_id,site_id,role) VALUES (?,?,?) ON CONFLICT(user_id,site_id) DO UPDATE SET role=excluded.role', [userId, siteId, role]);
         await c.execute('DELETE FROM sessions WHERE user_id=?', [userId]);
         await c.execute('INSERT INTO audit(user_id,site_id,event) VALUES (?,?,?)', [s.user.id, siteId, 'grant.changed']);
     });

@@ -12,8 +12,10 @@ import { provisionSite } from '../src/lib/server/sites.ts';
 import { connectContent, canOperate } from '../src/lib/server/content.ts';
 import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
-if (!process.env.DATABASE_URL?.endsWith('/wbengine_admin_pilot') || !process.env.PILOT_API_URL || !process.env.PILOT_API_KEY)
-    throw Error('The pilot requires its own wbengine_admin_pilot DB and an isolated API');
+// The pilot owns a throwaway database file; the framework runner may still pass an old DATABASE_URL, which is ignored.
+process.env.DATABASE_PATH = `/tmp/wbengine-admin-pilot-${process.pid}/admin.sqlite`;
+if (!process.env.PILOT_API_URL || !process.env.PILOT_API_KEY)
+    throw Error('The pilot requires an isolated API');
 await transaction(async (c) => {
     await migrate(c);
 });
@@ -25,7 +27,8 @@ const transport = `http://127.0.0.1:${port}`, origin = `https://127.0.0.1:${port
 const child = spawn(process.execPath, ['build'], { env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), ORIGIN: origin, BODY_SIZE_LIMIT: '1048576' }, stdio: ['ignore', 'ignore', 'inherit'] });
 after(async () => {
     child.kill('SIGKILL');
-    await database().end();
+    database().end();
+    await rm(`/tmp/wbengine-admin-pilot-${process.pid}`, { recursive: true, force: true });
 });
 for (let n = 0; n < 100; n++) {
     try {

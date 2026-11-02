@@ -7,8 +7,8 @@ import { totp } from '../src/lib/server/security.ts';
 import { listUsers, userDetail, inviteUser, issueRecoveryFor, setDisabled, setGlobalAdmin, revokeGrant, resetUserMfa, mailInvitation, UserError } from '../src/lib/server/users.ts';
 import type { MailConfig, MailTransport } from '../src/lib/server/mail.ts';
 import { messagesFor, translate, type Translate } from '../src/lib/i18n/index.ts';
-if (!process.env.DATABASE_URL?.includes('wbengine_admin_test'))
-    throw Error('The integration test requires the isolated wbengine_admin_test DB');
+if (!process.env.DATABASE_PATH?.includes('wbengine-admin-test'))
+    throw Error('The integration test requires the isolated temporary database');
 await transaction(async (c) => { await migrate(c); });
 after(async () => { await database().end(); });
 
@@ -62,7 +62,7 @@ test('promote and demote change the role and end the sessions of that user', asy
 test('MFA reset, recovery code and grant revocation are audited with the acting admin', async () => {
     const admin = await member(`adm3-${tag}@example.test`, true);
     const user = await member(`mfa-${tag}@example.test`);
-    await transaction(async (c) => { await c.query("INSERT INTO sites(name,base_url,key_cipher) VALUES ('Revoke site','https://revoke.example','x')"); });
+    await transaction(async (c) => { await c.execute("INSERT INTO sites(name,base_url,key_cipher) VALUES ('Revoke site','https://revoke.example','x')"); });
     const [site] = await transaction(c => rows<{ id: number }>(c, "SELECT id FROM sites WHERE name='Revoke site' ORDER BY id DESC LIMIT 1"));
     await transaction(async (c) => { await c.execute("INSERT INTO grants(user_id,site_id,role) VALUES (?,?,'editor')", [user.session.user.id, site.id]); });
     await revokeGrant(admin.session, user.session.user.id, Number(site.id));

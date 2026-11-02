@@ -1,4 +1,4 @@
-import { transaction, rows, type Connection } from './db.ts';
+import { transaction, rows, NOW, minutesAgo, type Connection } from './db.ts';
 import { token, tokenHash, hashPassword, verifyPassword } from './security.ts';
 import { isLocale } from '../i18n/index.ts';
 import type { Session } from './auth.ts';
@@ -19,26 +19,37 @@ async function audit(c: Connection, userId: number, event: string) {
     await c.execute('INSERT INTO audit (user_id,event,site_id) VALUES (?,?,NULL)', [userId, event]);
 }
 
-/** Locks the account and verifies the current password, with a failure counter per account. */
-async function confirmPassword(c: Connection, userId: number, password: string) {
+/**
+ * Verifies the current password with a failure counter per account. The attempt is counted in a short transaction
+ * before the slow hash, so the hash does not hold the process-wide write lock. The caller must run `settle` in
+ * the transaction that applies its change.
+ */
+async function confirmPassword(userId: number, password: string) {
     const subject = tokenHash(`pw:${userId}`);
-    await c.execute('INSERT IGNORE INTO login_attempts(subject_hash,window_start) VALUES (?,NOW(3))', [subject]);
-    const [rate] = await rows<{ failures: number; old: number }>(c, 'SELECT failures,(window_start<DATE_SUB(NOW(3),INTERVAL ? MINUTE)) AS old FROM login_attempts WHERE subject_hash=? FOR UPDATE', [attemptWindowMinutes, subject]);
-    if (rate.old)
-        await c.execute('UPDATE login_attempts SET failures=0,window_start=NOW(3) WHERE subject_hash=?', [subject]);
-    else if (rate.failures >= attemptLimit)
-        throw new ProfileError('restricted');
-    const [u] = await rows<{ id: number; password_hash: string; mfa_enabled: number }>(c, 'SELECT id,password_hash,mfa_enabled FROM users WHERE id=? AND disabled=FALSE FOR UPDATE', [userId]);
-    if (!u)
-        throw new ProfileError('unavailable');
-    if (!await verifyPassword(password, u.password_hash)) {
+    const u = await transaction(async (c) => {
+        await c.execute(`INSERT OR IGNORE INTO login_attempts(subject_hash,window_start) VALUES (?,${NOW})`, [subject]);
+        const [rate] = await rows<{ failures: number; old: number }>(c, `SELECT failures,(window_start<${minutesAgo(attemptWindowMinutes)}) AS old FROM login_attempts WHERE subject_hash=?`, [subject]);
+        if (rate.old)
+            await c.execute(`UPDATE login_attempts SET failures=0,window_start=${NOW} WHERE subject_hash=?`, [subject]);
+        else if (rate.failures >= attemptLimit)
+            throw new ProfileError('restricted');
         await c.execute('UPDATE login_attempts SET failures=failures+1 WHERE subject_hash=?', [subject]);
-        // The failure must survive the rollback caused by the thrown error.
-        await c.commit();
+        const [user] = await rows<{ id: number; password_hash: string; mfa_enabled: number }>(c, 'SELECT id,password_hash,mfa_enabled FROM users WHERE id=? AND disabled=FALSE', [userId]);
+        if (!user)
+            throw new ProfileError('unavailable');
+        return user;
+    });
+    if (!await verifyPassword(password, u.password_hash))
         throw new ProfileError('wrongPassword');
-    }
-    await c.execute('DELETE FROM login_attempts WHERE subject_hash=?', [subject]);
     return u;
+}
+
+/** Inside the writing transaction: the account must be unchanged since the password was verified; clears the failure counter. */
+async function settle(c: Connection, u: { id: number; password_hash: string }) {
+    const [now] = await rows<{ password_hash: string }>(c, 'SELECT password_hash FROM users WHERE id=? AND disabled=FALSE', [u.id]);
+    if (!now || now.password_hash !== u.password_hash)
+        throw new ProfileError('unavailable');
+    await c.execute('DELETE FROM login_attempts WHERE subject_hash=?', [tokenHash(`pw:${u.id}`)]);
 }
 
 /** Changes the password after confirming the current one and ends every other session of the account. */
@@ -48,9 +59,10 @@ export async function changePassword(s: Session, current: string, next: string) 
     if (next === current)
         throw new ProfileError('samePassword');
     const hash = await hashPassword(next);
+    const u = await confirmPassword(s.user.id, current);
     await transaction(async (c) => {
-        await confirmPassword(c, s.user.id, current);
-        await c.execute('UPDATE users SET password_hash=?,password_changed_at=NOW(3) WHERE id=?', [hash, s.user.id]);
+        await settle(c, u);
+        await c.execute(`UPDATE users SET password_hash=?,password_changed_at=${NOW} WHERE id=?`, [hash, s.user.id]);
         await c.execute('DELETE FROM sessions WHERE user_id=? AND token_hash<>?', [s.user.id, s.hash]);
         await audit(c, s.user.id, 'password.changed');
     });
@@ -58,10 +70,11 @@ export async function changePassword(s: Session, current: string, next: string) 
 
 /** Replaces the backup codes; the new codes are returned once. */
 export async function regenerateBackupCodes(s: Session, password: string) {
+    const u = await confirmPassword(s.user.id, password);
+    if (!u.mfa_enabled)
+        throw new ProfileError('mfaOff');
     return transaction(async (c) => {
-        const u = await confirmPassword(c, s.user.id, password);
-        if (!u.mfa_enabled)
-            throw new ProfileError('mfaOff');
+        await settle(c, u);
         await c.execute('DELETE FROM backup_codes WHERE user_id=?', [s.user.id]);
         const codes: string[] = [];
         for (let i = 0; i < 10; i++) {
@@ -76,8 +89,9 @@ export async function regenerateBackupCodes(s: Session, password: string) {
 
 /** Removes the authenticator so the next sign-in enrols a new one. Ends all sessions of the account. */
 export async function resetMfa(s: Session, password: string) {
+    const u = await confirmPassword(s.user.id, password);
     await transaction(async (c) => {
-        await confirmPassword(c, s.user.id, password);
+        await settle(c, u);
         await c.execute('UPDATE users SET mfa_secret=NULL,mfa_enabled=FALSE,mfa_counter=-1 WHERE id=?', [s.user.id]);
         await c.execute('DELETE FROM backup_codes WHERE user_id=?', [s.user.id]);
         await c.execute('DELETE FROM sessions WHERE user_id=?', [s.user.id]);

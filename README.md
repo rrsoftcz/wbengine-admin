@@ -1,6 +1,6 @@
 # WBengine Admin
 
-A standalone control centre for the WBengine API v2: SvelteKit 3.1.0, Svelte 5, TypeScript, adapter-node 6 and MySQL 8.4. The browser talks only to the control centre. Content stays on the individual sites.
+A standalone control centre for the WBengine API v2: SvelteKit 3.1.0, Svelte 5, TypeScript, adapter-node 6 and SQLite (the built-in `node:sqlite`, one file, no database server). The browser talks only to the control centre. Content stays on the individual sites.
 
 The project includes invitation-only accounts, passwords, mandatory TOTP, backup codes, password recovery, SQL sessions, per-site permissions, a registry and discovery of the remote API. The content editor at `/content/{id}` manages articles, pages, menus, sections, registered boxes, translations and public raster images. It supports drafts, private preview, explicit publishing, revisions, structural restore and manual conflict resolution. The front page overview at `/analytics/{id}` shows aggregated views. Every operation requires, at the same time, a central role, an integration key scope and a site capability.
 
@@ -18,35 +18,43 @@ Node 22.18 or newer, Node 24 for the container. Dependencies are locked in packa
 npm ci --ignore-scripts
 npm test
 npm run check
-npm run test:mysql
+npm run test:integration
 ```
 
-The last command builds the application, creates its own Compose project with a random name and port and MySQL 8.4, generates temporary passwords outside the repository, runs database and real HTTP tests, and removes only its own project including its test volume. It requires access to local Docker. It does not connect to existing databases. The standalone `npm run test:integration` requires a DATABASE_URL pointing to a database named wbengine_admin_test and a MASTER_KEY.
+The last command builds the application and runs the database and real HTTP tests, each against its own fresh SQLite file in a private temporary directory. It needs no Docker and never touches an existing database.
 
 The HTTP smoke test simulates TLS termination with a direct loopback connection. It verifies cookie flags, CSRF, redirects through MFA, session rotation, the registry and sign-out. It does not replace verifying the certificate and proxy in the target deployment.
 
 ## Configuration and startup
 
-Copy `.env.example` to `.env` and fill in random passwords and MASTER_KEY locally: 32 random bytes in hex format. Keep the master key in an operational secret store outside the database. The matching master key is needed when restoring the database. Rotating the master key requires a controlled re-encryption of the data; automatic rotation is not part of this stage.
+Copy `.env.example` to `.env` and fill in MASTER_KEY and ORIGIN locally: 32 random bytes in hex format. Keep the master key in an operational secret store outside the database and outside its backups. The matching master key is needed when restoring the database. Rotating the master key requires a controlled re-encryption of the data; automatic rotation is not part of this stage.
 
-DATABASE_URL in Compose uses the host `db`. For a CLI run on the host, use your own URL with the host 127.0.0.1 and the published local port. Both the runtime and the CLI read environment variables; the CLI does not load them from `.env` itself. Do not put credentials into the shell history.
+The database is one SQLite file, `/app/data/admin.sqlite`, in the Docker volume `admin-data`. The runtime and the CLI read environment variables (`DATABASE_PATH`, default in Compose); the CLI does not load them from `.env` itself. Do not put secrets into the shell history. There is no database server and no database password.
 
 ```sh
-docker compose up -d db
-npm run admin -- migrate
+docker compose run --rm app node --experimental-strip-types scripts/admin.ts migrate
 docker compose up -d --build app
 ```
 
+Run exactly one application instance. The file must stay on a local volume, never on a network share. The file, its `-wal` and `-shm` files and every backup are created readable only by their owner.
+
+### Backup and restore
+
+```sh
+docker compose exec app node --experimental-strip-types scripts/admin.ts backup /app/data/backups/admin-$(date +%F).sqlite
+```
+
+The backup is a consistent online copy (`VACUUM INTO`), mode 0600, and the target directory must not be readable by others. It contains ciphertext and password hashes, so never store it together with `MASTER_KEY`, and keep `MASTER_KEY` in its own secret store. To restore, stop the app, replace `admin.sqlite` in the volume with the backup (delete the old `-wal` and `-shm` files) and start the app.
+
 The app listens on 127.0.0.1:13000 and assumes an HTTPS reverse proxy. ORIGIN must be an exact HTTPS origin without a trailing slash. Adapter-node 6 derives the HTTPS origin from the Host header by default, and the control centre additionally compares it with ORIGIN. The proxy must pass the correct Host and remove or overwrite its own forwarded headers. Trusted proxy headers are not enabled. Secure cookies are never turned off, not even in development; manual use requires a local HTTPS proxy.
 
-The application does not run DDL on every request. Run the migration before starting every version that adds a file in `migrations/`: the `migrate` command applies each `NNN-*.sql` file once and records it in the `schema_migrations` table. The Docker image contains both the CLI and the migration SQL: you can use `docker compose run --rm app npm run admin -- migrate`. The image runs as the node user, and the database has a separate application user.
+The application does not run DDL on every request. Run the migration before starting every version that adds a file in `migrations/`: the `migrate` command applies each `NNN-*.sql` file once and records it in the `schema_migrations` table. The Docker image contains both the CLI and the migration SQL: you can use `docker compose run --rm app npm run admin -- migrate`. The image runs as the node user.
 
 ### Environment variables
 
 | Variable | Required | Meaning |
 |----------|----------|---------|
-| `DATABASE_URL` | yes | MySQL connection URL of the application user. In Compose the host is `db`. |
-| `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `MYSQL_PORT` | Compose only | Passwords of the bundled database container and its published local port (default `13384`). |
+| `DATABASE_PATH` | yes | Path of the SQLite file. Compose sets `/app/data/admin.sqlite`, in the `admin-data` volume. |
 | `MASTER_KEY` | yes | 32 random bytes in hex. Encrypts integration keys and MFA secrets. Needed again when restoring the database. |
 | `ORIGIN` | yes | The exact HTTPS origin of the Admin, no trailing slash. Also the base of the link in invitation mails. |
 | `REMOTE_IP_ALLOWLIST` | no | Exact IP addresses of an intranet target approved by operations. No ranges. |
@@ -111,7 +119,7 @@ npm run admin -- site-add 'Sample site' https://example.com/
 
 ## Security boundaries
 
-- Passwords: scrypt with a random salt, length 14 to 256 characters. Password and MFA attempts have persistent limits of 8 and 12 attempts per 15 minutes. Sign-in holds the user row lock from reading the password to creating the session, so a concurrent password change or deactivation cannot create a new session based on the old state.
+- Passwords: scrypt with a random salt, length 14 to 256 characters. Password and MFA attempts have persistent limits of 8 and 12 attempts per 15 minutes. Every database transaction runs alone (one writer, `BEGIN IMMEDIATE`), and sign-in stays in one transaction from reading the password to creating the session, so a concurrent password change or deactivation cannot create a new session based on the old state.
 - Sessions: the database contains only the SHA-256 of the token, the expiry and the CSRF binding. The `__Host-wbadmin` cookie has Secure, HttpOnly and SameSite=Strict; lifetime 8 hours. After MFA the token and CSRF are rotated. All state-changing forms have session CSRF and an origin check, including sign-in and MFA setup.
 - MFA: TOTP SHA-1, 6 digits, 30 seconds, tolerance of one time step. The accepted counter is stored atomically and cannot be reused. Ten random backup codes are shown once, only hashes are in the DB. The enrollment secret is shown once to the account's own signed-in user during setup, and is encrypted in the DB.
 - Secrets: AES-256-GCM, random IV and an authenticated context of the specific site/account. Integration keys are not returned in HTML, form errors, API responses or the audit. The error handler does not print exceptions with credentials.

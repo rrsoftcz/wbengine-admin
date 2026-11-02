@@ -1,18 +1,12 @@
-import { database, transaction, rows } from '../src/lib/server/db.ts';
+import { database, closeDatabase, transaction, rows } from '../src/lib/server/db.ts';
 import { provisionSite } from '../src/lib/server/sites.ts';
 import { migrate } from '../src/lib/server/migrate.ts';
 import { invite, issueRecovery } from '../src/lib/server/auth.ts';
 const [command, ...args] = process.argv.slice(2);
 try {
     if (command === 'migrate') {
-        const c = await database().getConnection();
-        try {
-            const ran = await migrate(c);
-            console.log(ran.length ? 'Applied: ' + ran.join(', ') : 'No new migration');
-        }
-        finally {
-            c.release();
-        }
+        const ran = await transaction(c => migrate(c));
+        console.log(ran.length ? 'Applied: ' + ran.join(', ') : 'No new migration');
     }
     else if (command === 'invite') {
         const [email, level, site, role] = args;
@@ -54,13 +48,19 @@ try {
         });
         console.log('Permission revoked');
     }
+    else if (command === 'backup') {
+        if (!args[0])
+            throw Error('backup TARGET_FILE');
+        database().backup(args[0]);
+        console.log('Backup written (mode 0600). It holds ciphertext and password hashes: never store it together with MASTER_KEY.');
+    }
     else
-        throw Error('Commands: migrate, invite, recover, users, revoke, site-add');
+        throw Error('Commands: migrate, invite, recover, users, revoke, site-add, backup');
 }
 catch (e) {
-    console.error(e instanceof Error && e.message.startsWith('Commands:') ? e.message : 'The operation failed. Check the parameters and the connection; sensitive data is not printed.');
+    console.error(e instanceof Error && (e.message.startsWith('Commands:') || e.message.startsWith('Backup:')) ? e.message : 'The operation failed. Check the parameters and the connection; sensitive data is not printed.');
     process.exitCode = 1;
 }
 finally {
-    await database().end();
+    closeDatabase();
 }

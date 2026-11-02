@@ -1,19 +1,20 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { database, transaction, rows } from '../src/lib/server/db.ts';
+import { database, transaction, rows, minutesAgo } from '../src/lib/server/db.ts';
+const expiredSecond = "strftime('%Y-%m-%d %H:%M:%f','now','-1 seconds')";
 import { invite, acceptInvitation, loadSession, login, setupMfa, completeMfa, issueRecovery, resetPassword, requireSite, logout } from '../src/lib/server/auth.ts';
 import { migrate } from '../src/lib/server/migrate.ts';
 import { totp, tokenHash } from '../src/lib/server/security.ts';
 import { registerSite, listSites, grantSite, replaceSiteKey } from '../src/lib/server/sites.ts';
 import { RegistrationError, type VerifiedSite } from '../src/lib/server/registration-contract.ts';
 import { validateBaseUrl } from '../src/lib/server/remote.ts';
-if (!process.env.DATABASE_URL?.includes('wbengine_admin_test'))
-    throw Error('The integration test requires the isolated wbengine_admin_test DB');
+if (!process.env.DATABASE_PATH?.includes('wbengine-admin-test'))
+    throw Error('The integration test requires the isolated temporary database');
 await transaction(async (c) => {
     await migrate(c);
     for (const table of ['audit', 'backup_codes', 'recovery', 'sessions', 'invitations', 'grants', 'sites', 'login_attempts', 'users'])
-        await c.query('DELETE FROM ' + table);
+        await c.execute('DELETE FROM ' + table);
 });
 const verified = (integrationId: number): VerifiedSite => ({ integrationId, scopes: [], version: '2.0', resources: [], extras: [] });
 const stubs = (integrationId = 7, calls: string[] = []) => ({
@@ -86,16 +87,16 @@ test('persistent account lifecycle, MFA replay/backup, recovery, permissions and
 });
 test('expired and concurrent one-use invitation; expired session and recovery reject', async () => {
     const expired = await invite('expired@example.test', false);
-    await transaction(c => c.execute('UPDATE invitations SET expires_at=DATE_SUB(NOW(3),INTERVAL 1 SECOND) WHERE token_hash=?', [tokenHash(expired)]));
+    await transaction(c => c.execute(`UPDATE invitations SET expires_at=${expiredSecond} WHERE token_hash=?`, [tokenHash(expired)]));
     await assert.rejects(acceptInvitation(expired, 'a valid long password 123'));
     const once = await invite('concurrent@example.test', false);
     const results = await Promise.allSettled([acceptInvitation(once, 'a valid long password 123'), acceptInvitation(once, 'a valid long password 123')]);
     assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
     const raw = (results.find(r => r.status === 'fulfilled') as PromiseFulfilledResult<string>).value;
-    await transaction(c => c.execute('UPDATE sessions SET expires_at=DATE_SUB(NOW(3),INTERVAL 1 SECOND) WHERE token_hash=?', [tokenHash(raw)]));
+    await transaction(c => c.execute(`UPDATE sessions SET expires_at=${expiredSecond} WHERE token_hash=?`, [tokenHash(raw)]));
     assert.equal(await loadSession(raw), null);
     const recovery = await issueRecovery('concurrent@example.test');
-    await transaction(c => c.execute('UPDATE recovery SET expires_at=DATE_SUB(NOW(3),INTERVAL 1 SECOND) WHERE token_hash=?', [tokenHash(recovery)]));
+    await transaction(c => c.execute(`UPDATE recovery SET expires_at=${expiredSecond} WHERE token_hash=?`, [tokenHash(recovery)]));
     await assert.rejects(resetPassword(recovery, 'a valid long password 123'));
 });
 test('persisted password and MFA limits survive separate operations', async () => {
@@ -104,14 +105,14 @@ test('persisted password and MFA limits survive separate operations', async () =
     for (let n = 0; n < 8; n++)
         assert.equal(await login('limited@example.test', 'wrong'), null);
     assert.equal(await login('limited@example.test', 'limited account password 123'), null);
-    await transaction(c => c.execute('UPDATE login_attempts SET window_start=DATE_SUB(NOW(3),INTERVAL 16 MINUTE) WHERE subject_hash=?', [tokenHash('limited@example.test')]));
+    await transaction(c => c.execute(`UPDATE login_attempts SET window_start=${minutesAgo(16)} WHERE subject_hash=?`, [tokenHash('limited@example.test')]));
     assert.ok(await login('limited@example.test', 'limited account password 123'));
     const correct = totp(secret, Math.floor(Date.now() / 30000));
     const wrong = correct === '000000' ? '999999' : '000000';
     for (let n = 0; n < 12; n++)
         await assert.rejects(completeMfa(s, wrong));
     await assert.rejects(completeMfa(s, correct));
-    await transaction(c => c.execute('UPDATE login_attempts SET window_start=DATE_SUB(NOW(3),INTERVAL 16 MINUTE) WHERE subject_hash=?', [tokenHash(`mfa:${s.user.id}`)]));
+    await transaction(c => c.execute(`UPDATE login_attempts SET window_start=${minutesAgo(16)} WHERE subject_hash=?`, [tokenHash(`mfa:${s.user.id}`)]));
     const completed = await completeMfa(s, correct);
     assert.equal((await loadSession(completed.sessionToken))?.mfaVerified, true);
 });
@@ -121,46 +122,35 @@ async function raceLoginAgainstAccountChange(disable: boolean) {
     const raw = await acceptInvitation(await invite(email, false), oldPassword), user = (await loadSession(raw))!.user;
     const { hashPassword } = await import('../src/lib/server/security.ts');
     const changedHash = await hashPassword(newPassword);
-    const locker = await database().getConnection(), observer = await database().getConnection();
-    let pending: Promise<string | null> | undefined;
-    try {
-        await locker.beginTransaction();
-        await locker.execute('SELECT id FROM users WHERE id=? FOR UPDATE', [user.id]);
-        pending = login(email, oldPassword);
-        let waiting = false;
-        for (let n = 0; n < 100; n++) {
-            const [locks] = await observer.query<import('mysql2').RowDataPacket[]>('SELECT COUNT(*) AS n FROM performance_schema.data_lock_waits w JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID WHERE l.OBJECT_SCHEMA=DATABASE() AND l.OBJECT_NAME="users"');
-            if (Number(locks[0].n) > 0) {
-                waiting = true;
-                break;
-            }
-            await new Promise(r => setTimeout(r, 20));
-        }
-        assert.ok(waiting, 'login must wait on the locked account before the concurrent account change');
+    let release!: () => void, entered!: () => void;
+    const gate = new Promise<void>(r => release = r), inTransaction = new Promise<void>(r => entered = r);
+    // A transaction holds the database while the login arrives; the login must queue behind it and then see the changed account.
+    const changing = transaction(async (c) => {
+        entered();
+        await gate;
         if (disable)
-            await locker.execute('UPDATE users SET disabled=TRUE WHERE id=?', [user.id]);
+            await c.execute('UPDATE users SET disabled=TRUE WHERE id=?', [user.id]);
         else
-            await locker.execute('UPDATE users SET password_hash=? WHERE id=?', [changedHash, user.id]);
-        await locker.execute('DELETE FROM sessions WHERE user_id=?', [user.id]);
-        await locker.commit();
-        assert.equal(await pending, null, 'an account change must prevent a session authenticated with the earlier account state');
-        const [sessions] = await observer.execute<import('mysql2').RowDataPacket[]>('SELECT COUNT(*) AS n FROM sessions WHERE user_id=?', [user.id]);
-        assert.equal(Number(sessions[0].n), 0);
-    }
-    finally {
-        await locker.rollback();
-        locker.release();
-        observer.release();
-        if (pending)
-            await pending.catch(() => {
-            });
-    }
+            await c.execute('UPDATE users SET password_hash=? WHERE id=?', [changedHash, user.id]);
+        await c.execute('DELETE FROM sessions WHERE user_id=?', [user.id]);
+    });
+    await inTransaction;
+    const pending: Promise<string | null> = login(email, oldPassword);
+    let settled = false;
+    pending.then(() => { settled = true; }, () => { settled = true; });
+    await new Promise(r => setTimeout(r, 150));
+    assert.equal(settled, false, 'login must wait for the transaction that is changing the account');
+    release();
+    await changing;
+    assert.equal(await pending, null, 'an account change must prevent a session authenticated with the earlier account state');
+    const [sessions] = await transaction(c => rows<{ n: number }>(c, 'SELECT COUNT(*) AS n FROM sessions WHERE user_id=?', [user.id]));
+    assert.equal(Number(sessions.n), 0);
 }
 test('concurrent password reset cannot be followed by an old-password session', () => raceLoginAgainstAccountChange(false));
 test('concurrent disabling cannot be followed by a fresh session', () => raceLoginAgainstAccountChange(true));
 
 test('web registration: verified before write, unique normalized URL, no grant, rate limit, atomic rotation', async () => {
-    await transaction(async (c) => { for (const table of ['audit', 'grants', 'invitations', 'sites', 'login_attempts']) await c.query('DELETE FROM ' + table); });
+    await transaction(async (c) => { for (const table of ['audit', 'grants', 'invitations', 'sites', 'login_attempts']) await c.execute('DELETE FROM ' + table); });
     const admin = { user: { id: 1, globalAdmin: true, mfaEnabled: true }, mfaVerified: true, csrf: 'x', hash: 'h' } as never;
     const member = { user: { id: 2, globalAdmin: false, mfaEnabled: true }, mfaVerified: true, csrf: 'x', hash: 'h' } as never;
     const key = 'wbv2_' + 'b'.repeat(64), calls: string[] = [];

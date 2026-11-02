@@ -12,9 +12,8 @@
     "build": "vite build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:integration": "node --experimental-strip-types --test tests/mysql.integration.ts",
     "admin": "node --experimental-strip-types scripts/admin.ts",
-    "test:mysql": "npm run build && node --experimental-strip-types scripts/test-mysql.ts"
+    "test:integration": "npm run build && node --experimental-strip-types scripts/test-integration.ts"
   },
   "dependencies": {
     "mysql2": "3.24.6",

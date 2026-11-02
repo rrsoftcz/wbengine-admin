@@ -5,8 +5,8 @@ import { invite, acceptInvitation, loadSession, login, setupMfa, completeMfa } f
 import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
 import { changePassword, regenerateBackupCodes, resetMfa, setLocale, profileInfo, accountActivity, ProfileError } from '../src/lib/server/profile.ts';
-if (!process.env.DATABASE_URL?.includes('wbengine_admin_test'))
-    throw Error('The integration test requires the isolated wbengine_admin_test DB');
+if (!process.env.DATABASE_PATH?.includes('wbengine-admin-test'))
+    throw Error('The integration test requires the isolated temporary database');
 await transaction(async (c) => { await migrate(c); });
 after(async () => { await database().end(); });
 
