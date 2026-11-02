@@ -61,7 +61,7 @@ Set all of `MAIL_SMTP_HOST`, `MAIL_SMTP_USER`, `MAIL_SMTP_PASSWORD` and `MAIL_FR
 With Google (a Google Workspace account on your own domain is preferable, a personal Google account also works):
 
 1. Turn on two-step verification for the sending account.
-2. Create an app password for it. Use that app password, never the account password. Google may change its rules for app passwords and SMTP limits, so check its current documentation.
+2. Create an app password for it. Use that app password, never the account password. Google shows it in groups of four letters: you can paste it with or without the spaces. Google may change its rules for app passwords and SMTP limits, so check its current documentation.
 3. Put the values into the `.env` of the deployment (on a server: mode `0600`, never in Git): `MAIL_SMTP_HOST=smtp.gmail.com`, `MAIL_SMTP_PORT=587`, `MAIL_SMTP_USER=<the account address>`, `MAIL_SMTP_PASSWORD=<the app password>`, `MAIL_FROM=<the account address or a verified "Send mail as" alias>`. Google rewrites any other sender address.
 4. Redeploy the app (`docker compose up -d --build app`).
 

@@ -16,7 +16,11 @@ let warned = false;
 
 /** Reads the configuration from the environment; null when the feature is off or only partly configured. */
 export function mailConfig(env: Record<string, string | undefined> = process.env, warn: (message: string) => void = console.warn): MailConfig | null {
-    const host = env.MAIL_SMTP_HOST?.trim() ?? '', user = env.MAIL_SMTP_USER?.trim() ?? '', password = env.MAIL_SMTP_PASSWORD ?? '', from = env.MAIL_FROM?.trim() ?? '';
+    const host = env.MAIL_SMTP_HOST?.trim() ?? '', user = env.MAIL_SMTP_USER?.trim() ?? '', from = env.MAIL_FROM?.trim() ?? '';
+    let password = env.MAIL_SMTP_PASSWORD ?? '';
+    // Google shows an app password in groups of four letters: the spaces are not part of it, so they are dropped for Google hosts only.
+    if (/(^|\.)(gmail|googlemail)\.com$/i.test(host))
+        password = password.replace(/\s+/g, '');
     const given = [host, user, password, from].filter(Boolean).length;
     if (given === 0)
         return null;
