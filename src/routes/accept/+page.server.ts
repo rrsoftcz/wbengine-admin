@@ -9,6 +9,8 @@ export const actions: Actions = { default: async (e) => {
             setSession(e, await acceptInvitation(field(f, 'token', 128), field(f, 'password', 256)));
         }
         catch (error) {
+            if (!(error instanceof AcceptError))
+                console.error(`Accepting an invitation failed: ${(error as { code?: string })?.code ?? ''} ${error instanceof Error ? error.message.slice(0, 200) : ''}`);
             const key = error instanceof AcceptError ? (error.code === 'password' ? 'auth.accept.errorPassword' : 'auth.accept.errorInvitation') : 'auth.accept.error';
             return fail(400, { error: e.locals.t(key) });
         }
