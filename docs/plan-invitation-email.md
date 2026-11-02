@@ -68,12 +68,12 @@ The feature is on only when host, user, password and sender are all set. A partl
 
 - [x] MAIL-01: `nodemailer` dependency, `src/lib/server/mail.ts` with the configuration check, the message builder and the sender; unit tests with an injected fake transport (exact message, header injection rejected, timeout and error mapping, partial configuration disables the feature, the password never appears in errors).
 - [x] MAIL-02: the action and the UI: `mailEnabled`, the second button, the result notice, the audit entries, i18n keys in all four languages, `compose.yaml` and `.env.example`.
-- [x] MAIL-03: integration test with the fake transport against real MySQL (audit events, the invitation survives a failed send, off without configuration). Open: an HTTP smoke test for the button visibility.
+- [x] MAIL-03: integration test with the fake transport against a real SQLite database (audit events, the invitation survives a failed send, off without configuration). Open: an HTTP smoke test for the button visibility.
 - [ ] MAIL-04: README section and changelog entry are written; the public documentation in the skeleton is in preparation. Open: deploy and a real send to an own address.
 
 ## Verification
 
-`npm test`, `npm run check`, the production build, `npm run test:mysql`. A manual check on the server: send an invitation to an own address, open the link, accept with the token from the mail. A second check with the configuration removed: the button is absent and the page behaves as before.
+`npm test`, `npm run check`, the production build, `npm run test:integration`. A manual check on the server: send an invitation to an own address, open the link, accept with the token from the mail. A second check with the configuration removed: the button is absent and the page behaves as before.
 
 ## Open points
 

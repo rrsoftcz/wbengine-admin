@@ -172,7 +172,7 @@ Structure is saved directly. After a page, menu, section or box is removed, an o
 
 On conflict no automatic retry is performed. The user can discard their changes and load the remote state, or display the current content and explicitly take over its ETag for a manual merge. This operation writes nothing by itself. The changes are then reviewed and saved separately.
 
-`tests/api-pilot.ts` verifies real central HTML forms against the current PHP API over verified HTTPS. The fixture provider is in the framework project `tests/pilot/`. It uses its own Docker network, databases, a generated CA and keys outside Git. The consumer needs `PILOT_API_URL`, `PILOT_API_KEY`, `DATABASE_URL` ending in `/wbengine_admin_pilot`, `MASTER_KEY`, `REMOTE_IP_ALLOWLIST` and `NODE_EXTRA_CA_CERTS`. The test runs inside the production image with a mount of this tests directory and the runtime CA, not against a production site. It does not require disabling TLS verification and does not print keys.
+`tests/api-pilot.ts` verifies real central HTML forms against the current PHP API over verified HTTPS. The fixture provider is in the framework project `tests/pilot/`. It uses its own Docker network, databases, a generated CA and keys outside Git; the Admin side of the test creates its own temporary SQLite file. The consumer needs `PILOT_API_URL`, `PILOT_API_KEY`, `MASTER_KEY`, `REMOTE_IP_ALLOWLIST` and `NODE_EXTRA_CA_CERTS`. The test runs inside the production image with a mount of this tests directory and the runtime CA, not against a production site. It does not require disabling TLS verification and does not print keys.
 
 
 The shared administration CI now uses two truly independent API installations. The same locally:
