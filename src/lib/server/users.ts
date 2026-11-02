@@ -1,5 +1,7 @@
 import { transaction, rows, type Connection } from './db.ts';
-import { invite, issueRecovery, normalizeEmail, requireGlobal, type Session } from './auth.ts';
+import { invite, issueRecovery, normalizeEmail, recordAudit, requireGlobal, type Session } from './auth.ts';
+import { mailConfig, sendInvitationMail, type MailConfig, type MailResult, type TransportFactory } from './mail.ts';
+import type { Translate } from '../i18n/index.ts';
 /** Rows per page of the user list. */
 export const PAGE_SIZE_USERS = 25;
 
@@ -84,6 +86,16 @@ export async function inviteUser(s: Session, email: string, globalAdmin: boolean
             throw new UserError('noSite');
     }
     return { email: address, token: await invite(address, globalAdmin, siteId, role, s.user.id) };
+}
+
+/** Mails the invitation when the feature is configured; the invitation exists either way and the caller keeps showing the code. */
+export async function mailInvitation(s: Session, invited: { email: string; token: string }, siteId: number | null, origin: string, t: Translate, config: MailConfig | null = mailConfig(), factory?: TransportFactory): Promise<MailResult | null> {
+    requireGlobal(s);
+    if (!config)
+        return null;
+    const result = await sendInvitationMail(config, invited.email, origin, invited.token, t, factory);
+    await recordAudit(s.user.id, result.ok ? 'invite.mailed' : 'invite.mail_failed', siteId);
+    return result;
 }
 
 /** One-time password reset token for another account. */

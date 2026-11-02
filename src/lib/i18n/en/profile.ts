@@ -90,5 +90,7 @@ export default {
     'profile.error.mismatch': 'The new passwords do not match.',
     'profile.error.mfaOff': 'Two-step verification is not active.',
     'profile.error.invalidLocale': 'This language is not supported.',
-    'profile.error.unavailable': 'The account is not available.'
+    'profile.error.unavailable': 'The account is not available.',
+    'profile.event.invite.mailed': 'Invitation sent by email',
+    'profile.event.invite.mail_failed': 'Invitation email failed'
 } satisfies Record<string, string>;

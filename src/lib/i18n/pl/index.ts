@@ -1050,5 +1050,22 @@ const messages: Messages = {
     'profile.event.site.user.enabled': 'Konto w witrynie włączone',
     'profile.event.site.user.reset': 'Link do hasła w witrynie utworzony',
     'profile.event.site.cache.flushed': 'Pamięć podręczna witryny wyczyszczona',
+    'users.invite.mailSubmit': 'Utwórz i wyślij e-mailem',
+    'users.invite.mailSent': 'Serwer pocztowy przyjął wiadomość dla {email}. Dostarczenie do skrzynki nie jest gwarantowane, miej poniższy kod pod ręką.',
+    'users.invite.mailFailed': 'Nie wysłano e-maila ({reason}). Przekaż poniższy kod ręcznie.',
+    'users.invite.mailReason.auth': 'serwer pocztowy odrzucił logowanie',
+    'users.invite.mailReason.recipient': 'adres został odrzucony',
+    'users.invite.mailReason.connection': 'brak połączenia z serwerem pocztowym',
+    'users.invite.mailReason.timeout': 'serwer pocztowy nie odpowiedział na czas',
+    'users.invite.mailReason.unknown': 'nieznany błąd, zobacz log serwera',
+    'profile.event.invite.mailed': 'Zaproszenie wysłane e-mailem',
+    'profile.event.invite.mail_failed': 'Wysłanie zaproszenia e-mailem nie powiodło się',
+    'mail.invite.subject': 'Zaproszenie do WBengine Admin',
+    'mail.invite.hello': 'Dzień dobry,',
+    'mail.invite.intro': 'Zaproszono Cię do centralnej administracji witryn WBengine. Otwórz stronę zaproszenia, wpisz poniższy kod i wybierz hasło.',
+    'mail.invite.link': 'Strona zaproszenia: {link}',
+    'mail.invite.code': 'Twój kod zaproszenia (skopiuj go w całości):',
+    'mail.invite.expires': 'Kod można użyć tylko raz i wygasa po 48 godzinach.',
+    'mail.invite.ignore': 'Jeśli ta wiadomość jest dla Ciebie niespodzianką, zignoruj ją. Dopóki kod nie zostanie użyty, nic się nie dzieje.'
 };
 export default messages;

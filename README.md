@@ -41,6 +41,32 @@ The app listens on 127.0.0.1:13000 and assumes an HTTPS reverse proxy. ORIGIN mu
 
 The application does not run DDL on every request. Run the migration before starting every version that adds a file in `migrations/`: the `migrate` command applies each `NNN-*.sql` file once and records it in the `schema_migrations` table. The Docker image contains both the CLI and the migration SQL: you can use `docker compose run --rm app npm run admin -- migrate`. The image runs as the node user, and the database has a separate application user.
 
+### Environment variables
+
+| Variable | Required | Meaning |
+|----------|----------|---------|
+| `DATABASE_URL` | yes | MySQL connection URL of the application user. In Compose the host is `db`. |
+| `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `MYSQL_PORT` | Compose only | Passwords of the bundled database container and its published local port (default `13384`). |
+| `MASTER_KEY` | yes | 32 random bytes in hex. Encrypts integration keys and MFA secrets. Needed again when restoring the database. |
+| `ORIGIN` | yes | The exact HTTPS origin of the Admin, no trailing slash. Also the base of the link in invitation mails. |
+| `REMOTE_IP_ALLOWLIST` | no | Exact IP addresses of an intranet target approved by operations. No ranges. |
+| `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT`, `MAIL_SMTP_USER`, `MAIL_SMTP_PASSWORD`, `MAIL_FROM` | no | Invitation mail, see below. |
+
+## Invitations by email
+
+By default an invitation is a one-time code that a global admin hands over by hand. When an SMTP server is configured, the invite form on `/users` gets a second button, "Create and send by email", that mails the person a welcome text, the link to the invitation page and the code. Nothing else changes: the code is still shown on the screen as the fallback, and without the configuration the button is absent.
+
+Set all of `MAIL_SMTP_HOST`, `MAIL_SMTP_USER`, `MAIL_SMTP_PASSWORD` and `MAIL_FROM` (`MAIL_SMTP_PORT` defaults to 587 with STARTTLS; 465 uses TLS from the start). A partly filled configuration disables the feature and logs one warning at start. Certificates are always verified.
+
+With Google (a Google Workspace account on your own domain is preferable, a personal Google account also works):
+
+1. Turn on two-step verification for the sending account.
+2. Create an app password for it. Use that app password, never the account password. Google may change its rules for app passwords and SMTP limits, so check its current documentation.
+3. Put the values into the `.env` of the deployment (on a server: mode `0600`, never in Git): `MAIL_SMTP_HOST=smtp.gmail.com`, `MAIL_SMTP_PORT=587`, `MAIL_SMTP_USER=<the account address>`, `MAIL_SMTP_PASSWORD=<the app password>`, `MAIL_FROM=<the account address or a verified "Send mail as" alias>`. Google rewrites any other sender address.
+4. Redeploy the app (`docker compose up -d --build app`).
+
+The mail is written in the interface language of the inviting administrator (English, Czech, German, Polish). "Sent" means that the SMTP server accepted the message: delivery to the inbox is not guaranteed (SPF, DKIM and DMARC of the sender domain are the operator's concern). When sending fails, the page says why (the server rejected the login, the address was rejected, no connection, a timeout, or an unknown error whose details are in the server log) and the invitation stays valid, so the code can be handed over manually. The password is never logged or shown. Both outcomes are recorded in the audit and the activity list of the sender (`invite.mailed`, `invite.mail_failed`).
+
 ## Activity
 
 Site administrators see an Activity page per site (button on the site overview): the change log of the site with who made each change, when, and through what (Admin or API, site login, command line), filterable by record type and source, plus the writes the site rejected (error code only). It needs a site running the change feed (`GET /api/v2/changes`) and an integration key with the `audit:read` scope; a key issued before that scope existed shows a notice asking for a new key.
@@ -56,7 +82,7 @@ A key issued before these scopes existed still registers; the pages then ask for
 
 ## Central users
 
-Global admins manage the accounts of the Admin itself at `/users`: search, invite (one-time code), disable and enable, promote and demote global admins, one-time recovery codes, MFA reset and revoking site access. Nobody can change their own role or status there and the last global admin is kept.
+Global admins manage the accounts of the Admin itself at `/users`: search, invite (one-time code, optionally sent by email), disable and enable, promote and demote global admins, one-time recovery codes, MFA reset and revoking site access. Nobody can change their own role or status there and the last global admin is kept.
 
 ## Interface language and profile
 

@@ -4,7 +4,9 @@ import { database, transaction, rows } from '../src/lib/server/db.ts';
 import { invite, acceptInvitation, loadSession, login, setupMfa, completeMfa, acceptInvitation as accept } from '../src/lib/server/auth.ts';
 import { migrate } from '../src/lib/server/migrate.ts';
 import { totp } from '../src/lib/server/security.ts';
-import { listUsers, userDetail, inviteUser, issueRecoveryFor, setDisabled, setGlobalAdmin, revokeGrant, resetUserMfa, UserError } from '../src/lib/server/users.ts';
+import { listUsers, userDetail, inviteUser, issueRecoveryFor, setDisabled, setGlobalAdmin, revokeGrant, resetUserMfa, mailInvitation, UserError } from '../src/lib/server/users.ts';
+import type { MailConfig, MailTransport } from '../src/lib/server/mail.ts';
+import { messagesFor, translate, type Translate } from '../src/lib/i18n/index.ts';
 if (!process.env.DATABASE_URL?.includes('wbengine_admin_test'))
     throw Error('The integration test requires the isolated wbengine_admin_test DB');
 await transaction(async (c) => { await migrate(c); });
@@ -101,4 +103,27 @@ test('the user list pages, searches and treats wildcards as text', async () => {
     assert.equal((await listUsers(admin.session, 1, '%')).total, 0);
     assert.equal((await listUsers(admin.session, 1, '_')).total, 0);
     assert.equal((await listUsers(admin.session, 9999, null)).users.length, 0);
+});
+
+test('mailing an invitation records the audit event, and a failed send leaves the invitation usable', async () => {
+    const admin = await member(`mail-${tag}@example.test`, true);
+    const config: MailConfig = { host: 'smtp.example.test', port: 587, user: 'u@example.test', password: 'smtp-secret', from: 'u@example.test' };
+    const t: Translate = (key, params) => translate('en', messagesFor('en'), key, params);
+    const sent: { to: string; text: string }[] = [];
+    const ok: MailTransport = { sendMail: async (m) => { sent.push(m); return {}; }, close: () => {} };
+    const broken: MailTransport = { sendMail: async () => { throw Object.assign(Error('login failed smtp-secret'), { code: 'EAUTH', responseCode: 535 }); }, close: () => {} };
+    const lastEvent = async () => (await transaction(c => rows<{ event: string }>(c, 'SELECT event FROM audit WHERE user_id=? ORDER BY id DESC LIMIT 1', [admin.session.user.id])))[0]?.event;
+
+    const first = await inviteUser(admin.session, `mail-ok-${tag}@example.test`, false, null, null);
+    assert.deepEqual(await mailInvitation(admin.session, first, null, 'https://admin.example.test', t, config, () => ok), { ok: true });
+    assert.equal(await lastEvent(), 'invite.mailed');
+    assert.equal(sent[0].to, first.email);
+    assert.ok(sent[0].text.includes(first.token));
+
+    const second = await inviteUser(admin.session, `mail-bad-${tag}@example.test`, false, null, null);
+    assert.deepEqual(await mailInvitation(admin.session, second, null, 'https://admin.example.test', t, config, () => broken), { ok: false, reason: 'auth' });
+    assert.equal(await lastEvent(), 'invite.mail_failed');
+    await acceptInvitation(second.token, password);
+
+    assert.equal(await mailInvitation(admin.session, first, null, 'https://admin.example.test', t, null), null);
 });

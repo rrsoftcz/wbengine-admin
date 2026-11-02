@@ -41,6 +41,10 @@ export function checkCsrf(request: Request, origin: string, expected: string, su
 async function audit(c: Connection, userId: number | null, event: string, siteId: number | null = null) {
     await c.execute('INSERT INTO audit (user_id,event,site_id) VALUES (?,?,?)', [userId, event, siteId]);
 }
+/** Records one audit event outside of another transaction (used after an invitation mail). */
+export function recordAudit(userId: number | null, event: string, siteId: number | null = null) {
+    return transaction((c) => audit(c, userId, event, siteId));
+}
 async function newSession(c: Connection, userId: number) {
     const raw = token(), csrf = tokenHash(token());
     await c.execute('INSERT INTO sessions (token_hash,user_id,csrf,expires_at) VALUES (?,?,?,?)', [tokenHash(raw), userId, csrf, new Date(Date.now() + 8 * 3600000)]);
