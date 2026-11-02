@@ -1,6 +1,6 @@
 # Plan: replace MySQL with SQLite in WBengine Admin
 
-Status: approved by the owner. PR 1 is implemented (SQL-00 to SQL-07, SEC-01 to SEC-06); SQL-08 (green pilot job) and SQL-09 (independent review, findings fixed: read connection for session loading, private directories, guarded commit, statement cache cap, stricter import guard) are done, the cutover and PR 2 are not done yet.
+Status: done. The cutover on the test server (contabo) was made on 2026-11-02, the owner confirmed the sign-in, the MySQL container, its volume and the temporary import tooling were removed on 2026-11-03.
 
 ## Decision and reasons
 
@@ -110,9 +110,9 @@ Rollback at any point: `git checkout` the previous release on the server, `docke
 
 ### PR 2: cleanup (after two quiet weeks, or earlier if the owner agrees)
 
-- [ ] SQL-10: remove `mysql2`, `scripts/import-mysql.ts`, the `legacy` profile and `db` service, the `admin-db` volume reference, leftover MySQL wording in README and docs (`book-connect-a-site-end-to-end.md` still mentions `MYSQL_PASSWORD` and `DATABASE_URL`).
-- [ ] SQL-11: on the server remove the `admin-db` volume and the old `.env` keys only after the owner confirms.
-- [ ] SQL-12: update the project memory file about operations (deploy and migration commands changed).
+- [x] SQL-10: remove `mysql2`, `scripts/import-mysql.ts`, the `legacy` profile and `db` service, the `admin-db` volume reference, leftover MySQL wording in README and docs (`book-connect-a-site-end-to-end.md` still mentions `MYSQL_PASSWORD` and `DATABASE_URL`).
+- [x] SQL-11: on the server remove the `admin-db` volume and the old `.env` keys only after the owner confirms.
+- [x] SQL-12: update the project memory file about operations (deploy and migration commands changed).
 
 ## Acceptance criteria
 

@@ -2,7 +2,7 @@
 
 A standalone central SvelteKit administration for multiple WBengine 4 sites via API v2. Content stays on the sites, and integration keys live exclusively on the central server. The PHP core keeps the Application/Site/Section/Box tree. The current administration release is `v0.2.0`; the repo remains private.
 
-- [x] ADM-01: project, MySQL, Docker, explicit CLI migrations.
+- [x] ADM-01: project, MySQL, Docker, explicit CLI migrations. (Since 2026-11-03 the data lives in SQLite, see `plan-sqlite-migration.md`; MySQL mentions in this history are no longer current.)
 - [x] ADM-02: invitations, scrypt, TOTP, backup codes, recovery, sessions, CSRF, per-site roles, concurrency regressions.
 - [x] ADM-03: registry, encrypted keys, CLI provisioning, HTTPS client with pinned DNS and an overall deadline, discovery.
 - [x] ADM-04: content editor, structure, translations, registered boxes, images.
