@@ -37,7 +37,7 @@ Target: **0.2.0**.
 
 ### Changed
 
-- The application has its own icon, a hub: one central node linked to three site nodes, on a dark slate tile (`static/favicon.svg`, a 16, 32 and 48 px `favicon.ico` and a full-square 180 px `apple-touch-icon.png`). The same mark is the logo in the sidebar, the mobile header and the sign-in page, so the admin no longer looks like the WBengine skeleton site. The icons are public, declared in the head of every page and checked by the HTTP smoke test.
+- The application uses the WBengine logo (the light icon from the skeleton `public/Assets/svg/wbengine-03-icon-light.svg`) as its icon: `static/favicon.svg`, a 16, 32 and 48 px `favicon.ico` and a full-square 180 px `apple-touch-icon.png` on the logo purple. The same logo is shown in the sidebar, the mobile header and the sign-in page, and the browser theme colour is the logo purple. The icons are public, declared in the head of every page and checked by the HTTP smoke test.
 - The administration stores its data in one SQLite file (the built-in `node:sqlite`) instead of MySQL: no database server, no database account or password, one container and one volume (`admin-data`). Transactions run one at a time with `BEGIN IMMEDIATE`, session loading uses a separate read-only connection, and the file, its journal and every backup are readable only by their owner. The runtime dependency `mysql2` is gone. `npm run test:integration` replaces `npm run test:mysql` and needs no Docker. The command `admin backup FILE` makes a consistent online backup. Site keys and MFA secrets keep their encryption and `MASTER_KEY`.
 - Page links are normalized on save to the `/o-nas/` form (leading and trailing slash).
 - New pages can automatically get a `story` box in the `central` section so the
