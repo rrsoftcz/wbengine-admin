@@ -18,14 +18,14 @@
 <div class="min-h-dvh md:grid md:grid-cols-[17rem_1fr]">
     <header class="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface/90 px-4 py-3 backdrop-blur md:hidden">
         <a href="/" class="flex items-center gap-2 font-bold text-text no-underline">
-            <span class="grid size-8 place-items-center rounded-lg bg-brand text-sm text-brand-contrast">W</span> WBengine
+            <img src="/favicon.svg" alt="" width="32" height="32" class="size-8 rounded-lg"> WBengine
         </a>
         <button type="button" class="btn btn-secondary btn-sm" aria-expanded={open} aria-controls="nav" onclick={() => (open = !open)}>{open ? t('app.shell.close') : t('app.shell.menu')}</button>
     </header>
 
     <aside id="nav" class="{open ? 'flex' : 'hidden'} fixed inset-x-0 top-[3.4rem] bottom-0 z-20 flex-col gap-1 overflow-y-auto border-r border-line bg-surface p-4 md:sticky md:top-0 md:flex md:h-dvh md:inset-auto">
         <a href="/" class="mb-4 hidden items-center gap-3 px-2 py-1 text-text no-underline md:flex">
-            <span class="grid size-9 place-items-center rounded-xl bg-brand font-bold text-brand-contrast">W</span>
+            <img src="/favicon.svg" alt="" width="36" height="36" class="size-9 rounded-xl">
             <span class="leading-tight"><span class="block font-bold">WBengine</span><span class="block text-xs text-muted">{t('app.brand.subtitle')}</span></span>
         </a>
         <nav class="flex flex-col gap-1" aria-label={t('app.shell.navLabel')}>
