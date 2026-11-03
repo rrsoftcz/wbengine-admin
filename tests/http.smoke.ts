@@ -55,6 +55,14 @@ test('HTTP SSR login, CSRF, secure cookies, mandatory MFA and registry access', 
     // no-referrer would make the browser send Origin: null on a POST form, which the SvelteKit CSRF check rejects.
     assert.equal(loginPage.headers.get('referrer-policy'), 'same-origin');
     assert.ok(!html.includes('key_cipher'));
+    // The icon of the application is public (no session) and declared in every page head.
+    assert.match(html, /rel="icon" type="image\/svg\+xml" href="(?:\.\/|\/)favicon\.svg"/);
+    assert.match(html, /rel="apple-touch-icon" href="(?:\.\/|\/)apple-touch-icon\.png"/);
+    for (const [path, type] of [['/favicon.svg', 'image/svg+xml'], ['/favicon.ico', 'image/'], ['/apple-touch-icon.png', 'image/png']]) {
+        const icon = await fetch(transport + path, { redirect: 'manual' });
+        assert.equal(icon.status, 200, path);
+        assert.ok((icon.headers.get('content-type') ?? '').startsWith(type), path);
+    }
     assert.ok(loginPage.headers.getSetCookie().every(c => c.includes('Secure') && c.includes('HttpOnly') && c.includes('SameSite=Strict')));
     let csrf = csrfFrom(html)!;
     assert.ok(csrf);
